@@ -1,0 +1,257 @@
+BrainVision Data Exchange Header File Version 1.0
+; Data created by the BrainVision Recorder
+
+[Common Infos]
+Codepage=UTF-8
+DataFile=EEG000020-13042021-1721UTC.eeg
+MarkerFile=EEG000020-13042021-1721UTC.vmrk
+DataFormat=BINARY
+; Data orientation: MULTIPLEXED=ch1,pt1, ch2,pt1 ...
+DataOrientation=MULTIPLEXED
+NumberOfChannels=65
+; Sampling interval in microseconds
+SamplingInterval=1000
+
+[Binary Infos]
+BinaryFormat=IEEE_FLOAT_32
+
+[Channel Infos]
+; Each entry: Ch<Channel number>=<Name>,<Reference channel name>,
+; <Resolution in "Unit">,<Unit>, Future extensions..
+; Fields are delimited by commas, some fields might be omitted (empty).
+; Commas in channel names are coded as "\1".
+Ch1=Fp1,,0.0488281,µV
+Ch2=AF3,,0.0488281,µV
+Ch3=AF7,,0.0488281,µV
+Ch4=F7,,0.0488281,µV
+Ch5=F5,,0.0488281,µV
+Ch6=F3,,0.0488281,µV
+Ch7=F1,,0.0488281,µV
+Ch8=Fz,,0.0488281,µV
+Ch9=FC1,,0.0488281,µV
+Ch10=FC3,,0.0488281,µV
+Ch11=FC5,,0.0488281,µV
+Ch12=FT7,,0.0488281,µV
+Ch13=FT9,,0.0488281,µV
+Ch14=T7,,0.0488281,µV
+Ch15=C5,,0.0488281,µV
+Ch16=C3,,0.0488281,µV
+Ch17=C1,,0.0488281,µV
+Ch18=Cz,,0.0488281,µV
+Ch19=CP1,,0.0488281,µV
+Ch20=CP3,,0.0488281,µV
+Ch21=CP5,,0.0488281,µV
+Ch22=TP7,,0.0488281,µV
+Ch23=TP9,,0.0488281,µV
+Ch24=P7,,0.0488281,µV
+Ch25=P5,,0.0488281,µV
+Ch26=P3,,0.0488281,µV
+Ch27=P1,,0.0488281,µV
+Ch28=Pz,,0.0488281,µV
+Ch29=PO3,,0.0488281,µV
+Ch30=PO7,,0.0488281,µV
+Ch31=O1,,0.0488281,µV
+Ch32=Oz,,0.0488281,µV
+Ch33=Fp2,,0.0488281,µV
+Ch34=AF8,,0.0488281,µV
+Ch35=AF4,,0.0488281,µV
+Ch36=AFz,,0.0488281,µV
+Ch37=F2,,0.0488281,µV
+Ch38=F4,,0.0488281,µV
+Ch39=F6,,0.0488281,µV
+Ch40=F8,,0.0488281,µV
+Ch41=FT10,,0.0488281,µV
+Ch42=FT8,,0.0488281,µV
+Ch43=FC6,,0.0488281,µV
+Ch44=FC4,,0.0488281,µV
+Ch45=FC2,,0.0488281,µV
+Ch46=C2,,0.0488281,µV
+Ch47=C4,,0.0488281,µV
+Ch48=C6,,0.0488281,µV
+Ch49=T8,,0.0488281,µV
+Ch50=TP10,,0.0488281,µV
+Ch51=TP8,,0.0488281,µV
+Ch52=CP6,,0.0488281,µV
+Ch53=CP4,,0.0488281,µV
+Ch54=CP2,,0.0488281,µV
+Ch55=CPz,,0.0488281,µV
+Ch56=P2,,0.0488281,µV
+Ch57=P4,,0.0488281,µV
+Ch58=P6,,0.0488281,µV
+Ch59=P8,,0.0488281,µV
+Ch60=PO8,,0.0488281,µV
+Ch61=PO4,,0.0488281,µV
+Ch62=O2,,0.0488281,µV
+Ch63=FCz,,0.0488281,µV
+Ch64=65,,0.298023,µV
+Ch65=66,,0.298023,µV
+
+[Comment]
+
+BrainVision Recorder Professional   -   V. 1.23.0003
+
+
+A m p l i f i e r  S e t u p
+============================
+Number of channels: 65
+Sampling Rate [Hz]: 1000
+Sampling Interval [µS]: 1000
+
+Channels
+--------
+#     Name      Phys. Chn.    Resolution / Unit   Low Cutoff [s]   High Cutoff [Hz]   Notch [Hz]    Gradient         Offset
+1     Fp1         1          0.0488281 µV             DC              280              Off
+2     AF3         2          0.0488281 µV             DC              280              Off
+3     AF7         3          0.0488281 µV             DC              280              Off
+4     F7          4          0.0488281 µV             DC              280              Off
+5     F5          5          0.0488281 µV             DC              280              Off
+6     F3          6          0.0488281 µV             DC              280              Off
+7     F1          7          0.0488281 µV             DC              280              Off
+8     Fz          8          0.0488281 µV             DC              280              Off
+9     FC1         9          0.0488281 µV             DC              280              Off
+10    FC3         10         0.0488281 µV             DC              280              Off
+11    FC5         11         0.0488281 µV             DC              280              Off
+12    FT7         12         0.0488281 µV             DC              280              Off
+13    FT9         13         0.0488281 µV             DC              280              Off
+14    T7          14         0.0488281 µV             DC              280              Off
+15    C5          15         0.0488281 µV             DC              280              Off
+16    C3          16         0.0488281 µV             DC              280              Off
+17    C1          17         0.0488281 µV             DC              280              Off
+18    Cz          18         0.0488281 µV             DC              280              Off
+19    CP1         19         0.0488281 µV             DC              280              Off
+20    CP3         20         0.0488281 µV             DC              280              Off
+21    CP5         21         0.0488281 µV             DC              280              Off
+22    TP7         22         0.0488281 µV             DC              280              Off
+23    TP9         23         0.0488281 µV             DC              280              Off
+24    P7          24         0.0488281 µV             DC              280              Off
+25    P5          25         0.0488281 µV             DC              280              Off
+26    P3          26         0.0488281 µV             DC              280              Off
+27    P1          27         0.0488281 µV             DC              280              Off
+28    Pz          28         0.0488281 µV             DC              280              Off
+29    PO3         29         0.0488281 µV             DC              280              Off
+30    PO7         30         0.0488281 µV             DC              280              Off
+31    O1          31         0.0488281 µV             DC              280              Off
+32    Oz          32         0.0488281 µV             DC              280              Off
+33    Fp2         33         0.0488281 µV             DC              280              Off
+34    AF8         34         0.0488281 µV             DC              280              Off
+35    AF4         35         0.0488281 µV             DC              280              Off
+36    AFz         36         0.0488281 µV             DC              280              Off
+37    F2          37         0.0488281 µV             DC              280              Off
+38    F4          38         0.0488281 µV             DC              280              Off
+39    F6          39         0.0488281 µV             DC              280              Off
+40    F8          40         0.0488281 µV             DC              280              Off
+41    FT10        41         0.0488281 µV             DC              280              Off
+42    FT8         42         0.0488281 µV             DC              280              Off
+43    FC6         43         0.0488281 µV             DC              280              Off
+44    FC4         44         0.0488281 µV             DC              280              Off
+45    FC2         45         0.0488281 µV             DC              280              Off
+46    C2          46         0.0488281 µV             DC              280              Off
+47    C4          47         0.0488281 µV             DC              280              Off
+48    C6          48         0.0488281 µV             DC              280              Off
+49    T8          49         0.0488281 µV             DC              280              Off
+50    TP10        50         0.0488281 µV             DC              280              Off
+51    TP8         51         0.0488281 µV             DC              280              Off
+52    CP6         52         0.0488281 µV             DC              280              Off
+53    CP4         53         0.0488281 µV             DC              280              Off
+54    CP2         54         0.0488281 µV             DC              280              Off
+55    CPz         55         0.0488281 µV             DC              280              Off
+56    P2          56         0.0488281 µV             DC              280              Off
+57    P4          57         0.0488281 µV             DC              280              Off
+58    P6          58         0.0488281 µV             DC              280              Off
+59    P8          59         0.0488281 µV             DC              280              Off
+60    PO8         60         0.0488281 µV             DC              280              Off
+61    PO4         61         0.0488281 µV             DC              280              Off
+62    O2          62         0.0488281 µV             DC              280              Off
+63    FCz         64         0.0488281 µV             DC              280              Off
+64    65          65          0.298023 µV             DC              280              Off
+65    66          66          0.298023 µV             DC              280              Off
+
+Reference Channel Name = POz
+Reference Phys. Chn.   = 63
+Use active/dry Electrodes = Yes 
+Good Level [kOhms]     = 10
+Bad Level [kOhms]      = 50
+MY-Button Workspace    = C:\Vision\Workfiles\MYButton
+
+Amplifier 
+actiCHamp Base Unit (5001) 
+  --- S/N 16010550 --- 
+
+actiCHamp 32 CH Module
+  --- Module 1 (5010): S/N 16011064 ---
+  --- Module 2 (5010): S/N 16011065 ---
+Version: DLL_27.18.06.25, DRV_03.04.01.146, CTRL_102.15.06.09, FPGA_67.00.00.00, DSP_105.14.10.07 
+
+
+S o f t w a r e  F i l t e r s
+==============================
+Disabled
+
+
+Data/Gnd Electrodes Selected Impedance Measurement Range: 10 - 50 kOhm
+Impedance [kOhm] at 10:22:19 :
+Fp1:      not connected
+AF3:      not connected
+AF7:      not connected
+F7:       not connected
+F5:       not connected
+F3:       not connected
+F1:       not connected
+Fz:       not connected
+FC1:      not connected
+FC3:      not connected
+FC5:      not connected
+FT7:      not connected
+FT9:      not connected
+T7:       not connected
+C5:       not connected
+C3:       not connected
+C1:       not connected
+Cz:       not connected
+CP1:      not connected
+CP3:      not connected
+CP5:      not connected
+TP7:      not connected
+TP9:      not connected
+P7:       not connected
+P5:       not connected
+P3:       not connected
+P1:       not connected
+Pz:       not connected
+PO3:      not connected
+PO7:      not connected
+O1:       not connected
+Oz:       not connected
+Fp2:      not connected
+AF8:      not connected
+AF4:      not connected
+AFz:      not connected
+F2:       not connected
+F4:       not connected
+F6:       not connected
+F8:       not connected
+FT10:     not connected
+FT8:      not connected
+FC6:      not connected
+FC4:      not connected
+FC2:      not connected
+C2:       not connected
+C4:       not connected
+C6:       not connected
+T8:       not connected
+TP10:     not connected
+TP8:      not connected
+CP6:      not connected
+CP4:      not connected
+CP2:      not connected
+CPz:      not connected
+P2:       not connected
+P4:       not connected
+P6:       not connected
+P8:       not connected
+PO8:      not connected
+PO4:      not connected
+O2:       not connected
+POz:      not connected
+FCz:      not connected
+Gnd:      Out of Range!

@@ -1,0 +1,71 @@
+Neurosig Log File
+Subject:000020
+Start time: 13042021-1721UTC
+Local date: 13Apr2021
+Local time: 10:21
+Intro1 started 10:21
+Intro2 started 10:21
+Cap started 10:22
+Elec started 10:22
+Chans started 10:22
+SoundCheck Inst started 10:23
+SoundCheck started 10:23
+SoundCheck ended 10:23
+SoundCheckAsk started 10:23
+VisOddIntro1 Inst started 10:23
+VisOddShowStandards started 10:23
+VisOddShowStandards ended 10:24
+VisOddIntro2 Inst started 10:24
+VisOddShowTarget started 10:24
+VisOddShowTarget ended 10:24
+VisOddPractice1 Inst started 10:24
+VisOddPractice1 started 10:24
+VisOddPractice1 ended 10:24
+VisOddPracticeAsk started 10:24
+VisOdd1 Inst started 10:25
+VisOdd1 started 10:25
+VisOdd1 ended 10:30
+AudOddIntro1 Inst started 10:30
+AudOddPlayStandards started 10:30
+AudOddPlayStandards ended 10:31
+AudOddIntro2 Inst started 10:31
+AudOddPlayTarget started 10:31
+AudOddPlayTarget ended 10:31
+AudOddPractice1 Inst started 10:31
+AudOddPractice1 started 10:31
+AudOddPractice1 ended 10:31
+AudOddPracticeAsk started 10:31
+AudOdd1 Inst started 10:31
+AudOdd1 started 10:31
+AudOdd1 ended 10:36
+VisOdd2 Inst started 10:36
+VisOdd2 started 10:36
+VisOdd2 ended 10:41
+AudOdd2 Inst started 10:41
+AudOdd2 started 10:41
+AudOdd2 ended 10:46
+VisOdd3 Inst started 10:46
+VisOdd3 started 10:46
+VisOdd3 ended 10:51
+AudOdd3 Inst started 10:51
+AudOdd3 started 10:51
+AudOdd3 ended 10:55
+VisOdd4 Inst started 10:55
+VisOdd4 started 10:55
+VisOdd4 ended 11:01
+AudOdd4 Inst started 11:01
+AudOdd4 started 11:01
+AudOdd4 ended 11:05
+VisOdd5 Inst started 11:05
+VisOdd5 started 11:05
+VisOdd5 ended 11:11
+Gamma Inst started 11:11
+Gamma started 11:11
+Gamma ended 11:16
+EyesOpen Inst started 11:16
+EyesOpen started 11:16
+EyesOpen ended 11:19
+EyesClosed Inst started 11:19
+EyesClosed started 11:20
+EyesClosed ended 11:23
+Done started 11:23
