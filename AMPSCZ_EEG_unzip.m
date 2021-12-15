@@ -24,236 +24,278 @@ function AMPSCZ_EEG_unzip
 % add in a dialog to overwrite paritially extracted zip files?  can we allow anything interactive in this pipeline?
 % stop logging stuff that's already been done! - done.  create some sort of sheet where you can look for previous processing status? - undone
 
-	error( 'Needs to be modified for BWH paths & latest PHOENIX organization' )
+% 	error( 'Needs to be modified for BWH paths & latest PHOENIX organization' )
 
 	try
-		narginchhk( 0, 0 )
 
-		if ispc
-% 			speroDir = 'S:\bieegl02\home\scnicholas';
-		elseif ismac
-			error( 'unsupported OS' )
-		elseif isunix
-% 			speroDir = '/home/bjr39/mathalon2/home/scnicholas';
-		end
-% 		projectDir = fullfile( speroDir, 'playground', 'EEG', 'ProNet' );
-		projectDir = 'C:\Users\donqu\Documents\NCIRE\ProNET';
-		if ~isfolder( projectDir )
+		narginchk( 0, 0 )
+		
+		verbose = true;
+		debug   = false;
+
+		AMPSCZdir = '/data/predict/kcho/flow_test';
+		if ~isfolder( AMPSCZdir )
 			error( 'Invalid project directory' )
 		end
+		siteInfo  = AMPSCZ_EEG_siteInfo;
+		nSite     = size( siteInfo, 1 );
+% 		subGroups = unique( siteInfo(:,2) );
+% 		nGroup    = numel( subGroups );
 
-		siteName   = ProNET_siteNames;
-		nSite      = size( siteName, 1 );
+		[ taskInfo, taskSeq ] = AMPSCZ_EEG_taskSeq;
+		rawExts = { '.vhdr', '.vmrk', '.eeg', '.txt' };
+		nTask     = size( taskInfo, 1 );
+		nSeq      = numel( taskSeq );			% total #tasks with repeats, not number of unique tasks
+		nExt      = numel( rawExts );
+% 		rawExist  = false( 1, nExt );
+		testCodes = cellfun( @(u) u{1,1}, taskInfo(:,2), 'UniformOutput', true );		% used to identify task for recording segment
 
-		[ taskInfo, taskSeq ] = ProNET_taskSeq;
-		proNetExts  = { '.vhdr', '.vmrk', '.eeg', '.txt' };
-		nTask       = size( taskInfo, 1 );
-		nSeq        = numel( taskSeq );			% total #tasks with repeats, not number of unique tasks
-		nExt        = numel( proNetExts );
-% 		rawExist    = false( 1, nExt );
-		testCodes   = cellfun( @(u) u{1,1}, taskInfo(:,2), 'UniformOutput', true );		% used to identify task for recording segment
-		
 		% for segmented BV files that exist already, echo to command window too?
 % 		segFileLogFcn = @writeToLog;
 		segFileLogFcn = @writeToLogNoEcho;
-		
-		fprintf( '\n' )
+
+		if verbose
+			fprintf( '\n' )
+		end
 		for iSite = 1:nSite
 			
-			if ~isfolder( fullfile( projectDir, siteName{iSite,1} ) )		% windows isfolder/isdir aren't case-sensitive
-				fprintf( '\nsite %s not found\n', siteName{iSite,1} )
+			siteName  = siteInfo{iSite,1};
+			siteGroup = siteInfo{iSite,2};
+			if verbose
+				fprintf( [ '\n%s ', repmat( '=', [ 1, 80-1-numel(siteName) ] ), '\n' ], siteName )
+			end
+
+			% Check if site has existing PROTECTED raw directory
+			siteDir = fullfile( AMPSCZdir, siteGroup, 'PHOENIX', 'PROTECTED', [ siteGroup, siteName ] );
+			rawDir  = fullfile( siteDir, 'raw' );
+			if ~isfolder( rawDir )		% windows isfolder/isdir aren't case-sensitive
+				if verbose
+					fprintf( '\nsite %s/raw not found\n', [ siteGroup, siteName ] )
+				end
 				continue
 			end
+			procDir = fullfile( siteDir, 'processed' );
+			if ~isfolder( procDir )
+				if ~debug
+					mkdir( procDir )
+				elseif verbose
+					fprintf( 'created %s\n', procDir )
+				end
+			end
+
+			% Scan for valid subject directories
+			subjDirs = dir( rawDir );
+			% directories only
+			subjDirs(~[subjDirs.isdir]) = [];
+			% valid names only
+			subjDirs(cellfun( @isempty, regexp( { subjDirs.name }, [ siteName, '\d{5}$' ], 'start', 'once' ) )) = [];
+			% eeg sub-directories only
+			subjDirs(cellfun( @exist, fullfile( rawDir, { subjDirs.name }, 'eeg' ), 'UniformOutput', true ) ~= 7) = [];
+			nSubj = numel( subjDirs );
+
+			for iSubj = 1:nSubj
+
+				% zip files expected to each contain 4 files
+				% each with the identical name as the zip file except for the extensions
+				% .eeg, .vhdr, .vmrk (brain vision core format) and .txt
+				% data and header are mandatory for BV, marker file is not
+				zipFiles = dir( fullfile( rawDir, subjDirs(iSubj).name, 'eeg', '*.zip' );		% could use subjDirs(isubj).folder
+				% throw out illegal filenames
+				% make sure to allow for session coming in as multiple zips
+				% allow lower case site codes?
+				zipFiles( cellfun( @isempty, regexp( { zipFiles.name }, [ '^[', siteName(1), lower( siteName(1) ), '][',...
+					siteName(2), lower( siteName(2) ), ']\d{5}_eeg_\d{8}_?\d*.zip$' ], 'start', 'once' ) ) ) = [];
+
+				% check for multiple zip-files per session, i.e. ignore any trailing _# in the file names
+				% unique session names
+				sessionName  = unique( cellfun( @(u)[upper(u(1:2)),u(3:20)], { zipFiles.name }, 'UniformOutput', false ) );
+				nSession     = numel( sessionName );
+				
+				for iSession = 1:nsession
+					
+					outputDir = fullfile( procDir, subjDirs(iSubj).name, 'eeg', [ 'ses-', sessionName{iSession}(13:20) ] );
+					if ~isfolder( outputDir )
+						if ~debug
+							% note: mkdir can create directories in parents that don't yet exist
+							mkdir( outputDir )
+						elseif verbose
+							fprintf( 'created %s\n', outputDir )
+						end
+					end
+					
+					% Check status
+					statusFile = fullfile( outputDir, [ '.', sessionName{iSession}, '.status' ] );
+					if exist( statusFile, 'file' ) == 2
+						[ fidStatus, errMsg ] = fopen( statusFile, 'r' );
+						if fidStatus == -1
+							error( errMsg )
+						end
+						char1 = fread( fidStatus, 1, 'char' );		% read as double.  you'll get empty output w/ empty file, not error
+						if strcmp( char1, '3' )
+							fidStatus(:) = fclose( fidStatus );
+							if fidStatus == -1
+							end
+							if verbose
+								fprintf( '%s unzipped/segmetned previously\n', sessionName{iSession} )
+							end
+							continue
+						end
+					else
+						[ fidStatus, errMsg ] = fopen( statusFile, 'w' );
+						if fidStatus == -1
+							error( errMsg )
+						end
+						char1 = abs( '0' );		% 48
+					end
+					
+					% Unzip
+					if char1 == abs( '0' )
+						% current session's zip file(s)
+						Izip = find( strncmpi( { zipFiles.name }, sessionName{iSession}, 20 ) );
+						nZip = numel( Izip );
+
+						baseName = '';
+						kBadZip  = false( 1, nZip );
+						for iZip = 1:nZip
+							% Check zip-file content
+							% e.g. 'Vision/Raw Files/XX#####_eeg_YYYYYMMDD.eeg' ...
+							zipContent = listZipContents( fullfile( zipFiles(Izip(iZip)).folder, zipFiles(Izip(iZip)).name ) );		% #x1 cell array, relative to zipFile parent directory
+							% -- check for existence of unzipped files
+							unzipCheck = cellfun( @(u)exist(u,'file')==2, fullfile( outputDir, zipContent ) );
+							[ zipContentPath, zipContentFile, zipContentExt ] = fileparts( zipContent );	% extensions include initial '.'
+							if all( unzipCheck )
+								if isempty( baseName )
+									baseName    = zipContentFile{1}(1:20);			% what's more reliable zip-file name or contents?
+									subDir      = zipContentPath{1};
+								end
+								if verbose
+									fprintf( 'zip-file already extracted\n' )
+								end
+								fseek( fidStatus, 0, 'bof' )
+								fprintf( fitStatus, '%d unzipped %s', 1, datestr( now, 'yyyymmddTHHMMSS' ) )
+								continue
+							elseif any( unzipCheck )
+								kBadZip(iZip) = true;		% not necessarily a bad zip file?, partially deleted?
+								if verbose
+									writeToLog( 'zip-file partially extracted\n' )
+								end
+% 								continue
+							end
+							% -- path tests
+							if ~all( strcmp( zipContentPath, zipContentPath{1} ) )
+								kBadZip(iZip) = true;
+								if verbose
+									fprintf( 'inconsistent paths in zip-file contents\n' )
+								end
+								fseek( fidStatus, 0, 'bof' )
+								fprintf( fitStatus, '%d inconsistent paths in zip file %s', 0, datestr( now, 'yyyymmddTHHMMSS' ) )
+								continue
+							end
+							if ~strcmp( zipContentPath{1}, 'Vision/Raw Files' )
+								if verbose
+									fprintf( 'WARNING: unexpected zip-file path %s\n', zipContentPath{1} )
+								end
+							end
+							
+							error( 'left off here' )
+							
+							% -- filename tests
+		% 					if numel( zipContentFile{1} ) < 20
+		% 						kBadZip(iZip) = true;
+		% 						writeToLog( 'zip file content name too short\n' )
+		% 						continue
+		% 					end
+							% checking them all here will imply length >= 20 & is redundant with check below
+							if ~all( strcmp( zipContentFile, zipFiles(Izip(iZip)).name(1:end-4) ) )
+								kBadZip(iZip) = true;
+								writeToLog( 'zip file content name doesn''t match zip file name\n' )
+								continue
+							end
+							%    this wouldn't necessarily be a problem, but is part of ProNET data specifications
+		% 					if ~all( strncmp( zipContentFile, zipContentFile{1}(1:20), 20 ) )
+		% 						writeToLog( 'inconsistent file names in zip-file contents\n' )
+		% 					end
+							% -- extension tests
+							if ~all( ismember( { '.eeg', '.vhdr', '.vmrk' }, zipContentExt ) )		% can tolerate missing .txt?
+								kBadZip(iZip) = true;
+								writeToLog( 'zip file missing critical file(s)\n' )
+								continue
+							end
+							if ~ismember( '.txt', zipContentExt )
+								writeToLog( 'zip file missing .txt file\n' )
+							end
+							if numel( zipContent ) ~= nExt
+		% 						error( '# files in %s ~= %d', zipFile, nExt )
+								writeToLog( '# files in %s ~= %d\n', zipFile, nExt )
+							end
+							if ~all( ismember( zipContentExt, rawExts ) )
+								writeToLog( 'unexpected extension(s) in zip-file content\n' )
+							end
+
+							% -- store some parameters for 1st zip file in each session
+		% 					if iZip == 1
+							if isempty( baseName )
+								baseName    = zipContentFile{1}(1:20);			% what's more reliable zip-file name or contents?
+								subDir      = zipContentPath{1};
+							end
+
+							% -- check for existence of unzipped files
+		% 					for iExt = 1:nExt
+		% 						rawExist(iExt) = exist( fullfile( rawDir, subDir, [ zipFiles(Izip(iZip)).name(1:end-4), rawExts{iExt} ] ), 'file' ) == 2;
+		% 					end
+		% 					if all( rawExist )
+		% 						writeToLog( 'zip-file already extracted\n' )
+		% 						continue
+		% 					elseif any( rawExist )
+		% 						error( 'partially-extracted zip file? %s\n', zipFile )
+		% 					end
+
+							% checks across zips
+							if ~all( strcmp( zipContentPath, subDir ) )
+								kBadZip(iZip) = true;
+								writeToLog( 'inconsistent paths in zip-file contents\n' )
+								continue
+							end
+							if ~all( strncmp( zipContentFile, baseName, 20 ) )
+								kBadZip(iZip) = true;
+								writeToLog( 'inconsistent file names in zip-file contents\n' )
+								continue
+							end
+
+							% Unzip
+							writeToLog( 'extracting %s...', zipFile )
+							tic
+							unzip( zipFile, rawDir )
+							writeToLog( ' done.  (%0.3f sec)\n', toc )
+
+						end		% zip-file loop #1 (unzip)
+
+					end
+					
+					% Segment
+					if ismember( char1, abs( '01' ) )
+					end
+					
+					% Add Sidecars.  
+					% if char1 == abs('3') you would have continued already
+
+				end
+
+			end
 			
-			zipDir     = fullfile( projectDir, siteName{iSite,1}, 'zip' );
-			rawDir     = fullfile( projectDir, siteName{iSite,1}, 'raw' );
-			bidsDir    = fullfile( projectDir, siteName{iSite,1}, 'BIDS' );
+			rawDir     = fullfile( AMPSCZdir, siteInfo{iSite,1}, 'raw' );
+			bidsDir    = fullfile( AMPSCZdir, siteInfo{iSite,1}, 'BIDS' );
 
-			fprintf( [ '\n', siteName{iSite,1}, ' ', repmat( '=', [ 1, 80-numel(siteName{iSite,1})-1 ] ), '\n' ] )
-% 			fprintf( '\n%s\n', siteName{iSite,1} )
 
-% 			if ~isfolder( zipDir )
-% 				mkdir( zipDir )
-% 				fprintf( 'Created directory %s\n', zipDir )
-% 			end
-			folderList = { zipDir };
-			existDirs  = isfolder( folderList );
-			if ~all( existDirs )
-				fprintf( '\nfolder(s) not found\n' )
-				fprintf( '\t%s\n', folderList{~existDirs} )
-				continue	% skip site
-			end
-			if ~isfolder( rawDir )
-				mkdir( rawDir )
-				fprintf( 'Created directory %s\n', rawDir )
-			end
 
-			% zip files expected to each contain 4 files
-			% each with the identical name as the zip file except for the extensions
-			% .eeg, .vhdr, .vmrk (brain vision format) and .txt
-			% legal BV data file extensions are eeg, avg, or seg
-			% data and header are mandatory for BV, marker file is not
-			% all ProNET data collected on identical systems, thus should always be .eeg
-% 			bvDataExt = '.eeg';		% .eeg, .avg, or .seg
-			zipFiles = dir( fullfile( zipDir, '*.zip' ) );
-			% throw out illegal filenames
-			zipFiles( cellfun( @isempty, regexp( { zipFiles.name }, [ '^[', siteName{iSite,1}(1), lower( siteName{iSite,1}(1) ), '][',...
-				siteName{iSite,1}(2), lower( siteName{iSite,1}(2) ), ']\d{5}_eeg_\d{8}_?\d*.zip$' ], 'start', 'once' ) ) ) = [];
 
-			% check for multiple zip-files per session
-			% unique session names
-			sessionName  = unique( cellfun( @(u)[upper(u(1:2)),u(3:20)], { zipFiles.name }, 'UniformOutput', false ) );
-			nSession     = numel( sessionName );
 			for iSession = 1:nSession
 
 				% this was to avoid updating log file @ all, but required everything to be 100% perfect
 				% how about storing string as you go, and only write to log file if any new segmented files get created?
-%{
-				% from zipFile: know site, subject, session
-				%               check existence of  4 raw files
-				%               check existence of 36 segmented data files
-				%               if it's all there then go on & don't log anything
-				% check if all 4 unsegmented raw unzipped Brain Vision files exist already
-				testFiles = fullfile( rawDir, 'Vision', 'Raw Files', strcat( sessionName{iSession}, proNetExts ) );
-				doneAlready = all( cellfun( @(u)exist(u,'file')==2, testFiles ) );
-				if doneAlready
-					% check if all 36 segmented Brain Vision files exist already
-					subjCode    = [ 'sub-', sessionName{iSession}(1:7)   ];
-					sessionCode = [ 'ses-', sessionName{iSession}(13:20) ];
-					testFiles   = [...
-						strcat( subjCode, '_', sessionCode, '_task-VODMMN_run-',  cellfun( @(u)sprintf('%02d',u), num2cell(1:5), 'UniformOutput', false ), '_eeg' ),...
-						strcat( subjCode, '_', sessionCode, '_task-AOD_run-',     cellfun( @(u)sprintf('%02d',u), num2cell(1:4), 'UniformOutput', false ), '_eeg' ),...
-						{ strcat( subjCode, '_', sessionCode, '_task-ASSR_run-01_eeg'   ),...
-						  strcat( subjCode, '_', sessionCode, '_task-RestEO_run-01_eeg' ),...
-						  strcat( subjCode, '_', sessionCode, '_task-RestEC_run-01_eeg' ) } ];
-					testFiles = [ strcat( testFiles, '.vhdr' ), strcat( testFiles, '.vmrk' ), strcat( testFiles, '.eeg' ) ];
-					testFiles = fullfile( bidsDir, subjCode, sessionCode, 'eeg', testFiles );
-					doneAlready(:) = all( cellfun( @(u)exist(u,'file')==2, testFiles ) );
-				end
-				if doneAlready
-					fprintf( '%s COMPLETE\n', fullfile( zipDir, [ sessionName{iSession}, '.zip' ] ) )
-					continue
-				end
-%}
-				okFile = fullfile( zipDir, [ '.', sessionName{iSession}, '.ok' ] );
-				if exist( okFile, 'file' ) == 2
-					fprintf( '%s unzipped/segmetned previously\n', sessionName{iSession} )		% stick a timestamp in here?
-					continue
-				end
 
-				Izip = find( strncmpi( { zipFiles.name }, sessionName{iSession}, 20 ) );
-				nZip = numel( Izip );
 
-				logFile = fullfile( zipDir, [ sessionName{iSession}, '.log' ] );
-				fidLog  = fopen( logFile, 'a+' );		% creates empty file if it doesn't exist
-				if fidLog == -1
-					error( 'Can''t open log file %s', logFile )
-				end
-				writeToLog( '%s\n%s started @ %s\n', repmat( '-', [ 1, 80 ] ), mfilename, datestr( now, 'yyyymmddTHHMMSS' ) )
-				
-				baseName = '';
 			
-				% Unzip
-				kBadZip = false( 1, nZip );
-				for iZip = 1:nZip
-					% Check for valid zip-file content
-					zipFile = fullfile( zipFiles(Izip(iZip)).folder, zipFiles(Izip(iZip)).name );
-					writeToLog( '%s\n', zipFile )
-					zipContent = listZipContents( zipFile );		% #x1 cell array, relative to zipFile parent directory
-					% -- check for existence of unzipped files
-					unzipCheck = cellfun( @(u)exist(u,'file')==2, fullfile( rawDir, zipContent ) );
-					[ zipContentPath, zipContentFile, zipContentExt ] = fileparts( zipContent );	% extensions include initial '.'
-					if all( unzipCheck )
-						if isempty( baseName )
-							baseName    = zipContentFile{1}(1:20);			% what's more reliable zip-file name or contents?
-							subDir      = zipContentPath{1};
-						end
-						writeToLog( 'zip-file already extracted\n' )
-						continue
-					elseif any( unzipCheck )
-						kBadZip(iZip) = true;		% not necessarily a bad zip file?
-						writeToLog( 'zip-file partially extracted\n' )
-						continue
-					end
-					% -- path tests
-					if ~all( strcmp( zipContentPath, zipContentPath{1} ) )
-						kBadZip(iZip) = true;
-						writeToLog( 'inconsistent paths in zip-file contents\n' )
-						continue
-					end
-					if ~strcmp( zipContentPath{1}, 'Vision/Raw Files' )
-						writeToLog( 'WARNING: unexpected zip-file path %s\n', zipContentPath{1} )
-					end
-					% -- filename tests
-% 					if numel( zipContentFile{1} ) < 20
-% 						kBadZip(iZip) = true;
-% 						writeToLog( 'zip file content name too short\n' )
-% 						continue
-% 					end
-					% checking them all here will imply length >= 20 & is redundant with check below
-					if ~all( strcmp( zipContentFile, zipFiles(Izip(iZip)).name(1:end-4) ) )
-						kBadZip(iZip) = true;
-						writeToLog( 'zip file content name doesn''t match zip file name\n' )
-						continue
-					end
-					%    this wouldn't necessarily be a problem, but is part of ProNET data specifications
-% 					if ~all( strncmp( zipContentFile, zipContentFile{1}(1:20), 20 ) )
-% 						writeToLog( 'inconsistent file names in zip-file contents\n' )
-% 					end
-					% -- extension tests
-					if ~all( ismember( { '.eeg', '.vhdr', '.vmrk' }, zipContentExt ) )		% can tolerate missing .txt?
-						kBadZip(iZip) = true;
-						writeToLog( 'zip file missing critical file(s)\n' )
-						continue
-					end
-					if ~ismember( '.txt', zipContentExt )
-						writeToLog( 'zip file missing .txt file\n' )
-					end
-					if numel( zipContent ) ~= nExt
-% 						error( '# files in %s ~= %d', zipFile, nExt )
-						writeToLog( '# files in %s ~= %d\n', zipFile, nExt )
-					end
-					if ~all( ismember( zipContentExt, proNetExts ) )
-						writeToLog( 'unexpected extension(s) in zip-file content\n' )
-					end
-					
-					% -- store some parameters for 1st zip file in each session
-% 					if iZip == 1
-					if isempty( baseName )
-						baseName    = zipContentFile{1}(1:20);			% what's more reliable zip-file name or contents?
-						subDir      = zipContentPath{1};
-					end
-					
-					% -- check for existence of unzipped files
-% 					for iExt = 1:nExt
-% 						rawExist(iExt) = exist( fullfile( rawDir, subDir, [ zipFiles(Izip(iZip)).name(1:end-4), proNetExts{iExt} ] ), 'file' ) == 2;
-% 					end
-% 					if all( rawExist )
-% 						writeToLog( 'zip-file already extracted\n' )
-% 						continue
-% 					elseif any( rawExist )
-% 						error( 'partially-extracted zip file? %s\n', zipFile )
-% 					end
-					
-					% checks across zips
-					if ~all( strcmp( zipContentPath, subDir ) )
-						kBadZip(iZip) = true;
-						writeToLog( 'inconsistent paths in zip-file contents\n' )
-						continue
-					end
-					if ~all( strncmp( zipContentFile, baseName, 20 ) )
-						kBadZip(iZip) = true;
-						writeToLog( 'inconsistent file names in zip-file contents\n' )
-						continue
-					end
-
-					% Unzip
-					writeToLog( 'extracting %s...', zipFile )
-					tic
-					unzip( zipFile, rawDir )
-					writeToLog( ' done.  (%0.3f sec)\n', toc )
-
-				end		% zip-file loop #1 (unzip)
 				
 				if any( kBadZip )
 					Izip(kBadZip) = [];
