@@ -1,10 +1,10 @@
-function AMPSCZ_EEG_unzip( verbose )
+function AMPSCZ_EEG_segmentRaw( verbose )
 % Starts with AMPSCZ EEG zip file(s), 
 % segments them by run and saves BIDS-format files in a PHOENIX folder structure
 % No sidecar files added yet, see AMP_SCZ_BIDSsidecars.m
 %
 % Usage:
-% >> AMPSCZ_EEG_unzip
+% >> AMPSCZ_EEG_segmentRaw
 % 
 % dependencies:
 %	listZipContents.m
