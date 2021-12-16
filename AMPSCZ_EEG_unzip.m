@@ -1,4 +1,4 @@
-function AMPSCZ_EEG_unzip
+function AMPSCZ_EEG_unzip( verbose )
 % Starts with AMPSCZ EEG zip file(s), 
 % segments them by run and saves BIDS-format files in a PHOENIX folder structure
 % No sidecar files added yet, see AMP_SCZ_BIDSsidecars.m
@@ -27,14 +27,23 @@ function AMPSCZ_EEG_unzip
 %   continue.  a solution would be to delete the useless zip file, but there should be 
 %   some test of the brain vision files to help determine this.
 % * if zip files have no sub-folder structure, create the default?
+% * make this write out csv of unzip/segmenting errors that never make it to data QA/QC stage?
+
+% put log files in log directory, & give them all .log extension
+% build data2bids into this function, don't need separate AMPSCZ_EEG_BIDSsidecars.m
+% data2bids.m might force extra layers of /subj/sess/modality under BIDS dir?  I really hope not.
+% make verbose just dump what you do, not everything you don't do like scan through every single site
+% never deliberately throw errors?
+
 
 % 	error( 'Needs to be modified for BWH paths & latest PHOENIX organization' )
 
 	try
 
-		narginchk( 0, 0 )
-
-		verbose = true;
+		narginchk( 0, 1 )
+		if nargin == 0
+			verbose = true;
+		end
 
 % 		AMPSCZdir = '/data/predict/kcho/flow_test';
 		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ\';
@@ -76,9 +85,8 @@ function AMPSCZ_EEG_unzip
 			end
 			procDir = fullfile( siteDir, 'processed' );
 			if ~isfolder( procDir )
-				if ~debug
-					mkdir( procDir )
-				elseif verbose
+				mkdir( procDir )
+				if verbose
 					fprintf( 'created %s\n', procDir )
 				end
 			end
@@ -115,10 +123,9 @@ function AMPSCZ_EEG_unzip
 
 					outputDir = fullfile( procDir, subjDirs(iSubj).name, 'eeg', [ 'ses-', sessionName{iSession}(13:20) ] );
 					if ~isfolder( outputDir )
-						if ~debug
-							% note: mkdir can create directories in parents that don't yet exist
-							mkdir( outputDir )
-						elseif verbose
+						% note: mkdir can create directories in parents that don't yet exist
+						mkdir( outputDir )
+						if verbose
 							fprintf( 'created %s\n', outputDir )
 						end
 					end
@@ -284,7 +291,7 @@ function AMPSCZ_EEG_unzip
 								continue
 							end
 							% Read Brain Vision Marker File
-							M(iUnzipped) = bieegl_readBVtxt( fullfile( rawDir, subDir, H(iUnzipped).Common.MarkerFile ) );
+							M(iUnzipped) = bieegl_readBVtxt( fullfile( outputDir, subDir, H(iUnzipped).Common.MarkerFile ) );
 							if ~strcmp( M(iUnzipped).Common.DataFile, H(iUnzipped).Common.DataFile )
 								writeToLog( verbose, '%s header/marker data file mismatch\n', H(iUnzipped).inputFile )
 								continue
@@ -308,10 +315,11 @@ function AMPSCZ_EEG_unzip
 						nBV = numel( IBV );
 
 						nSegment = cellfun( @numel, ImarkerSeg, 'UniformOutput', true );
-						if sum( nSegment ) ~= nSeq
-							writeToLog( verbose, '# segments (%d) ~= expected # tasks (%d)\n', sum( nSegment ), nSeq )
-% 							continue		% go to next session
-						end
+% 						if sum( nSegment ) ~= nSeq
+% 							% later I check if run counts for each task match expected totals.  this check is redundant & less informative
+% 							writeToLog( verbose, '# segments (%d) ~= expected # tasks (%d)\n', sum( nSegment ), nSeq )
+% % 							continue		% go to next session
+% 						end
 
 						iSeq = 0;
 						ImarkerEnd = cell( 1, nBV );
@@ -365,7 +373,8 @@ function AMPSCZ_EEG_unzip
 										iSeq(:) = iSeq + 1;
 										% verify expected task sequence
 										if iSeq > nSeq
-											writeToLog( verbose, 'Longer than expected task sequence %d = %s\n', iSeq, taskInfo{Itask{iBV}(iSegment),1} )
+% 											writeToLog( verbose, 'Longer than expected task sequence %d = %s\n', iSeq, taskInfo{Itask{iBV}(iSegment),1} )
+											writeToLog( verbose, 'Unexpected task sequence %d = %s\n', iSeq, taskInfo{Itask{iBV}(iSegment),1} )
 										elseif Itask{iBV}(iSegment) ~= taskSeq(iSeq)
 											writeToLog( verbose, 'Unexpected task sequence %d = %s\n', iSeq, taskInfo{Itask{iBV}(iSegment),1} )
 										end
@@ -387,9 +396,10 @@ function AMPSCZ_EEG_unzip
 
 							end		% segment loop
 
-						end		% BV file loop
+						end		% BV file loop, test segmentability
 
-						if ~all( histcounts( categorical( [ Itask{:} ], 1:nTask ) ) == nRun )		% #runs found in data files, OK to have zeros in Itask here
+						nRunFound = histcounts( categorical( [ Itask{:} ], 1:nTask ) );
+						if ~all( nRunFound == nRun )		% #runs found in data files, OK to have zeros in Itask here
 							writeToLog( verbose, 'Unexpected number(s) of task runs\n' )
 						end
 
@@ -403,8 +413,8 @@ function AMPSCZ_EEG_unzip
 						subjCode    = [ 'sub-', upper( baseName(1:2) ), baseName(3:7) ];
 						sessionCode = [ 'ses-', baseName(13:20) ];
 
-						% zero nRun so it can be reused as running count
-						nRun(:) = 0;
+						% zero nRunFound so it can be reused as running count
+						nRunFound(:) = 0;
 						for iBV = 1:nBV
 
 							% Read Brain Vision Data File
@@ -416,8 +426,8 @@ function AMPSCZ_EEG_unzip
 								if iTask == 0
 									break
 								end
-								nRun(iTask) = nRun(iTask) + 1;
-								outputSegment = sprintf( '%s_%s_task-%s_run-%02d_eeg', subjCode, sessionCode, taskInfo{iTask,1}, nRun(iTask) );
+								nRunFound(iTask) = nRunFound(iTask) + 1;
+								outputSegment = sprintf( '%s_%s_task-%s_run-%02d_eeg', subjCode, sessionCode, taskInfo{iTask,1}, nRunFound(iTask) );
 
 								% WRITE OUTPUT FILES
 								% HEADER -----------------------------------------------------------
@@ -428,8 +438,6 @@ function AMPSCZ_EEG_unzip
 								if exist( outputFile, 'file' ) == 2
 									writeToLog( false, '%s exists, not replacing\n', outputFile )
 								else
-									writeToLog( verbose, 'writing %s...', outputFile )
-
 									[ fid, msg ] = fopen( outputFile, 'w' );
 									if fid == -1
 										error( msg )
@@ -519,8 +527,8 @@ function AMPSCZ_EEG_unzip
 											warning( 'MATLAB:fcloseError', 'fclose error' )
 										end
 									end
-
-									writeToLog( verbose, ' done\n' )
+									
+									writeToLog( verbose, 'wrote %s\n', outputFile )
 								end
 
 								% MARKER -----------------------------------------------------------
@@ -538,7 +546,6 @@ function AMPSCZ_EEG_unzip
 									markerPos = num2cell( markerPos );
 									[ Mout.Marker.Mk.position ] = deal( markerPos{:} );
 
-									writeToLog( verbose, 'writing %s...', outputFile )
 									[ fid, msg ] = fopen( outputFile, 'w' );
 									if fid == -1
 										error( msg )
@@ -577,14 +584,14 @@ function AMPSCZ_EEG_unzip
 										warning( 'MATLAB:fcloseError', 'fclose error' )
 									end
 
-									writeToLog( verbose, ' done\n' )
+									writeToLog( verbose, 'wrote %s\n', outputFile )
 								end
 
 
 								% DATA -------------------------------------------------------------
-								outputFile = fullfile( outputDir, Hout.Common.DataFile );
+								outputFile = fullfile( bidsDir, Hout.Common.DataFile );
 								if exist( outputFile, 'file' ) == 2
-									segFileLogFcn( '%s exists, not replacing\n', outputFile )
+									writeToLog( false, '%s exists, not replacing\n', outputFile )
 								else
 									if iSegment == nSegment(iBV)
 										iDataEnd = size( D, 2 );
@@ -592,7 +599,6 @@ function AMPSCZ_EEG_unzip
 										iDataEnd = M(iBV).Marker.Mk(ImarkerSeg{iBV}(iSegment+1)).position - 1;
 									end
 									IdataRange = M(iBV).Marker.Mk(ImarkerSeg{iBV}(iSegment)).position:iDataEnd;
-									writeToLog( verbose, 'writing %s...', outputFile )
 									[ fid, msg ] = fopen( outputFile, 'w' );
 									if fid == -1
 										error( msg )
@@ -601,7 +607,7 @@ function AMPSCZ_EEG_unzip
 									if fclose( fid ) == -1
 										warning( 'MATLAB:fcloseError', 'fclose error' )
 									end
-									writeToLog( verbose, ' done\n' )
+									writeToLog( verbose, 'wrote %s\n', outputFile )
 								end
 
 								% TEXT -------------------------------------------------------------
@@ -610,27 +616,30 @@ function AMPSCZ_EEG_unzip
 
 							end		% segment loop
 
-						end		% zip-file loop #4 write output files
+						end		% Brain Vision file loop write output files
 
-error( 'left off here' )
-						writeToLog( '%s finished @ %s\n\n\n', mfilename, datestr( now, 'yyyymmddTHHMMSS' ) )
-						if fclose( fidLog ) == -1
-							warning( 'MATLAB:fcloseError', 'fclose error' )
+						char1(:) = abs( '2' );
+						fseek( fidStatus, 0, 'bof' );
+						timeStr = datestr( now, 'yyyymmddTHHMMSS' );
+						if all( zipStatus == 1 ) && ~any( kBadBV ) && ~any( [ Itask{:} ] == 0 )
+							fprintf( fidStatus, '%d %s [%s]', 2, 'segmented', timeStr );
+						else
+							fprintf( fidStatus, '%d %s [%s]', 2, 'partially segmented', timeStr );
+% 							continue		% keep processing sessions w/ bad zips?
 						end
-
-						fidOk  = fopen( okFile, 'w' );
-						if fidOk == -1
-							error( 'Can''t open log file %s', okFile )
-						end
-						fprintf( fidOk, '%s completed %s w/o error', sessionName{iSession}, mfilename );
-						if fclose( fidOk ) == -1
-							warning( 'MATLAB:fcloseError', 'fclose error' )
-						end
-
-					end
+						
+					end		% Segment if
 
 					% Add Sidecars.  
 					% if char1 == abs('3') you would have continued already
+					% if you've gotten this far you're going to finish
+% 					writeToLog( '%s finished @ %s\n\n\n', mfilename, datestr( now, 'yyyymmddTHHMMSS' ) )
+					if fclose( fidLog ) == -1
+						warning( 'MATLAB:fcloseError', 'fclose error' )
+					end
+					if fclose( fidStatus ) == -1
+						warning( 'MATLAB:fcloseError', 'fclose error' )
+					end
 
 				end		% session loop
 
