@@ -8,10 +8,11 @@ function AMPSCZ_EEG_unzip( verbose )
 % 
 % dependencies:
 %	listZipContents.m
-%	AMPSCZ_EEG_siteNames.m
+%	AMPSCZ_EEG_siteInfo.m
 %	AMPSCZ_EEG_taskSeq.m
 %	bieegl_readBVtxt.m
 %	bieegl_readBVdata.m
+%   Fieldtrip
 %
 % Written by: Spero Nicholas, NCIRE
 %
@@ -29,14 +30,11 @@ function AMPSCZ_EEG_unzip( verbose )
 % * if zip files have no sub-folder structure, create the default?
 % * make this write out csv of unzip/segmenting errors that never make it to data QA/QC stage?
 
-% put log files in log directory, & give them all .log extension
-% build data2bids into this function, don't need separate AMPSCZ_EEG_BIDSsidecars.m
-% data2bids.m might force extra layers of /subj/sess/modality under BIDS dir?  I really hope not.
+% data2bids.m might force extra layers of /subj/sess/modality under BIDS dir?  - yup.  kind of a pain
 % make verbose just dump what you do, not everything you don't do like scan through every single site
 % never deliberately throw errors?
 
 
-% 	error( 'Needs to be modified for BWH paths & latest PHOENIX organization' )
 
 	try
 
@@ -45,11 +43,46 @@ function AMPSCZ_EEG_unzip( verbose )
 			verbose = true;
 		end
 
-% 		AMPSCZdir = '/data/predict/kcho/flow_test';
-		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ\';
+		AMPSCZdir = '/data/predict/kcho/flow_test';
+% 		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
 		if ~isfolder( AMPSCZdir )
 			error( 'Invalid project directory' )
 		end
+		
+		if isempty( which( 'data2bids.m' ) )
+			fieldTripDir = '/PHShome/sn1005/Downloads/fieldtrip/fieldtrip-20211209';
+% 			fieldTripDir = 'C:\Users\donqu\Downloads\fieldtrip\fieldtrip-20210929';
+			addpath( fieldTripDir, '-begin' )
+			if verbose
+				fprintf( '\n%s added to path\n', fieldTripDir )
+			end
+			ftPrefsFile = fullfile( prefdir, 'fieldtripprefs.mat');
+			if exist( ftPrefsFile, 'file' ) == 2
+				ftPrefs = load( ftPrefsFile );
+				if ~isfield( ftPrefs, 'trackusage' )
+					error( 'bad fieldtripprefs.mat file?' )
+				end
+				if ~strcmp( ftPrefs.trackusage, 'no' )
+					ftPrefs.trackusage = 'no';
+					save( ftPrefsFile, '-struct', 'ftPrefs' )
+					if verbose
+						fprintf( 'Updated %s\n', ftPrefsFile )
+					end
+				end
+			else
+				ftPrefs = struct( 'trackusage', 'no' );
+				save( ftPrefsFile, '-struct', 'ftPrefs' )
+				if verbose
+					fprintf( 'Created %s\n', ftPrefsFile )
+				end
+			end
+			% data2bids.m has lots of dependencies, ft_defaults puts them on path
+			% even more paths get added when data2bids.m is called
+			ft_defaults			
+			% make sure my modifified fieldrip functions are higher on path
+			addpath( fullfile( fileparts( mfilename( 'fullpath' ) ), 'modifications', 'fieldtrip' ), '-begin' )
+		end
+		
 		siteInfo  = AMPSCZ_EEG_siteInfo;
 		nSite     = size( siteInfo, 1 );
 % 		subGroups = unique( siteInfo(:,2) );
@@ -63,6 +96,37 @@ function AMPSCZ_EEG_unzip( verbose )
 		testCodes = cellfun( @(u) u{1,1}, taskInfo(:,2), 'UniformOutput', true );		% used to identify task for recording segment
 		nRun      =  histcounts( categorical( taskSeq, 1:nTask ) );						% expected #runs for each task
 
+		% data2bids.m cfg structure
+		cfg = struct(...
+			'method',                      'decorate',...
+			'datatype',                    'eeg',...
+			'writejson',                   'merge',...		% ['yes'], 'replace', 'merge', 'no'
+			'writetsv',                    'merge',...		% ['yes'], 'replace', 'merge', 'no'
+			'bidsroot',                    '',...
+			'InstitutionName',             'AMP SCZ',...
+			'InstitutionalDepartmentName', '',...
+			'InstitutionAddress',          '',...
+			'eeg',                         struct( 'PowerLineFrequency', [], 'EEGReference', '' ),...		%  EEG specific config options
+			'sub',                         '',...
+			'run',                         '',...
+			'TaskName',                    '',...
+			'TaskDescription',             '',...
+			'dataset',                     '',...
+			'outputfile',                  '',...
+			'participants',                struct( 'age', 0, 'sex', '' ),...
+			'scans',                       struct( 'acq_time', '' ) );
+		%   cfg.Manufacturer                = string
+		%   cfg.ManufacturersModelName      = string
+		%   cfg.DeviceSerialNumber          = string
+		%   cfg.SoftwareVersions            = string
+		%   cfg.Instructions                = string
+		% cfg.eeg.RecordingType
+		% cfg.eeg.HeadCircumference
+		% cfg.eeg.EEGPlacementScheme
+		% cfg.eeg.SoftwareFilters
+		% cfg.eeg.HardwareFilters
+
+
 		if verbose
 			fprintf( '\n' )
 		end
@@ -70,26 +134,18 @@ function AMPSCZ_EEG_unzip( verbose )
 
 			siteName  = siteInfo{iSite,1};
 			siteGroup = siteInfo{iSite,2};
-			if verbose
-				fprintf( [ '\n%s ', repmat( '=', [ 1, 80-1-numel(siteName) ] ), '\n' ], siteName )
-			end
 
+			cfg.InstitutionalDepartmentName = [ siteGroup, siteName ];
+			cfg.InstitutionAddress          = siteInfo{iSite,3};
+			cfg.eeg.PowerLineFrequency      = siteInfo{iSite,4};
+			
 			% Check if site has existing PROTECTED raw directory
 			siteDir = fullfile( AMPSCZdir, siteGroup, 'PHOENIX', 'PROTECTED', [ siteGroup, siteName ] );
 			rawDir  = fullfile( siteDir, 'raw' );
 			if ~isfolder( rawDir )		% windows isfolder/isdir aren't case-sensitive
-				if verbose
-					fprintf( '\nsite %s/raw not found\n', [ siteGroup, siteName ] )
-				end
 				continue
 			end
 			procDir = fullfile( siteDir, 'processed' );
-			if ~isfolder( procDir )
-				mkdir( procDir )
-				if verbose
-					fprintf( 'created %s\n', procDir )
-				end
-			end
 
 			% Scan for valid subject directories
 			subjDirs = dir( rawDir );
@@ -114,12 +170,32 @@ function AMPSCZ_EEG_unzip( verbose )
 				zipFiles( cellfun( @isempty, regexp( { zipFiles.name }, [ '^[', siteName(1), lower( siteName(1) ), '][',...
 					siteName(2), lower( siteName(2) ), ']\d{5}_eeg_\d{8}_?\d*.zip$' ], 'start', 'once' ) ) ) = [];
 
-				% check for multiple zip-files per session, i.e. ignore any trailing _# in the file names
-				% unique session names
-				sessionName  = unique( cellfun( @(u)[upper(u(1:2)),u(3:20)], { zipFiles.name }, 'UniformOutput', false ) );
-				nSession     = numel( sessionName );
+
+				if numel( zipFiles ) == 0
+					continue
+				else
+					% check for multiple zip-files per session, i.e. ignore any trailing _# in the file names
+					% unique session names
+					sessionName  = unique( cellfun( @(u)[upper(u(1:2)),u(3:20)], { zipFiles.name }, 'UniformOutput', false ) );
+					nSession     = numel( sessionName );
+					
+					% there's some data, go ahead and make processed directory if it doesn't exist
+					if ~isfolder( procDir )
+						mkdir( procDir )
+						if verbose
+							fprintf( '\ncreated %s\n\n', procDir )
+						end
+					end
+					
+					cfg.sub = subjDirs(iSubj).name;
+
+				end
 
 				for iSession = 1:nSession
+					
+					if verbose
+						fprintf( '\n%s %s %s\n\n', repmat( '=', [1,20] ), sessionName{iSession}, repmat( '=', [1,20] ) )
+					end
 
 					outputDir = fullfile( procDir, subjDirs(iSubj).name, 'eeg', [ 'ses-', sessionName{iSession}(13:20) ] );
 					if ~isfolder( outputDir )
@@ -130,8 +206,16 @@ function AMPSCZ_EEG_unzip( verbose )
 						end
 					end
 
+					logDir = fullfile( outputDir, 'log' );
+					if ~isfolder( logDir )
+						mkdir( logDir )
+						if verbose
+							fprintf( 'created %s\n', logDir )
+						end
+					end
+
 					% Check status
-					statusFile = fullfile( outputDir, [ '.', sessionName{iSession}, '_segment.status' ] );
+					statusFile = fullfile( logDir, [ '.', sessionName{iSession}, '_status.log' ] );
 					if exist( statusFile, 'file' ) == 2
 						[ fidStatus, errMsg ] = fopen( statusFile, 'r+' );
 						if fidStatus == -1
@@ -162,7 +246,7 @@ function AMPSCZ_EEG_unzip( verbose )
 					IZip = find( strncmpi( { zipFiles.name }, sessionName{iSession}, 20 ) );
 					nZip = numel( IZip );
 
-					logFile = fullfile( outputDir, [ '.', sessionName{iSession}, '_segment.log' ] );		% datestr( now, 'YYYYMMDD' )
+					logFile = fullfile( logDir, [ sessionName{iSession}, '_segment.log' ] );		% datestr( now, 'YYYYMMDD' )
 					[ fidLog, errMsg ] = fopen( logFile, 'w' );		% replace existing log files?  add a date stamp?  
 					if fidLog == -1
 						error( errMsg )
@@ -270,7 +354,7 @@ function AMPSCZ_EEG_unzip( verbose )
 					end		% Unzip if
 
 					% Segment
-					if ismember( char1, abs( '1' ) )
+					if char1 == abs( '1' )	% ismember( char1, abs( '01' ) )
 						IUnzipped  = IZip( zipStatus == 1 );
 						nUnzipped  = numel( IUnzipped );
 						ImarkerSeg = cell( 1, nUnzipped );
@@ -409,6 +493,7 @@ function AMPSCZ_EEG_unzip( verbose )
 						if ~isfolder( bidsDir )
 							mkdir( bidsDir )
 						end
+						cfg.bidsroot = bidsDir;
 						
 						subjCode    = [ 'sub-', upper( baseName(1:2) ), baseName(3:7) ];
 						sessionCode = [ 'ses-', baseName(13:20) ];
@@ -609,6 +694,39 @@ function AMPSCZ_EEG_unzip( verbose )
 									end
 									writeToLog( verbose, 'wrote %s\n', outputFile )
 								end
+								
+								% BIDS SIDECARS ----------------------------------------------------
+								bidsTestFile = [ outputFile(1:end-3), 'json' ];		% replace .eeg w/ .json
+								if exist( bidsTestFile, 'file' ) == 2
+									writeToLog( false, 'BIDS sidecar %s exists, not re-running data2bids.m\n', bidsTestFile )		% really print this for all 12 runs/session?
+								else
+									cfg.dataset         = outputFile;
+									cfg.outputfile      = cfg.dataset;		% if you don't include this option it'll try to do it automatically & leave off .eeg extension & throw an error
+									cfg.TaskName        = taskInfo{iTask,1};
+									cfg.TaskDescription = taskInfo{iTask,3};
+									cfg.run             = sprintf( '%02d', nRunFound(iTask) );
+									
+									refChan = regexp( H(iBV).Comment, '^Reference Channel Name\s*=\s*(.+)$', 'once', 'tokens' );
+									refChan(cellfun(@isempty,refChan)) = [];
+									if numel( refChan ) == 1
+										cfg.eeg.EEGReference = refChan{1}{1};
+									end
+									
+									iMk = find( strcmp( { M(iBV).Marker.Mk.type }, 'New Segment' ), 1, 'first' );
+									timeStr = M(iBV).Marker.Mk(iMk).date;
+									cfg.scans.acq_time = [ timeStr(1:4), '-', timeStr(5:6), '-', timeStr(7:8),...
+										'T', timeStr(9:10), ':', timeStr(11:12), ':', timeStr(13:14) ];
+									
+									% data2bids.m forces sub-id_scans.tsv to be one layer down, 
+									% and will throw error if folder doesn't exist.
+									% tsv file must get incremented every run, you end up w/ a single file per session
+									scansTsvDir = fullfile( bidsDir, subjCode );
+									if ~isfolder( scansTsvDir )
+										mkdir( scansTsvDir )
+									end
+									data2bids( cfg );
+								end
+								
 
 								% TEXT -------------------------------------------------------------
 								% I'm not writing/copying text outputs, Neurosig Log File
@@ -633,7 +751,12 @@ function AMPSCZ_EEG_unzip( verbose )
 					% Add Sidecars.  
 					% if char1 == abs('3') you would have continued already
 					% if you've gotten this far you're going to finish
+% 					if char1 == abs( '2' )
+% 						data2bids( cfg );						
+% 					end		% Sidecar if
 % 					writeToLog( '%s finished @ %s\n\n\n', mfilename, datestr( now, 'yyyymmddTHHMMSS' ) )
+
+
 					if fclose( fidLog ) == -1
 						warning( 'MATLAB:fcloseError', 'fclose error' )
 					end
@@ -654,6 +777,11 @@ function AMPSCZ_EEG_unzip( verbose )
 		if exist( 'fidLog', 'var' ) == 1 && fidLog ~= -1 && ~isempty( fopen( fidLog ) )		% log file still open
 			writeToLog( '%s\n', ME.message )
 			if fclose( fidLog ) == -1
+				warning( 'MATLAB:fcloseError', 'fclose error' )
+			end
+		end
+		if exist( 'fidStatus', 'var' ) == 1 && fidStatus ~= -1 && ~isempty( fopen( fidStatus ) )		% status file still open
+			if fclose( fidStatus ) == -1
 				warning( 'MATLAB:fcloseError', 'fclose error' )
 			end
 		end
