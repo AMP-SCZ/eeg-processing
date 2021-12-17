@@ -35,7 +35,6 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 % never deliberately throw errors?
 
 
-
 	try
 
 		narginchk( 0, 1 )
@@ -43,7 +42,8 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 			verbose = true;
 		end
 
-		AMPSCZdir = '/data/predict/kcho/flow_test';
+% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
+		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?
 % 		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
 		if ~isfolder( AMPSCZdir )
 			error( 'Invalid project directory' )
@@ -79,6 +79,8 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 			% data2bids.m has lots of dependencies, ft_defaults puts them on path
 			% even more paths get added when data2bids.m is called
 			ft_defaults			
+		end
+		if ~contains( which( 'ft_read_tsv.m' ), 'modifications' )
 			% make sure my modifified fieldrip functions are higher on path
 			addpath( fullfile( fileparts( mfilename( 'fullpath' ) ), 'modifications', 'fieldtrip' ), '-begin' )
 		end
@@ -222,7 +224,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 							error( errMsg )
 						end
 						char1 = fread( fidStatus, 1, 'char' );		% read as double.  you'll get empty output w/ empty file, not error
-						if strcmp( char1, '3' )
+						if char1 == abs( '2' )
 							fidStatus(:) = fclose( fidStatus );
 							if fidStatus == -1
 							end
@@ -231,7 +233,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 							end
 							continue
 						end
-						% for any status other than complete '3', need to start at the beginning?
+						% for any status other than complete '2', need to start at the beginning?
 						% e.g. to get baseName & subDir from unzip step.  don't worry, won't do un-needed overwrites.
 						char1(:) = abs( '0' );
 					else
