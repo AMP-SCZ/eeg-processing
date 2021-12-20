@@ -48,7 +48,7 @@ function D = bieegl_readBVdata( H, parentDir )
 		end
 
 		% Read the whole thing
-		D = fread( fid, Inf, dataFmt );		% takes about 3.2 sec for a ProNET file on vhasfcapp21
+		D = fread( fid, Inf, dataFmt );		% takes about 3.2 sec for a AMPSCZ file on vhasfcapp21
 
 		% Close file
 		if fclose( fid ) == -1

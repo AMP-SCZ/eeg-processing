@@ -17,27 +17,12 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 % to do:
 % add some verbosity flag for warnings?
 % re-ref by epoch in preprocessing
-
-% is there a prayer of running this on Xanadu? - i don't want to dumb it down if eventually going to BWH
-% no narginchk in R2009b
-
-
-% 	no header comments HK00002_20211021 sub-HK00002_ses-20211021_task-AOD_run-01_eeg.vhdr				empty Z
-% 	no header files PA00000_20211007																	error
-% 	no impedance section PA00000_20211014 sub-PA00000_ses-20211014_task-AOD_run-01_eeg.vhdr				empty Z
-% 	no impedance section SL00005_20211118 sub-SL00005_ses-20211118_task-AOD_run-01_eeg.vhdr				empty Z
-% 	multiple impedance sections PA00000_20211026 sub-PA00000_ses-20211026_task-AOD_run-01_eeg.vhdr
-% 	multiple impedance sections WU00013_20211111 sub-WU00013_ses-20211111_task-AOD_run-01_eeg.vhdr
-
-
-% make sure hann is Matlab function not Fieldtrip!
-
-% error( 'Under Construction' )		% fix paths for PHOENIX
+% make sure hann is Matlab function not Fieldtrip! - DONE, but need better way of adding EEGLAB to path, save extra paths in mat-file
 
 	narginchk( 0, 2 )
 
 	if isunix
-		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
+% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
 		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
 		eegLabDir = '/PHShome/sn1005/Downloads/eeglab/eeglab2021.1';
 	else %if ispc
@@ -74,14 +59,14 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 		elseif ~ischar( sessionName ) || isempty( regexp( sessionName, '^[A-Z]{2}\d{5}_\d{8}$', 'start', 'once' ) )
 			error( 'Invalid sessionName input' )
 		end
-		sessionList = ProNET_availableSessions( AMPSCZdir );
-		iSession = strcmp( strcat( sessionList(:,1), '_', sessionList(:,2) ), sessionName );
+		sessionList = AMPSCZ_EEG_findProcSessions;
+		iSession = strcmp( strcat( sessionList(:,2), '_', sessionList(:,3) ), sessionName );
 		if ~any( iSession )
 			error( 'Session %s not available', sessionName )
 		end
 % 		iSession = find( iSession, 1, 'first' );		% there can't be duplicates in sessionList!
 	else
-		[ sessionList, iSession ] = ProNET_availableSessions( AMPSCZdir, 'multiple' );
+		[ sessionList, iSession ] = AMPSCZ_EEG_findProcSessions( 'multiple' );
 		if isempty( iSession )
 			return
 		end
@@ -92,7 +77,7 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 		end
 		for iMulti = 1:nSession
 			try
-				AMPSCZ_EEG_QA( sprintf( '%s_%s', sessionList{iSession(iMulti),:} ), writeFlag )
+				AMPSCZ_EEG_QA( sprintf( '%s_%s', sessionList{iSession(iMulti),2:3} ), writeFlag )
 			catch ME
 % 				disp( ME )
 % 				for ii = numel( ME.stack ):-1:1
@@ -110,14 +95,15 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 	end
 
 	AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
-	locsFile    = fullfile( AMPSCZtools, 'ProNET_actiCHamp65ref.ced' );
+	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref.ced' );
 	
 	% minimum & maximum reaction times (s), button presses out of this range not counted as responses
 	RTrange = AMPSCZ_EEG_RTrange;
 	
 	hannPath = which( 'hann.m' );		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
 	if ~contains( hannPath, matlabroot )
-		error( 'fix path so hann.m is native MATLAB' )
+% 		error( 'fix path so hann.m is native MATLAB' )
+		restoredefaultpath
 	end
 	
 	if isempty( which( 'eeglab.m' ) )
@@ -129,44 +115,6 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 	if ~contains( which( 'topoplot.m' ), 'modifications' )
 		addpath( fullfile( AMPSCZtools, 'modifications', 'eeglab' ), '-begin' )
 	end
-
-% 	nSession = size( sessionList, 1 );
-% 	for iSession = 1:nSession
-% % 		fprintf( '\t\t''%s'', ''%s''\n', sessionList{iSession,:} )
-% 		vhdr = dir( fullfile( AMPSCZdir, sessionList{iSession,1}(1:2), 'BIDS', [ 'sub-', sessionList{iSession,1} ], [ 'ses-', sessionList{iSession,2} ], 'eeg', '*.vhdr' ) );
-% 		if isempty( vhdr )
-% 			fprintf( '\tno header files %s_%s\n', sessionList{iSession,:} )
-% 		else
-% 			for i = 1:numel( vhdr )
-% % 				hdr = bieegl_readBVtxt( fullfile( vhdr(i).folder, vhdr(i).name ) );
-% 				mrk = bieegl_readBVtxt( fullfile( vhdr(i).folder, [ vhdr(i).name(1:end-3), 'mrk' ] ) );
-% 				switch 2
-% 					case 1
-% 						if isempty( hdr.Comment )
-% 							fprintf( '\tno header comments %s_%s %s\n', sessionList{iSession,:}, vhdr(i).name )
-% 						else
-% 							iImp = find( ~cellfun( @isempty, regexp( hdr.Comment, '^Impedance \[kOhm\] at \d{2}:\d{2|:\d{2} :$', 'once', 'start' ) ) );
-% 							switch numel( iImp )
-% 								case 0
-% 									fprintf( '\tno impedance section %s_%s %s\n', sessionList{iSession,:}, vhdr(i).name )
-% 								case 1
-% 									disp( hdr.Comment(iImp:end) )
-% 								otherwise
-% 									fprintf( '\tmultiple impedance sections %s_%s %s\n', sessionList{iSession,:}, vhdr(i).name )
-% 							end
-% 						end
-% 					case 2
-% 						kLostSamples = strncmp( { mrk.Marker.Mk.description }, 'LostSamples:', 12 );
-% 						if any( kLostSamples )
-% 							nLost = regexp( { mrk.Marker.Mk(kLostSamples).description }, '^LostSamples: (\d+)$', 'tokens', 'once' );
-% 							nLost = str2double( [ nLost{:} ] );
-% 							fprintf( '\tlost %d epochs, %d samples in %s_%s %s\n', numel( nLost ), sum( nLost ), sessionList{iSession,:}, vhdr(i).name )
-% 						end
-% 				end
-% 			end
-% 		end
-% 	end
-% 	return
 	
 	siteInfo = AMPSCZ_EEG_siteInfo;
 	[ taskInfo, taskSeq ] = AMPSCZ_EEG_taskSeq;
@@ -185,20 +133,19 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 		[ taskInfo{iTask,2}{:,2} ] = deal( 'Standard' );
 	end
 
-% 	siteTag = sessionList{iSession,1}(1:2);
-% 	subjTag = [ 'sub-',  sessionList{iSession,1} ];
-% 	sessTag = [ 'ses-',  sessionList{iSession,2} ];
-	subjId   = sessionName(1:7);
-	sessDate = sessionName(9:16);
-	siteTag  = sessionName(1:2);
-	subjTag  = [ 'sub-', subjId   ];
-	sessTag  = [ 'ses-', sessDate ];
-	bvDir    = fullfile( AMPSCZdir, siteTag, 'BIDS', subjTag, sessTag, 'eeg' );
-
-	iSite = find( strcmp( siteInfo(:,1), siteTag ) );
+	siteId = sessionName(1:2);
+	iSite  = find( strcmp( siteInfo(:,1), siteId ) );
 	if numel( iSite ) ~= 1
 		error( 'site identification error' )
 	end
+	networkName = siteInfo{iSite,2};
+	
+	subjId   = sessionName(1:7);
+	sessDate = sessionName(9:16);
+	subjTag  = [ 'sub-', subjId   ];
+	sessTag  = [ 'ses-', sessDate ];
+	bvDir    = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg', sessTag, 'BIDS' );
+
 	
 	% e.g. pop_chanedit( struct( 'labels', Z(:,1) ) )...
 	chanLocs = readlocs( locsFile );
@@ -993,6 +940,7 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 	set( hAx(4), 'XGrid', 'on' )
 
 	figure( hFig )
+	return
 
 	pngOut = fullfile( AMPSCZdir, 'Figures', 'QA', [ subjId, '_', sessDate, '_QA.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QA.png' ]
 	if isempty( writeFlag )
@@ -1014,29 +962,5 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 	end
 	
 	return
-	
-%%
-iSeq = 2
-
-		bvFile = fullfile( bvDir, sprintf( '%s_%s_%s_%s_eeg.vhdr', subjTag, sessTag, sprintf( 'task-%s', taskInfo{taskSeq(iSeq),1} ), sprintf( 'run-%02d', nRun(iSeq) ) ) );
-		H      = bieegl_readBVtxt( bvFile );
-		fs     = 1 / ( H.Common.SamplingInterval * 1e-6 );					% sampling interval is in microseconds, get sampling rate in Hz
-		M      = bieegl_readBVtxt( [ bvFile(1:end-3), 'mrk' ] );
-		
-		eeg    = bieegl_readBVdata( bieegl_readBVtxt( bvFile ), bvDir );
-		kStim  = strcmp( { M.Marker.Mk.type }, 'Stimulus' );
-		i1     = M.Marker.Mk(find(kStim,1,'first')).position;
-		i2     = M.Marker.Mk(find(kStim,1,'last' )).position;
-		i2(:)  = i2 + ceil( 2 * fs );
-		i2(:)  = max( i2, size( eeg, 2 ) );
-		eeg    = eeg(:,i1:i2);
-		nfft   = size( eeg, 2 );
-
-		Iblink = find( ismember( { chanLocs(1:64).labels }, { 'Fp1', 'Fp2', 'AFz' } ) );		% channel(s) to use for blink detection
-		yBlink = mean( eeg(Iblink,:), 1 );
-
-plot( detrend( eeg(Iblink,:), 0 ) )
-
-
 	
 end
