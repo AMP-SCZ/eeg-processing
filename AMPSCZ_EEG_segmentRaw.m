@@ -42,16 +42,19 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 			verbose = true;
 		end
 
-% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?
-% 		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
+		if isunix
+% 			AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
+			AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?
+			fieldTripDir = '/PHShome/sn1005/Downloads/fieldtrip/fieldtrip-20211209';
+		else %if ispc
+			AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
+			fieldTripDir = 'C:\Users\donqu\Downloads\fieldtrip\fieldtrip-20210929';
+		end
 		if ~isfolder( AMPSCZdir )
 			error( 'Invalid project directory' )
 		end
 		
 		if isempty( which( 'data2bids.m' ) )
-			fieldTripDir = '/PHShome/sn1005/Downloads/fieldtrip/fieldtrip-20211209';
-% 			fieldTripDir = 'C:\Users\donqu\Downloads\fieldtrip\fieldtrip-20210929';
 			addpath( fieldTripDir, '-begin' )
 			if verbose
 				fprintf( '\n%s added to path\n', fieldTripDir )
@@ -129,7 +132,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 		% cfg.eeg.HardwareFilters
 
 		iSkip   = 0;
-		skipLog = cell( 0, 1 );
+		skipLog = cell( 0, 2 );
 		if verbose
 			fprintf( '\n' )
 		end
@@ -224,6 +227,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 						if fidStatus == -1
 							iSkip(:) = iSkip + 1;
 							skipLog{iSkip,1} = errMsg;
+							sklpLog{iSkip,2} = false;
 % 							error( errMsg )
 							continue			% to next session.  fopen fails are kinda serious, really keep going?
 						end
@@ -246,6 +250,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 						if fidStatus == -1
 							iSkip(:) = iSkip + 1;
 							skipLog{iSkip,1} = errMsg;
+							sklpLog{iSkip,2} = false;
 % 							error( errMsg )
 							continue			% to next session
 						end
@@ -261,6 +266,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 					if fidLog == -1
 						iSkip(:) = iSkip + 1;
 						skipLog{iSkip,1} = errMsg;
+						sklpLog{iSkip,2} = false;
 % 						error( errMsg )
 						continue			% to next session
 					end
@@ -295,6 +301,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 								zipStatus(iZip) = -1;
 								iSkip(:) = iSkip + 1;
 								skipLog{iSkip,1} = sprintf( '%s inconsistent paths in content\n', zipFile );
+								sklpLog{iSkip,2} = true;
 								writeToLog( verbose, skipLog{iSkip,1} )
 								continue	% to next zip file
 							elseif ~strcmp( zipContentPath{1}, 'Vision/Raw Files' )
@@ -307,6 +314,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 								zipStatus(iZip) = -1;
 								iSkip(:) = iSkip + 1;
 								skipLog{iSkip,1} = sprintf( '%s content name doesn''t match zip file name\n', zipFile );
+								sklpLog{iSkip,2} = true;
 								writeToLog( verbose, skipLog{iSkip,1} )
 								continue	% to next zip file
 % 							elseif ~all( strncmp( zipContentFile, zipContentFile{1}(1:20), 20 ) )
@@ -316,6 +324,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 % 								zipStatus(iZip) = -1;
 % 								iSkip(:) = iSkip + 1;
 % 								skipLog{iSkip,1} = sprintf( '%s inconsistent file names in content\n', zipFile );
+% 								sklpLog{iSkip,2} = true;
 % 								writeToLog( verbose, skipLog{iSkip,1} )
 % 								continue	% to next zip file
 							end
@@ -324,6 +333,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 								zipStatus(iZip) = -1;
 								iSkip(:) = iSkip + 1;
 								skipLog{iSkip,1} = sprintf( '%s missing critical file(s)\n', zipFile );
+								sklpLog{iSkip,2} = true;
 								writeToLog( verbose, skipLog{iSkip,1} )
 								continue	% to next zip file
 							elseif ~ismember( '.txt', zipContentExt )
@@ -343,6 +353,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 									zipStatus(iZip) = -1;
 									iSkip(:) = iSkip + 1;
 									skipLog{iSkip,1} = sprintf( '%s inconsistent file names across multiple zip files\n', zipFile );
+									sklpLog{iSkip,2} = true;
 									writeToLog( verbose, skipLog{iSkip,1} )
 									continue	% to next zip file
 								end
@@ -353,6 +364,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 									zipStatus(iZip) = -1;
 									iSkip(:) = iSkip + 1;
 									skipLog{iSkip,1} = sprintf( '%s inconsistent paths across multiple zip files\n', zipFile );
+									sklpLog{iSkip,2} = true;
 									writeToLog( verbose, skipLog{iSkip,1} )
 									continue	% to next zip file
 								end
@@ -394,12 +406,14 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 							if ~strcmp( H(iUnzipped).Common.MarkerFile, [ zipFiles(iZip).name(1:end-4), '.vmrk' ] )
 								iSkip(:) = iSkip + 1;
 								skipLog{iSkip,1} = sprintf( '%s header/marker file mismatch\n', H(iUnzipped).inputFile );
+								sklpLog{iSkip,2} = true;
 								writeToLog( verbose, skipLog{iSkip,1} )
 								continue	% empty ImarkerSeg{iUnzipped} will flag bad BV files
 							end
 							if ~strcmp( H(iUnzipped).Common.DataFile  , [ zipFiles(iZip).name(1:end-4), '.eeg' ] )
 								iSkip(:) = iSkip + 1;
 								skipLog{iSkip,1} = sprintf( '%s header/data file mismatch\n', H(iUnzipped).inputFile );
+								sklpLog{iSkip,2} = true;
 								writeToLog( verbose, skipLog{iSkip,1} )
 								continue
 							end
@@ -408,6 +422,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 							if ~strcmp( M(iUnzipped).Common.DataFile, H(iUnzipped).Common.DataFile )
 								iSkip(:) = iSkip + 1;
 								skipLog{iSkip,1} = sprintf( '%s header/marker data file mismatch\n', H(iUnzipped).inputFile );
+								sklpLog{iSkip,2} = true;
 								writeToLog( verbose, skipLog{iSkip,1} )
 								continue
 							end
@@ -460,6 +475,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 								if any( kLostSamples )
 									iSkip(:) = iSkip + 1;
 									skipLog{iSkip,1} = sprintf( '%s segment #%d - %d epochs of lost samples\n', H(iBV).Common.MarkerFile, iSegment, sum( kLostSamples ) );
+									sklpLog{iSkip,2} = true;
 									writeToLog( verbose, skipLog{iSkip,1} )
 % 									ImarkerRange(kLostSamples) = [];
 									continue		% Itask{iBV}(iSegment)==0 will flag bad segments
@@ -470,6 +486,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 								if any( cellfun( @isempty, eventCode ) )
 									iSkip(:) = iSkip + 1;
 									skipLog{iSkip,1} = sprintf( '%s segment #%d - Unexpected Marker description(s), can''t identify event code\n', H(iBV).Common.MarkerFile, iSegment );
+									sklpLog{iSkip,2} = true;
 									writeToLog( verbose, skipLog{iSkip,1} )
 									continue
 								end
@@ -487,6 +504,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 											writeToLog( verbose, '\n' )
 											iSkip(:) = iSkip + 1;
 											skipLog{iSkip,1} = sprintf( '%s segment #%d - Unexpected events in task segment', H(iBV).Common.MarkerFile, iSegment );
+											sklpLog{iSkip,2} = true;
 											continue		% segment loop
 										end
 										% index into taskInfo cell array
@@ -507,6 +525,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 										writeToLog( verbose, '\n' )
 										iSkip(:) = iSkip + 1;
 										skipLog{iSkip,1} = sprintf( '%s segment #%d - Can''t identify task, no match', H(iBV).Common.MarkerFile, iSegment );
+										sklpLog{iSkip,2} = true;
 										continue
 									otherwise
 										writeToLog( verbose, '%s segment #%d - Can''t identify task, multiple task codes', H(iBV).Common.MarkerFile, iSegment )
@@ -516,6 +535,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 										writeToLog( verbose, '\n' )
 										iSkip(:) = iSkip + 1;
 										skipLog{iSkip,1} = sprintf( '%s segment #%d - Can''t identify task, multiple matches', H(iBV).Common.MarkerFile, iSegment );
+										sklpLog{iSkip,2} = true;
 										continue
 								end
 
@@ -568,6 +588,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 									if fid == -1
 										iSkip(:) = iSkip + 1;
 										skipLog{iSkip,1} = msg;
+										sklpLog{iSkip,2} = false;
 										error( msg )
 % 										continue			% to next segment?  figure out how to break out of session loop?
 									end
@@ -594,6 +615,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 											end
 											iSkip(:) = iSkip + 1;
 											skipLog{iSkip,1} = sprintf( 'Unexpected %s class', fn2{1} );
+											sklpLog{iSkip,2} = false;
 											error( skipLog{iSkip,1} )
 % 											writeToLog( verbose, ' Unexpected %s.%s class [abort]\n', fn1, fn2{1} )
 % 											break
@@ -613,6 +635,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 											end
 											iSkip(:) = iSkip + 1;
 											skipLog{iSkip,1} = sprintf( 'Unexpected %s class', fn2{1} );
+											sklpLog{iSkip,2} = false;
 											error( skipLog{iSkip,1} )
 % 											writeToLog( verbose, ' Unexpected %s.%s class [abort]\n', fn1, fn2{1} )
 % 											break
@@ -685,6 +708,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 									if fid == -1
 										iSkip(:) = iSkip + 1;
 										skipLog{iSkip,1} = msg;
+										sklpLog{iSkip,2} = false;
 										error( msg )
 % 										continue			% to next segment?  figure out how to break out of session loop?
 									end
@@ -702,6 +726,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 											end
 											iSkip(:) = iSkip + 1;
 											skipLog{iSkip,1} = sprintf( 'Unexpected %s class', fn2{1} );
+											sklpLog{iSkip,2} = false;
 											error( skipLog{iSkip,1} )
 										end
 										fprintf( fid, [ '%s=', fmt, '\r\n' ], fn2{1}, Mout.(fn1).(fn2{1}) );
@@ -745,6 +770,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 									if fid == -1
 										iSkip(:) = iSkip + 1;
 										skipLog{iSkip,1} = msg;
+										sklpLog{iSkip,2} = false;
 										error( msg )
 % 										continue			% to next segment?  figure out how to break out of session loop?
 									end
@@ -816,6 +842,15 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 % 					end		% Sidecar if
 % 					writeToLog( '%s finished @ %s\n\n\n', mfilename, datestr( now, 'yyyymmddTHHMMSS' ) )
 
+					if exist( 'iSkip', 'var' ) == 1 && iSkip ~= 0
+						kUnlogged = ~[ skipLog{:,2} ];
+						if any( kUnlogged )
+							writeToLog( verbose, 'Unlogged errors:\n')
+							for iUnlogged = find( kUnlogged(:) )'
+								writeToLog( verbose, '%s\n', skipLog{iUnlogged,1} )
+							end
+						end
+					end
 					if fclose( fidLog ) == -1 % && verbose
 						warning( 'MATLAB:fcloseError', 'fclose error' )
 					end
@@ -834,6 +869,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 	catch ME
 
 		if exist( 'fidLog', 'var' ) == 1 && fidLog ~= -1 && ~isempty( fopen( fidLog ) )		% log file still open
+			% write any unlogged escapes here too?
 			writeToLog( '%s\n', ME.message )
 			if fclose( fidLog ) == -1
 				warning( 'MATLAB:fcloseError', 'fclose error' )

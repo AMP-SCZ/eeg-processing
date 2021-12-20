@@ -32,16 +32,18 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 
 % make sure hann is Matlab function not Fieldtrip!
 
-error( 'Under Construction' )		% fix paths for PHOENIX
+% error( 'Under Construction' )		% fix paths for PHOENIX
 
 	narginchk( 0, 2 )
 
-	AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-	AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?
-	AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-	
-	eegLabDir = '/PHShome/sn1005/Downloads/eeglab/eeglab2021.1';
-	eegLabDir = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1';
+	if isunix
+		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
+		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
+		eegLabDir = '/PHShome/sn1005/Downloads/eeglab/eeglab2021.1';
+	else %if ispc
+		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
+		eegLabDir = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1';
+	end
 
 	if exist( 'writeFlag', 'var' ) == 1
 		if ~isempty( writeFlag ) && ( ~isscalar( writeFlag ) || ~islogical( writeFlag ) )
@@ -107,11 +109,11 @@ error( 'Under Construction' )		% fix paths for PHOENIX
 		return
 	end
 
-	proNetTools = fileparts( mfilename( 'fullpath' ) );
-	locsFile    = fullfile( proNetTools, 'ProNET_actiCHamp65ref.ced' );
+	AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
+	locsFile    = fullfile( AMPSCZtools, 'ProNET_actiCHamp65ref.ced' );
 	
 	% minimum & maximum reaction times (s), button presses out of this range not counted as responses
-	RTrange = ProNET_RTrange;
+	RTrange = AMPSCZ_EEG_RTrange;
 	
 	hannPath = which( 'hann.m' );		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
 	if ~contains( hannPath, matlabroot )
@@ -125,7 +127,7 @@ error( 'Under Construction' )		% fix paths for PHOENIX
 		close( gcf )
 	end
 	if ~contains( which( 'topoplot.m' ), 'modifications' )
-		addpath( fullfile( proNetTools, 'modifications', 'eeglab' ), '-begin' )
+		addpath( fullfile( AMPSCZtools, 'modifications', 'eeglab' ), '-begin' )
 	end
 
 % 	nSession = size( sessionList, 1 );
@@ -166,8 +168,8 @@ error( 'Under Construction' )		% fix paths for PHOENIX
 % 	end
 % 	return
 	
-	siteInfo = ProNET_siteNames;
-	[ taskInfo, taskSeq ] = ProNET_taskSeq;
+	siteInfo = AMPSCZ_EEG_siteInfo;
+	[ taskInfo, taskSeq ] = AMPSCZ_EEG_taskSeq;
 	nTask = size( taskInfo, 1 );		% i.e. 5
 	nSeq  = numel( taskSeq );
 	cTask = [
@@ -220,7 +222,7 @@ error( 'Under Construction' )		% fix paths for PHOENIX
 		iZ     = 1;
 		nZ     = 0;
 	else
-		Z = ProNET_readBVimpedance( H );		% 65x2x# { name, impedance }
+		Z = AMPSCZ_EEG_readBVimpedance( H );		% 65x2x# { name, impedance }
 		if isempty( Z )
 			Z    = cell( 0, 2 );		%[ { chanLocs(1:63).labels }', num2cell( nan(63,1) ) ];
 			kZ   = [];

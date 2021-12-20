@@ -1,5 +1,5 @@
 function siteInfo = AMPSCZ_EEG_siteInfo
-% List of 2-letter ProNET site identifiers, full names, and power line frequencies.
+% List of 2-letter AMPSCZ site identifiers, full names, and power line frequencies.
 % Line frequency is assumed by what's typical in country of origin.
 %
 % USAGE:
