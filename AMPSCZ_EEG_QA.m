@@ -144,7 +144,8 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 	sessDate = sessionName(9:16);
 	subjTag  = [ 'sub-', subjId   ];
 	sessTag  = [ 'ses-', sessDate ];
-	bvDir    = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg', sessTag, 'BIDS' );
+	sessDir  = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg', sessTag );
+	bvDir    = fullfile( sessDir, 'BIDS' );
 
 	
 	% e.g. pop_chanedit( struct( 'labels', Z(:,1) ) )...
@@ -940,9 +941,16 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 	set( hAx(4), 'XGrid', 'on' )
 
 	figure( hFig )
-	return
+% 	return
 
-	pngOut = fullfile( AMPSCZdir, 'Figures', 'QA', [ subjId, '_', sessDate, '_QA.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QA.png' ]
+	pngDir = fullfile( sessDir, 'Figures' );				% keep everything organized by site/subject/session for BWH
+% 	pngDir = fullfile( AMPSCZdir, 'Figures', 'QA' );		% write all sessions in 1 common directory for ease of local analysis
+	if ~isfolder( pngDir )
+		mkdir( pngDir )
+		fprintf( 'created %s\n', pngDir )
+	end
+	pngOut = fullfile( pngDir, [ subjId, '_', sessDate, '_QA.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QA.png' ]
+
 	if isempty( writeFlag )
 		writeFlag = exist( pngOut, 'file' ) ~= 2;		
 		if ~writeFlag
@@ -953,7 +961,7 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 %		print( hFig, pngOut, '-dpng' )		% 1800x1000 figure window becomes 2813x1563
 %		saveas( hFig, pngOut, 'png' )		% 1800x1000 figure window becomes 2813x1563
 %		getframe( hFig )					% 1800x1000 figure window has     3600x2000 cdata
-		figPos = get( hFig, 'Position' );
+		figPos = get( hFig, 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
 		img = getframe( hFig );
 		img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
 %		size( img )
@@ -964,3 +972,10 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 	return
 	
 end
+
+%{
+		% e.g.
+		proc = AMPSCZ_EEG_findProcSessions;
+		AMPSCZ_EEG_QA( strcat( proc(:,2), '_', proc(:,3) ), true )
+
+%}
