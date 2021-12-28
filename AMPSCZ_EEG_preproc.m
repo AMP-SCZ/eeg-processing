@@ -39,8 +39,9 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	if exist( 'passBand', 'var' ) ~= 1 || isempty( passBand )
 		passBand = [ 0.1, 50 ];
 	end
-	if exist( 'forceWrite', 'var' ) ~= 1 || isempty( forceWrite )
-		forceWrite = false;
+	if exist( 'forceWrite', 'var' ) ~= 1 %|| isempty( forceWrite )
+% 		forceWrite = false;
+		forceWrite = [];
 	end
 	if iscell( epochName )
 		% they get checked later, but might as well know about errors up front
@@ -229,14 +230,17 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	logFile = fullfile( matDir, sprintf( '%s_%s_%s.log', subjTag(5:end), sessTag(5:end), epochName ) );
 	matFile = fullfile( matDir, sprintf( '%s_%s_%s_[%g,%g].mat', subjTag(5:end), sessTag(5:end), epochName, passBand(1), passBand(2) ) );
 	writeFlag = exist( matFile, 'file' ) ~= 2;
-	if forceWrite
-		if ~writeFlag
+	if ~writeFlag
+		if isempty( forceWrite )
+			writeFlag(:) = strcmp( questdlg( 'Replace?', 'mat-file', 'No', 'Yes', 'No' ), 'Yes' );
+			if ~writeFlag
+				return
+			end
+		elseif forceWrite
 			warning( '%s will be overwritten', matFile )		% logFile too
 			writeFlag(:) = true;
-		end
-	elseif ~writeFlag
-		writeFlag(:) = strcmp( questdlg( 'Replace?', 'mat-file', 'No', 'Yes', 'No' ), 'Yes' );
-		if ~writeFlag
+		else
+			fprintf( '%s exists\n', matFile )
 			return
 		end
 	end
@@ -547,19 +551,28 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 											    logFile, '' );
 											
 	fprintf( 'Finished analyzing %s %s. \n', subjTag(5:end), epochName )
-	if writeFlag
+	if writeFlag		% there's no reason to run bieegl_FASTER & not save anything other than debugging.  writeFlag=false already forces return above, so this if is moot
 		fprintf( 'writing %s\n', matFile )
 		save( matFile, 'EEG', 'epochInfo', 'chanProp', 'ccaStats', 'icaData', 'passBand', 'epochWin', 'baselineWin', 'icaWin', 'Ieog',...
 		               'epochName', 'standardCode', 'targetCode', 'novelCode', 'logFile', 'RTrange', 'nExtra' )
 	end
 	fprintf( 'done\n' )
 
-	
-	
-	
-	
-	
+
+
+
 	return
+
+
+%{
+		% e.g.
+		proc = AMPSCZ_EEG_findProcSessions;
+		for iSession = 1:size( proc, 1 )
+			AMPSCZ_EEG_preproc( proc(iSession,2), proc(iSession,3), { 'MMN', 'VOD', 'AOD' }, [], false )
+		end
+%}
+
+
 
 %{
 
