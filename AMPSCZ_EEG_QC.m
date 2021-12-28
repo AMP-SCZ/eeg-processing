@@ -1,6 +1,6 @@
-function AMPSCZ_EEG_QA( sessionName, writeFlag )
+function AMPSCZ_EEG_QC( sessionName, writeFlag )
 % Usage:
-% >> AMPSCZ_EEG_QA( [sessionName], [writeFlag] )
+% >> AMPSCZ_EEG_QC( [sessionName], [writeFlag] )
 %
 % Optional Inputs:
 % sessionName = 16-character [ subjId, '_', date ] vector, e.g. 'BI00001_20220101'
@@ -46,7 +46,7 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 			end
 			for iSession = 1:nSession
 				try
-					AMPSCZ_EEG_QA( sessionName{iSession}, writeFlag )
+					AMPSCZ_EEG_QC( sessionName{iSession}, writeFlag )
 				catch ME
 					fprintf( '\n\n%s\n%s\n%s\n\n', repmat( '*', [ 1, 80 ] ), ME.message, repmat( '*', [ 1, 80 ] ) )
 					continue
@@ -77,7 +77,7 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 		end
 		for iMulti = 1:nSession
 			try
-				AMPSCZ_EEG_QA( sprintf( '%s_%s', sessionList{iSession(iMulti),2:3} ), writeFlag )
+				AMPSCZ_EEG_QC( sprintf( '%s_%s', sessionList{iSession(iMulti),2:3} ), writeFlag )
 			catch ME
 % 				disp( ME )
 % 				for ii = numel( ME.stack ):-1:1
@@ -949,7 +949,7 @@ function AMPSCZ_EEG_QA( sessionName, writeFlag )
 		mkdir( pngDir )
 		fprintf( 'created %s\n', pngDir )
 	end
-	pngOut = fullfile( pngDir, [ subjId, '_', sessDate, '_QA.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QA.png' ]
+	pngOut = fullfile( pngDir, [ subjId, '_', sessDate, '_QC.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QC.png' ]
 
 	if isempty( writeFlag )
 		writeFlag = exist( pngOut, 'file' ) ~= 2;		
@@ -976,6 +976,6 @@ end
 %{
 		% e.g.
 		proc = AMPSCZ_EEG_findProcSessions;
-		AMPSCZ_EEG_QA( strcat( proc(:,2), '_', proc(:,3) ), true )
+		AMPSCZ_EEG_QC( strcat( proc(:,2), '_', proc(:,3) ), true )
 
 %}

@@ -1,7 +1,7 @@
 function RTrange = AMPSCZ_EEG_RTrange
 % Range of allowed reaction times in AMPSCZ tasks.
 % Created this super-simple function make sure that
-% AMPSCZ_EEG_QA.m & AMPSCZ_EEG_preprocEEG.m use the same range
+% AMPSCZ_EEG_QC.m & AMPSCZ_EEG_preprocEEG.m use the same range
 %
 % Usage:
 % >> RTrange = AMPSCZ_EEG_RTrange;
