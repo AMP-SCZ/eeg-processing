@@ -563,15 +563,16 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 
 	return
 
-
-%{
+%%
+%
 		% e.g.
+		% need to weed out incomplete sessions, findProcSessions not good enough for ERPs
 		proc = AMPSCZ_EEG_findProcSessions;
-		for iSession = 1:size( proc, 1 )
+		for iSession = [ 1 3 4 5 6 7 8 ]%1:size( proc, 1 )
 			AMPSCZ_EEG_preproc( proc(iSession,2), proc(iSession,3), { 'MMN', 'VOD', 'AOD' }, [], false )
 		end
-%}
-
+%
+%%
 
 
 %{

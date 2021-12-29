@@ -246,13 +246,13 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 	wf    = 0.25;					% half width of freqency bands around line frequency harmonics
 	pLine = nan( 63, nSeq );
 	errTol = 2;						% error tolerance for hits, FA (yellow color)
-% 	QAvars   = { 'Run', 'Standard', 'Target', 'Novel', 'Tone1', 'Tone2', 'VIS', 'Hit', 'FA', 'Extra', 'Misc' };
-% 	QAvars   = { 'Run', taskInfo{1,2}{[ 1:3, 5:6 ],2}, 'VIS', 'TrgHit', 'NovelFA', 'OtherFA', 'Misc' };
-	QAvars   = { 'Run', taskInfo{1,2}{[ 1:3, 5:6 ],2}, 'VIS', 'TrgHit', 'NovelFA', 'StndFA', 'Misc' };
-	nVar     = numel( QAvars );
+% 	QCvars   = { 'Run', 'Standard', 'Target', 'Novel', 'Tone1', 'Tone2', 'VIS', 'Hit', 'FA', 'Extra', 'Misc' };
+% 	QCvars   = { 'Run', taskInfo{1,2}{[ 1:3, 5:6 ],2}, 'VIS', 'TrgHit', 'NovelFA', 'OtherFA', 'Misc' };
+	QCvars   = { 'Run', taskInfo{1,2}{[ 1:3, 5:6 ],2}, 'VIS', 'TrgHit', 'NovelFA', 'StndFA', 'Misc' };
+	nVar     = numel( QCvars );
 	kVar     = false(    1, nVar );
-	QAtable  =  cell( nSeq, nVar );
-	QAstatus = zeros( nSeq, nVar ); 
+	QCtable  =  cell( nSeq, nVar );
+	QCstatus = zeros( nSeq, nVar ); 
 
 	goodColor = '\color[rgb]{0,0.75,0}';
 	okColor   = '\color[rgb]{0.75,0.75,0}';
@@ -263,9 +263,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 		taskName = taskInfo{taskSeq(iSeq),1};
 		codeInfo = taskInfo{taskSeq(iSeq),2};
 
-		kVar(:) = strcmp( QAvars, 'Run' );
+		kVar(:) = strcmp( QCvars, 'Run' );
 		[ ~, iRunOrder ] = ismember( [ taskSeq(iSeq), nRun(iSeq) ], [ taskSeqFound(:), nRunFound(:) ], 'rows' );
-		QAtable{iSeq,kVar}  = sprintf( '(%02d) %s-%02d', iRunOrder, taskName, nRun(iSeq) );
+		QCtable{iSeq,kVar}  = sprintf( '(%02d) %s-%02d', iRunOrder, taskName, nRun(iSeq) );
 
 		bvFile = fullfile( bvDir, sprintf( '%s_%s_%s_%s_eeg.vhdr', subjTag, sessTag, sprintf( 'task-%s', taskName ), sprintf( 'run-%02d', nRun(iSeq) ) ) );
 		fileExist(iSeq) = exist( bvFile, 'file' ) == 2;
@@ -274,9 +274,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 			continue
 		end
 		if iRunOrder == iSeq
-			QAstatus(iSeq,kVar) = 2;
+			QCstatus(iSeq,kVar) = 2;
 		else
-			QAstatus(iSeq,kVar) = 1;
+			QCstatus(iSeq,kVar) = 1;
 		end
 
 		H      = bieegl_readBVtxt( bvFile );
@@ -284,18 +284,18 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 		M      = bieegl_readBVtxt( [ bvFile(1:end-3), 'mrk' ] );
 
 		kLostSamples = strncmp( { M.Marker.Mk.description }, 'LostSamples:', 12 );
-		kVar(:) = strcmp( QAvars, 'Misc' );
+		kVar(:) = strcmp( QCvars, 'Misc' );
 		if any( kLostSamples )
 			nSampleLost = regexp( { M.Marker.Mk(kLostSamples).description }, '^LostSamples: (\d+)$', 'tokens', 'once' );
 			nSampleLost = str2double( [ nSampleLost{:} ] );
-			QAtable{iSeq,kVar} = sprintf( 'Lost %d epochs, %d samples', numel( nSampleLost ), sum( nSampleLost ) );
+			QCtable{iSeq,kVar} = sprintf( 'Lost %d epochs, %d samples', numel( nSampleLost ), sum( nSampleLost ) );
 		else
-			QAstatus(iSeq,kVar) = 2;
+			QCstatus(iSeq,kVar) = 2;
 		end
 
 		
 		% check that # non-response event codes found matches expected value
-		% ??? build this check into unzip program ??? or keep in QA
+		% ??? build this check into unzip program ??? or keep in QC
 % 		Istim = find( ~cellfun( @isempty, codeInfo(:,3) ) );
 		Istim = find( ~cellfun( @(u)strcmp(u,'Response'), codeInfo(:,2) ) );
 % 		nStim = numel( Istim );
@@ -303,10 +303,10 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 		for iCode = Istim(:)'
 			nExpected = codeInfo{iCode,3};
 			nFound    = sum( strcmp( { M.Marker.Mk.description }, sprintf( 'S%3d', codeInfo{iCode,1} ) ) );
-			kVar(:) = strcmp( QAvars, codeInfo{iCode,2} );
-			QAtable{iSeq,kVar} = sprintf( '%d/%d', nFound, nExpected );
+			kVar(:) = strcmp( QCvars, codeInfo{iCode,2} );
+			QCtable{iSeq,kVar} = sprintf( '%d/%d', nFound, nExpected );
 			if nFound == nExpected
-				QAstatus(iSeq,kVar) = 2;
+				QCstatus(iSeq,kVar) = 2;
 			else
 				warning( '%s experiment, %s events: %d expected %d found', taskName, codeInfo{iCode,2}, nExpected, nFound )
 % 				continue
@@ -353,10 +353,10 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 				nVis = 0;
 			end
 			nMrk = sum( ismember( { M.Marker.Mk.description }, { 'S 32', 'S 64', 'S128' } ) );
-			kVar(:) = strcmp( QAvars, 'VIS' );
-			QAtable{iSeq,kVar} = sprintf( '%d/%d', nVis, nMrk );
+			kVar(:) = strcmp( QCvars, 'VIS' );
+			QCtable{iSeq,kVar} = sprintf( '%d/%d', nVis, nMrk );
 			if nVis == nMrk
-				QAstatus(iSeq,kVar) = 1 + ( nMrk == 160 );
+				QCstatus(iSeq,kVar) = 1 + ( nMrk == 160 );
 			else
 				% write out message instead of error
 				warning( 'expecting %d photosensor onsets, found %d', nMrk, nVis )
@@ -425,37 +425,37 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 			nHit  = sum(  stimResp(stimResp(:,1)==1,2) ~= 0 );
 			nFA   = sum(  stimResp(stimResp(:,1)==2,2) ~= 0 );		% Novel
 			nFA0  = sum(  stimResp(stimResp(:,1)==0,2) ~= 0 );		% Standard
-			kVar(:) = strcmp( QAvars, 'TrgHit' );
-			QAtable{iSeq,kVar} = sprintf( '%d/%d', nHit, nTarg );
+			kVar(:) = strcmp( QCvars, 'TrgHit' );
+			QCtable{iSeq,kVar} = sprintf( '%d/%d', nHit, nTarg );
 			if nHit == nTarg
-				QAstatus(iSeq,kVar) = 2;
+				QCstatus(iSeq,kVar) = 2;
 			elseif nTarg - nHit <= errTol
-				QAstatus(iSeq,kVar) = 1;
+				QCstatus(iSeq,kVar) = 1;
 			end
-			kVar(:) = strcmp( QAvars, 'NovelFA' );
-			QAtable{iSeq,kVar} = sprintf( '%d/%d', nFA, nNovl );
+			kVar(:) = strcmp( QCvars, 'NovelFA' );
+			QCtable{iSeq,kVar} = sprintf( '%d/%d', nFA, nNovl );
 			if nFA == 0
-				QAstatus(iSeq,kVar) = 2;
+				QCstatus(iSeq,kVar) = 2;
 			elseif nFA <= errTol
-				QAstatus(iSeq,kVar) = 1;
+				QCstatus(iSeq,kVar) = 1;
 			end
 			%{
 			if nExtra ~= 0
-				kVar(:) = strcmp( QAvars, 'OtherFA' );
-				QAtable{iSeq,kVar} = sprintf( '%d', nExtra );
+				kVar(:) = strcmp( QCvars, 'OtherFA' );
+				QCtable{iSeq,kVar} = sprintf( '%d', nExtra );
 				if nExtra <= errTol
-					QAstatus(iSeq,kVar) = 1;
+					QCstatus(iSeq,kVar) = 1;
 				end
 % 			else
-% 				QAstatus(iSeq,kVar) = 2;
+% 				QCstatus(iSeq,kVar) = 2;
 			end
 			%}
-			kVar(:) = strcmp( QAvars, 'StndFA' );
-			QAtable{iSeq,kVar} = sprintf( '%d/%d', nFA0, nStnd );
+			kVar(:) = strcmp( QCvars, 'StndFA' );
+			QCtable{iSeq,kVar} = sprintf( '%d/%d', nFA0, nStnd );
 			if nFA0 == 0
-				QAstatus(iSeq,kVar) = 2;
+				QCstatus(iSeq,kVar) = 2;
 			elseif nFA0 <= errTol
-				QAstatus(iSeq,kVar) = 1;
+				QCstatus(iSeq,kVar) = 1;
 			end
 			% convert response latency from samples to seconds
 			kResp = stimResp(:,2) ~= 0;
@@ -484,7 +484,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 	
 	
 	%% Resting state data
-	doRestSpectra = all( QAstatus(11:12,[1,2,11]) == 2, 1:2 );
+	doRestSpectra = all( QCstatus(11:12,[1,2,11]) == 2, 1:2 );
 	if doRestSpectra
 
 		iSeq = 11;
@@ -858,11 +858,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 	% Text table
 	hAx(6) = subplot( 3, 1, 3 );
 		% Brain Products "Photo Sensor" is a photo diode
-		% QAvars = { 'Run', taskInfo{1,2}{[ 1:3, 5:6 ],2}, 'VIS', 'TrgHit', 'NovelFA', 'OtherFA', 'Misc' };
-% 		QAline1 = QAvars;
-% 		QAline1 = { 'Run',  'Oddball',       '',      '',      'MMN',        '', 'Display',    'Hit',    'FA',         '', 'Misc' };
-		QAline1 = {    'Run',       'OD',     'OD',    'OD',      'MMN',     'MMN', 'Display',    'Hit',    'FA',       'FA',    'Misc.' };
-		QAline2 = { '(seq#)', 'Standard', 'Target', 'Novel', 'Standard', 'Deviant',   '(160)', 'Target', 'Novel', 'Standard', 'commnens' };
+		% QCvars = { 'Run', taskInfo{1,2}{[ 1:3, 5:6 ],2}, 'VIS', 'TrgHit', 'NovelFA', 'OtherFA', 'Misc' };
+% 		QCline1 = QCvars;
+% 		QCline1 = { 'Run',  'Oddball',       '',      '',      'MMN',        '', 'Display',    'Hit',    'FA',         '', 'Misc' };
+		QCline1 = {    'Run',       'OD',     'OD',    'OD',      'MMN',     'MMN', 'Display',    'Hit',    'FA',       'FA',    'Misc.' };
+		QCline2 = { '(seq#)', 'Standard', 'Target', 'Novel', 'Standard', 'Deviant',   '(160)', 'Target', 'Novel', 'Standard', 'commnens' };
 		xTxt = [ 1.6, 1, 0.8, 0.8, 1, 0.8, 1, 0.8, 0.8, 1, 1.2 ];
 		horizAlign = 'left';
 % 		horizAlign = 'right';
@@ -880,13 +880,13 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 				hAlign = horizAlign;
 			end
 			text( 'Units', 'normalized', 'HorizontalAlignment', hAlign, 'VerticalAlignment', 'top',...
-				'Position', [ xTxt(iVar), 1+1/nSeq, 0 ], 'String', QAline1{iVar},...
+				'Position', [ xTxt(iVar), 1+1/nSeq, 0 ], 'String', QCline1{iVar},...
 				'FontSize', 12, 'FontWeight', 'normal', 'FontName', 'Courier' )			
 			text( 'Units', 'normalized', 'HorizontalAlignment', hAlign, 'VerticalAlignment', 'top',...
-				'Position', [ xTxt(iVar), 1+0/nSeq, 0 ], 'String', QAline2{iVar},...
+				'Position', [ xTxt(iVar), 1+0/nSeq, 0 ], 'String', QCline2{iVar},...
 				'FontSize', 12, 'FontWeight', 'normal', 'FontName', 'Courier' )			
 			for iSeq = 1:nSeq
-				switch QAstatus(iSeq,iVar)
+				switch QCstatus(iSeq,iVar)
 					case 2
 						colorStr = goodColor;
 					case 1
@@ -895,7 +895,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 						colorStr =  badColor;
 				end
 				text( 'Units', 'normalized', 'HorizontalAlignment', hAlign, 'VerticalAlignment', 'top',...
-					'Position', [ xTxt(iVar), 1-iSeq/nSeq, 0 ], 'String', [ colorStr, QAtable{iSeq,iVar} ],...
+					'Position', [ xTxt(iVar), 1-iSeq/nSeq, 0 ], 'String', [ colorStr, QCtable{iSeq,iVar} ],...
 					'FontSize', 12, 'FontWeight', 'bold', 'FontName', 'Courier' )
 			end
 		end
@@ -944,7 +944,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 % 	return
 
 	pngDir = fullfile( sessDir, 'Figures' );				% keep everything organized by site/subject/session for BWH
-% 	pngDir = fullfile( AMPSCZdir, 'Figures', 'QA' );		% write all sessions in 1 common directory for ease of local analysis
+% 	pngDir = fullfile( AMPSCZdir, 'Figures', 'QC' );		% write all sessions in 1 common directory for ease of local analysis
 	if ~isfolder( pngDir )
 		mkdir( pngDir )
 		fprintf( 'created %s\n', pngDir )
@@ -971,11 +971,14 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 	
 	return
 	
-end
-
+%%
 %{
 		% e.g.
 		proc = AMPSCZ_EEG_findProcSessions;
 		AMPSCZ_EEG_QC( strcat( proc(:,2), '_', proc(:,3) ), true )
 
 %}
+%%
+
+end
+

@@ -1,5 +1,5 @@
 function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
-% ERP plots from the output of ProNET_preprocEEG.m
+% ERP plots from the output of AMPSCZ_EEG_preproc.m
 % 
 % Usage:
 % >> AMPSCZ_EEG_ERPplot( EEG, epochInfo )
@@ -51,7 +51,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 		if ~isstruct( epochInfo ) || ~all( isfield( epochInfo, { 'latency', 'kStandard', 'kTarget', 'kNovel', 'kCorrect', 'respLat' } ) )
 			error( 'invalid epochInfo structure' )
 		end
-	elseif ischar( EEG ) && exist( EEG, 'file' ) == 2 && strncmp( flip( EEG, 2 ), 'mat.', 4 )
+	elseif ischar( EEG ) && exist( EEG, 'file' ) == 2 && strncmp( flip( EEG, 2 ), 'tam.', 4 )
 		EEG = load( EEG );
 		if ~isfield( EEG, 'EEG' )
 			error( 'invalid mat-file' )
@@ -62,9 +62,15 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 		error( 'invalid EEG structure' )
 	end
 	
+	% concatenate epoch info across runs
+	for fn = fieldnames( epochInfo )'
+		epochInfo(1).(fn{1}) = [ epochInfo.(fn{1}) ];
+	end
+	epochInfo = epochInfo(1);
+	
 	tWinPlot   = [ -100, 500 ];	% (ms)
 % 	tWidthTopo = 0;
-	tWidthTopo = 50;
+	tWidthTopo = 25*2;
 	
 	Ichan  = find( strcmp( { EEG.chanlocs.type }, 'EEG' ) );
 	nChan  = numel( Ichan );
@@ -75,6 +81,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 	jT0   = find( jTime, 1, 'first' ) - 1;
 	nTime = sum( jTime );
 
+	% pull out the latency=0 events from each epoch, cell array of 'S#' codes, should all be stim codes, not responses
 	eventType = cellfun( @(u,v)u{[v{:}]==0}, { EEG.epoch.eventtype }, { EEG.epoch.eventlatency }, 'UniformOutput', false );
 	if numel( eventType ) ~= EEG.trials
 		error( 'huh?' )
@@ -95,34 +102,21 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 	switch eventType{1}
 		case { 'S  1', 'S  2', 'S  4', 1, 2, 4 }
 			epochName   = 'AOD';
-			deviantName = 'Novel';
 			% { label, channel members }
 			chanSet = {
 				'Cz', { 'Cz' }
 				'Pz', { 'Pz' }
 			};
-			% { index into chanSet, waveform, time range } for { standard; target; novel }
-			peakInfo = {
-				nan,                '',           []
-				  2, 'Target-Standard', [ 200, 600 ]
-				  1,  'Novel-Standard', [ 200, 600 ]
-			};
-			figSize  = [ 600, 700 ];
+			figSize  = [ 1000, 700 ];
 		case { 'S 16', 'S 18', 16, 18 }
 			epochName   = 'MMN';
-			deviantName = 'Deviant';
 			chanSet = {
 				'Fz', { 'Fz' }
+				'Cz', { 'Cz' }
 			};
-			peakInfo = {
-				nan,               '',          []
-				nan,               '',          []
-				  1, 'Standard-Novel', [ 80, 200 ]
-			};
-			figSize  = [ 600, 600 ];
+			figSize  = [ 500, 700 ];
 		case { 'S 32', 'S 64', 'S128', 32, 64, 128 }
 			epochName   = 'VOD';
-			deviantName = 'Novel';
 % 			chanSet = {
 % 				'Pz', { 'Pz' }		% target & peak detection
 % 				'Oz', { 'Oz' }		% standard
@@ -131,12 +125,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 				'Cz', { 'Cz' }		%  novel - standard
 				'Pz', { 'Pz' }		% target - standard
 			};
-			peakInfo = {
-				nan,                '',           []
-				  2, 'Target-Standard', [ 200, 600 ]
-				  1,  'Novel-Standard', [ 200, 600 ]
-			};
-			figSize  = [ 600, 700 ];
+			figSize  = [ 1000, 700 ];
 		case { 'S  8', 8 }
 			epochName   = 'ASSR';
 % 		case { 'S 20 ', 20 }
@@ -157,338 +146,414 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 		end
 	end
 
-% 	[ standardCode, targetCode, novelCode, respCode ] = ProNET_eventCodes( epochName );
-	[ doStandard, doTarget, doNovel ] = ProNET_eventCodes( epochName );
-	doStandard = ~isempty( doStandard );		% this will always be true, here for future flexibility
-	doTarget   = ~isempty( doTarget ); 
-	doNovel    = ~isempty( doNovel ); 
-
-	% concatenate epoch info across runs
-	for fn = fieldnames( epochInfo )'
-		epochInfo(1).(fn{1}) = [ epochInfo.(fn{1}) ];
-	end
-	epochInfo = epochInfo(1);
-
-
 		% double-check EEG structure against epochInfo?
-%		if ~isempty( [ targetCode, novelCode ] )
-%			stimEvents = eventType( ~strcmp( eventType, standardCode ) );
-%			if numel( stimEvents ) ~= numel( epochInfo.kTarget )
+%		[ standardCode, targetCode, novelCode ] = AMPSCZ_EEG_eventCodes( epochName );
+%		if ~isempty( [ standardCode, targetCode, novelCode ] )
+%			if numel( eventType ) ~= numel( epochInfo.kTarget )
 %				error( 'epoch event type bug' )
-%			elseif ~isempty( targetCode ) && ~all( strcmp( stimEvents( epochInfo.kTarget ), targetCode ) )
+%			elseif ~isempty( targetCode ) && ~all( strcmp( eventType( epochInfo.kTarget ), targetCode ) )
 %				error( 'epoch event type bug' )
-%			elseif ~isempty(  novelCode ) && ~all( strcmp( stimEvents( epochInfo.kNovel  ),  novelCode ) )
+%			elseif ~isempty(  novelCode ) && ~all( strcmp( eventType( epochInfo.kNovel  ),  novelCode ) )
 %				error( 'epoch event type bug' )
 %			end
-%			clear stimEvents
 %		end
 
-	% what's more efficient indexing, logical or double here?
-	% e.g. 800 epochs, 640 standard, 80 target, 80 novel
-	% with large #s of standards in the mix, logicals win
-	%
-	% this is the same as find( epochInfo.kStandard ), why was I using strcmp?
-	% legacy from when there were no standards in epochInfo?
-% 	Kstandard = find( strcmp( eventType, standardCode ) );
-	if doStandard
-		Kstandard = epochInfo.kStandard;
-	end
-	if doTarget
-% 		Ktarget = find( strcmp( eventType, targetCode ) );
-		Ktarget = epochInfo.kTarget;
-	end
-	if doNovel
-% 		Knovel = find( strcmp( eventType, novelCode ) );
-		Knovel = epochInfo.kNovel;
-	end
-
-
-	% only analyze correct responses?		don't worry about button presses in MMN task.  DM 12/13/21
-	if ismember( epochName, { 'AOD', 'VOD' } )
-		% remove standard epochs with any responses in the >0 epoch window?  no, this was before I added standards to epochInfo
-% 		Kstandard( cellfun( @(u,v)ismember(respCode,u([v{:}]>0)), { EEG.epoch(Kstandard).eventtype }, { EEG.epoch(Kstandard).eventlatency } ) ) = [];
-% 		Kstandard = Kstandard(epochInfo.kCorrect(epochInfo.kStandard));
-		if doStandard
-			Kstandard(Kstandard) = epochInfo.kCorrect(Kstandard);
-		end
-		if doTarget
-% 			Ktarget = Ktarget(epochInfo.kCorrect(epochInfo.kTarget));
-			Ktarget(Ktarget) = epochInfo.kCorrect(Ktarget);
-		end
-		if doNovel
-% 			Knovel = Knovel(epochInfo.kCorrect(epochInfo.kNovel));
-			Knovel(Knovel) = epochInfo.kCorrect(Knovel);
-		end
-	end
-	
+	[ standardCode, targetCode, novelCode ] = AMPSCZ_EEG_eventCodes( epochName );
 	% non-rejected epochs
 	kEpoch = shiftdim( ~isnan( EEG.data(1,1,:) ), 1 );
-% 	kEpoch(:) = true;
-	if doStandard
-		Kstandard(Kstandard) = kEpoch(Kstandard);
-	end
-	if doTarget
-		Ktarget(Ktarget) = kEpoch(Ktarget);
-	end
-	if doNovel
-		Knovel(Knovel) = kEpoch(Knovel);
-	end
-	clear kEpoch
-
-	% average across good epochs, all EEG channels
-	% #channels(total) x #samples matrices
-% 	nanFlag = 'omitnan';
-	nanFlag = 'includenan';
-	if doStandard
-		YmStandard = mean( EEG.data(Ichan,jTime,Kstandard), 3, nanFlag );
-%		YmStandard = detrend( YmStandard', 1 )';
-	else
-		YmStandard = [];
-	end
-	if doTarget
-		YmTarget = mean( EEG.data(Ichan,jTime,Ktarget), 3, nanFlag );
-% 		YmTarget = detrend( YmTarget', 1 )';
-% 	else
-% 		YmTarget = [];
-	end
-	if doNovel
-		YmNovel = mean( EEG.data(Ichan,jTime,Knovel), 3, nanFlag );
-% 		YmNovel = detrend( YmNovel', 1 )';
-% 	else
-% 		YmNovel = [];
-	end
+	nanFlag = 'includenan';		% shouldn't be any NaNs, include them as safety
 	
-	
-	% average aross channels
-	% #sets x #samples matrices
-	if doStandard
-		ymStandard = zeros( nSet, nTime );
-		for iSet = 1:nSet
-			ymStandard(iSet,:) = mean( YmStandard(chanSet{iSet,2},:), 1, 'includenan' );
-		end
-	else
-		ymStandard = [];
-	end
-	if doTarget
-		ymTarget = zeros( nSet, nTime );
-		for iSet = 1:nSet
-			ymTarget(iSet,:) = mean( YmTarget(chanSet{iSet,2},:), 1, 'includenan' );
-		end
-	end
-	if doNovel
-		ymNovel = zeros( nSet, nTime );
-		for iSet = 1:nSet
-			ymNovel(iSet,:)  = mean( YmNovel(chanSet{iSet,2},:), 1, 'includenan' );
-		end
-	end
+	topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+Y', 'conv', 'on', 'shading', 'interp' };		% electrodes: 'pts' or 'ptslabels'?
 
-
-	
-	estyle = 'pts';
-% 	estyle = 'ptslabels';
-
-	% get range of data values
-	% want same range of color scale for all channels as y-limits on waveform axes?
-	if ~true		% all channels, safe bet to make sure topographs don't clip but waveforms may be squashed
-		if doTarget
-			if doNovel
-				Yall = cat( 3, YmStandard, YmTarget, YmNovel, YmTarget - YmStandard, YmNovel - YmStandard );
-			else
-				Yall =  cat( 3, YmStandard, YmTarget, YmTarget - YmStandard );
-			end
-		elseif doNovel
-			Yall = cat( 3, YmStandard, YmNovel, YmNovel - YmStandard );
-		else
-			Yall = YmStandard;
-		end
-		switch 1
-			case 1
-				yRange = [ min( Yall, [], 'all' ), max( Yall, [], 'all' ) ];
-			case 2
-				N = numel( Yall );
-				F = 0.99;
-				yRange = interp1( 1:N, sort( Yall(:), 1, 'ascend' ), ( 1 + [ -F, F ] )/2 * N, 'pchip' );
-			case 3
-				N = numel( Yall );
-				F = 0.9999;
-				yRange = [ 0, interp1( 1:N, sort( abs( Yall(:) ), 1, 'ascend' ), F*N, 'pchip' ) ];
-		end
-		clear Yall
-	else		% risk topograph clipping better good waveform view
-		if doTarget
-			if doNovel
-				Yall = cat( 3, ymStandard, ymTarget, ymNovel, ymTarget - ymStandard, ymNovel - ymStandard );
-			else
-				Yall =  cat( 3, ymStandard, ymTarget, ymTarget - ymStandard );
-			end
-		elseif doNovel
-			Yall = cat( 3, ymStandard, ymNovel, ymNovel - ymStandard );
-		else
-			Yall = ymStandard;
-		end
-		switch 1
-			case 1
-				yRange = [ min( Yall, [], 'all' ), max( Yall, [], 'all' ) ];
-			case 2
-				N = numel( Yall );
-				F = 0.99;
-				yRange = interp1( 1:N, sort( Yall(:), 1, 'ascend' ), ( 1 + [ -F, F ] )/2 * N, 'pchip' );
-			case 3
-				N = numel( Yall );
-				F = 0.9999;
-				yRange = [ 0, interp1( 1:N, sort( abs( Yall(:) ), 1, 'ascend' ), F*N, 'pchip' ) ];
-		end
-		clear Yall
-	end
-	% make symmetric about zero
-	yRange(2) = max( -yRange(1), yRange(2) );
-	yRange(1) = -yRange(2);
-	% pad a little?
-	yRange(:) = yRange + [ -1, 1 ] * diff( yRange ) * 0.125;
-	
-
-	[ tmStandardT, tmStandardN, tmTarget, tmNovel ] = deal( nan( nChan, 1 ) );		% initialize for scope, set in getTopoMaps
-	jPk = nan( 1, 3 );									% [ standard, target, novel ]
-	nPk = sum( ismember( [ peakInfo{:,1} ], 1:nSet ) );
-
+	fontSize = 10;
+	subjSess = regexp( EEG.comments, '^Original file: sub-([A-Z]{2}\d{5})_ses-(\d{8})_task-\S+_run-\d+_eeg.eeg$', 'tokens', 'once' );
+			
 	% stop automatic datatips - they're super annoying!
 	set( groot , 'defaultAxesCreateFcn' , 'disableDefaultInteractivity(gca)' )
 	
-	hFig  = figure( 'Position', [ 600, 150, figSize ] );		% 225% SCN laptop
-	hAx   = gobjects( 1, nSet + 3*nPk );
-	hLine = gobjects( 5, nSet );
-	hTime = gobjects( 3, 1 );
-	hTopo = gobjects( 3*nPk, 1 );
-	
-	% Waveform plots
-	for iSet = 1:nSet
-		% Get peak indices
-		for iPk = find( [ peakInfo{:,1} ] == iSet )
-			kPk = EEG.times(jTime) >= peakInfo{iPk,3}(1) & EEG.times(jTime) <= peakInfo{iPk,3}(2);
-			switch peakInfo{iPk,2}
-				case 'Standard'
-					[ ~, jPk(iPk) ] = max( ymStandard(iSet,kPk) );
-				case 'Target'
-					[ ~, jPk(iPk) ] = max( ymTarget(iSet,kPk) );
-				case 'Novel'
-					[ ~, jPk(iPk) ] = max( ymNovel(iSet,kPk) );
-				case 'Target-Standard'
-					[ ~, jPk(iPk) ] = max( ymTarget(iSet,kPk) - ymStandard(iSet,kPk) );
-				case 'Novel-Standard'
-					[ ~, jPk(iPk) ] = max(  ymNovel(iSet,kPk) - ymStandard(iSet,kPk) );
-				case 'Standard-Novel'	% i.e. negative novel minus standard
-					[ ~, jPk(iPk) ] = max( ymStandard(iSet,kPk) - ymNovel(iSet,kPk) );
-				otherwise
-					error( 'unknown peak type' )
+	switch epochName
+
+		case 'MMN'
+
+			Kstandard = epochInfo.kStandard;
+			Kdeviant  = epochInfo.kNovel;
+			% only analyze correct responses?		don't worry about button presses in MMN task.  DM 12/13/21
+% 			Kstandard(Kstandard) = epochInfo.kCorrect(Kstandard);
+% 			Kdeviant(Kdeviant)   = epochInfo.kCorrect(Kdeviant);
+			% non-rejected epochs
+			Kstandard(Kstandard) = kEpoch(Kstandard);
+			Kdeviant(Kdeviant)   = kEpoch(Kdeviant);
+			% average across epochs
+			YmStandard = mean( EEG.data(Ichan,jTime,Kstandard), 3, nanFlag );
+			YmDeviant  = mean( EEG.data(Ichan,jTime,Kdeviant ), 3, nanFlag );
+			% average aross channels, #sets x #samples matrices
+			[ ymStandard, ymDeviant ] = deal( zeros( nSet, nTime ) );
+			for iSet = 1:nSet
+				ymStandard(iSet,:) = mean( YmStandard(chanSet{iSet,2},:), 1, nanFlag );
+				ymDeviant(iSet,:)  = mean(  YmDeviant(chanSet{iSet,2},:), 1, nanFlag );
 			end
-			jPk(iPk) = jPk(iPk) + find( kPk, 1, 'first' ) - 1;
-		end
-		% Plot
-		hAx(iSet) = subplot( nSet+nPk, 3, iSet*3 + (-2:0), 'UserData', iSet, 'NextPlot', 'add', 'YLim', yRange, 'CLim', yRange, 'FontSize', 8 );
-		if doStandard
-			hLine(1,iSet) = plot( EEG.times(jTime), ymStandard(iSet,:), 'k' );
-		end
-		if doTarget
-			hLine(2,iSet) = plot( EEG.times(jTime), ymTarget(iSet,:), 'b' );
-			hLine(4,iSet) = plot( EEG.times(jTime), ymTarget(iSet,:) - ymStandard(iSet,:), '--b' );
-		end
-		if doNovel
-			hLine(3,iSet) = plot( EEG.times(jTime), ymNovel(iSet,:), 'r' );
-			hLine(5,iSet) = plot( EEG.times(jTime), ymNovel(iSet,:) - ymStandard(iSet,:), '--r' );
-		end
-		ylabel( [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', 12 )
-		colorbar
-	end
-	% Add peak marker lines
-	for iPk = find( ~isnan( jPk ) )		% [ peakInfo{:,1} ] or jPk
-		hTime(iPk) = plot( hAx(peakInfo{iPk,1}), EEG.times(jPk([ iPk, iPk ])+jT0), yRange,...
-			'Color', [ 0, 0.75, 0 ], 'UserData', iPk, 'ButtonDownFcn', @sliceClickCB, 'LineStyle', '--' );
-		switch iPk
-			case 1
-				set( hTime(iPk), 'Color', 'k' )
-			case 2
-				set( hTime(iPk), 'Color', 'b' )
-			case 3
-				set( hTime(iPk), 'Color', 'r' )
-		end
-	end
-	set( hAx(1:nSet), 'XGrid', 'on', 'YGrid', 'on', 'NextPlot', 'replace' )
-	
-	subjSess = regexp( EEG.comments, '^Original file: sub-([A-Z]{2}\d{5})_ses-(\d{8})_task-\S+_run-\d+_eeg.eeg$', 'tokens', 'once' );
-% 	title( hAx(1), sprintf( '%s \\color[rgb]{0,0.75,0}%0.0f ms', epochName, EEG.times(jPk) ) )
-% 	title( hAx(1), epochName )
-	title( hAx(1), sprintf( '%s %s %s', subjSess{:}, epochName ) )
-% 	xlabel( hAx(nSet), 'Time (ms)' )
-% 	xLab = xlabel( hAx(nSet), sprintf( '%0.0f ms', EEG.times(jPk+jT0) ), 'Color', [ 0, 0.75, 0 ] );
-% 	legend( hLine(1:3,1), { 'standard', 'target', 'novel' }, 'Location', 'NorthEast' )
+			% plot limits
+% 			yRange = yRangeFcn( cat( 3, YmStandard, YmDeviant, YmDeviant - YmStandard ) );
+			yRange = yRangeFcn( cat( 3, ymStandard, ymDeviant, ymDeviant - ymStandard ) );
+			kSet = strcmp( chanSet(:,1), 'Fz' );
+			if sum( kSet ) ~= 1
+				error( 'invalid channel set name' )
+			end
+			kPk = EEG.times(jTime) >= 80 & EEG.times(jTime) <= 250;
+			[ ~, jPk ] = findpeaks( ymStandard(kSet,kPk) - ymDeviant(kSet,kPk) );
+			switch numel( jPk )
+				case 1
+				case 0		% use an endpoint if no peaks?
+					[ ~, jPk ] = min( ymDeviant(kSet,kPk) - ymStandard(kSet,kPk) );
+				otherwise
+% 					EEG.times(jPk+jT0)
+					ikPk = find( kPk );
+					[ ~, ijPk ] = min( ymDeviant(kSet,ikPk(jPk)) - ymStandard(kSet,ikPk(jPk)) );
+					jPk = jPk(ijPk);
+% 					EEG.times(jPk+jT0)
+					clear ikPk
+			end
+			jPk(:) = jPk + find( kPk, 1, 'first' ) - 1;
+			jt = jPk + jT0;
+			
+			[ tmStandard, tmDeviant ] = deal( nan( nChan, 2 ) );
+			if tWidthTopo == 0
+				tmStandard(:,1) = YmStandard(:,jPk);
+				tmDeviant(:,1)  =  YmDeviant(:,jPk);
+				tStr1 = sprintf( '%0.0f ms', EEG.times(jt) );
+			else
+				tAvg = EEG.times(jt) + [ -1, 1 ]*tWidthTopo/2;
+				jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
+				tmStandard(:,1) = mean( YmStandard(:,jAvg), 2, nanFlag );
+				tmDeviant(:,1)  = mean(  YmDeviant(:,jAvg), 2, nanFlag );
+				tStr1 = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jt), tWidthTopo/2 );
+			end
+			tFix = 120;
+			wFix = tWidthTopo;
+			tAvg = tFix + [ -1, 1 ]*wFix/2;
+			jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
+			tmStandard(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
+			tmDeviant(:,2)  = mean(  YmDeviant(:,jAvg), 2, nanFlag );
+% 			tStr2 = sprintf( '[ %0.0f, %0.0f ] ms', tAvg );
+			tStr2 = sprintf( '%0.0f \\pm %0.0f ms', tFix, wFix/2 );
 
-	% Topography plots
-	getTopoMaps
-	topoOpts = { 'style', 'map', 'electrodes', estyle, 'nosedir', '+Y', 'conv', 'on', 'shading', 'interp', 'maplimits', yRange };
-	iTopo = 0;
-	if ~isnan( jPk(1) )
-		error( 'under construction' )
-	end
-	% target peak
-	if ~isnan( jPk(2) )	
-		iTopo(:) = iTopo + 1;
-		hAx(nSet+iTopo) = subplot( nSet+nPk, 3, nSet*3 + iTopo );
-		hTopo(iTopo)    = topoplot( tmStandardT, EEG.chanlocs(Ichan), topoOpts{:} );
-		if iTopo == 1
-			title( sprintf( 'Standard (%d)', sum( Kstandard ) ) )
-		else
-			title( 'Standard' )
-		end
-		ylabT = ylabel( sprintf( '%0.0f ms', EEG.times(jPk(2)+jT0) ), 'Visible', 'on', 'Color', 'b', 'FontSize', 14, 'FontWeight', 'bold' );
-		
-		iTopo(:) = iTopo + 1;
-		hAx(nSet+iTopo) = subplot( nSet+nPk, 3, nSet*3 + iTopo );
-		hTopo(iTopo)    = topoplot( tmTarget, EEG.chanlocs(Ichan), topoOpts{:} );
-		title( sprintf( 'Target (%d)', sum( Ktarget ) ), 'Color', 'b' )
-		
-		iTopo(:) = iTopo + 1;
-		hAx(nSet+iTopo) = subplot( nSet+nPk, 3, nSet*3 + iTopo );
-		hTopo(iTopo)    = topoplot( tmTarget - tmStandardT, EEG.chanlocs(Ichan), topoOpts{:} );
-		title( 'Target - Standard' )%, 'Color', 'b' )
-	end
-	% novel peak
-	if ~isnan( jPk(3) )
-		iTopo(:) = iTopo + 1;
-		hAx(nSet+iTopo) = subplot( nSet+nPk, 3, nSet*3 + iTopo );
-		hTopo(iTopo)    = topoplot( tmStandardN, EEG.chanlocs(Ichan), topoOpts{:} );
-		if iTopo == 1
-			title( sprintf( 'Standard (%d)', sum( Kstandard ) ) )
-		else
-			title( 'Standard' )
-		end
-		ylabN = ylabel( sprintf( '%0.0f ms', EEG.times(jPk(3)+jT0) ), 'Visible', 'on', 'Color', 'r', 'FontSize', 14, 'FontWeight', 'bold' );
-		
-		iTopo(:) = iTopo + 1;
-		hAx(nSet+iTopo) = subplot( nSet+nPk, 3, nSet*3 + iTopo );
-		hTopo(iTopo)    = topoplot( tmNovel, EEG.chanlocs(Ichan), topoOpts{:} );
-		title( sprintf( '%s (%d)', deviantName, sum( Knovel ) ), 'Color', 'r' )
+			hFig  = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256) );		% 225% SCN laptop
+			hAx   = gobjects( 2*nSet+4, 1 );
+			hTopo = gobjects(        4, 1 );
 
-		iTopo(:) = iTopo + 1;
-		hAx(nSet+iTopo) = subplot( nSet+nPk, 3, nSet*3 + iTopo );
-		hTopo(iTopo)    = topoplot( tmNovel - tmStandardN, EEG.chanlocs(Ichan), topoOpts{:} );
-		title( [ deviantName, ' - Standard' ] )%, 'Color', 'r' )
+			topoOpts = [ topoOpts, { 'maplimits', yRange } ];
+			pkColor = [ 1, 0, 0 ];
+			
+			axL  = 0.1;
+			axR  = 0.05;
+			axT  = 0.1;
+			axB  = 0.05;
+			axGh = 0.075;
+			axGv = [ 0.05, 0.1, 0.05 ];
+			axH = ( 1 - axT - axB - (nSet-1)*axGv(1) - axGv(2) - axGv(3) ) / ( nSet + 2 );
+			axW = ( 1 - axL - axR - axGh ) / 2;		% left, right, middle
+
+			% Plot
+			for iSet = 1:nSet
+				% waveforms
+				py = 1 - axT + axGv(1) - ( axGv(1) + axH )*iSet;
+				hAx(2*iSet-1) = subplot( 'Position', [ axL         , py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet-1 );
+				hAx(2*iSet)   = subplot( 'Position', [ axL+axW+axGh, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet );
+				plot( hAx(2*iSet-1), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymDeviant(iSet,:), 'r' )
+				plot( hAx(2*iSet)  , EEG.times(jTime), ymDeviant(iSet,:) - ymStandard(iSet,:), 'r' )
+			end
+			% topographies
+			% -- peak detection
+			py(:) = 1 - axT + axGv(1) - ( axGv(1) + axH )*nSet - axGv(2) - axH;
+			hAx(2*nSet+1) = subplot( 'Position', [ axL, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+1 );
+				hTopo(1) = topoplot( tmDeviant(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+			hAx(2*nSet+2) = subplot( 'Position', [ axL+axW+axGh, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+2 );
+				hTopo(2) = topoplot( tmDeviant(:,1) - tmStandard(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+			% -- fixed time range
+			py(:) = py - axGv(3) - axH;
+			hAx(2*nSet+3) = subplot( 'Position', [ axL, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+3 );
+				hTopo(3) = topoplot( tmDeviant(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+			hAx(2*nSet+4) = subplot( 'Position', [ axL+axW+axGh, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+4 );
+				hTopo(4) = topoplot( tmDeviant(:,2) - tmStandard(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+
+			set( hAx(1:nSet*2), 'XLim', tWinPlot, 'YLim', yRange, 'CLim', yRange, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
+			set( hAx(1:(nSet-1)*2), 'XTickLabel', '' )
+% 			set( hAx(iSet), 'UserData', iSet )
+			set( hAx(nSet*2+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ] )
+
+			title( hAx(1), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\nStandard (%d)  \\color{red}Deviant (%d)', fontSize+2,...
+				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), sum( Kstandard ), sum( Kdeviant ) ), 'FontSize', fontSize )
+			title( hAx(2), '\color{red}Deviant - Standard', 'FontSize', fontSize )
+			for iSet = 1:nSet
+				ylabel( hAx(2*iSet-1), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
+			end
+			xlabel( hAx(2*nSet-1), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+			xlabel( hAx(2*nSet)  , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+			title(  hAx(2*nSet+1), 'Deviant', 'FontSize', fontSize )
+			title(  hAx(2*nSet+2), 'Deviant - Standard', 'FontSize', fontSize )
+			ylabel( hAx(2*nSet+1), tStr1, 'Visible', 'on', 'Color', pkColor, 'FontSize', fontSize, 'FontWeight', 'bold' )
+			ylabel( hAx(2*nSet+3), tStr2, 'Visible', 'on', 'Color',     'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
+
+			iSet(:) = find( kSet );
+			if tWidthTopo == 0
+				line( hAx(2*iSet), EEG.times([jt,jt]), yRange, 'Color', pkColor, 'LineStyle', '--' )
+			else
+				uistack( patch( hAx(2*iSet), EEG.times(jt)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
+% 				line( hAx(2*iSet), EEG.times([jt,jt]), yRange, 'Color', pkColor, 'LineStyle', '--' )
+			end
+		
+		case { 'VOD', 'AOD' }
+
+			Kstandard = epochInfo.kStandard;
+			Ktarget   = epochInfo.kTarget;
+			Knovel     = epochInfo.kNovel;
+			% only analyze correct responses?		don't worry about button presses in MMN task.  DM 12/13/21
+			Kstandard(Kstandard) = epochInfo.kCorrect(Kstandard);
+			Ktarget(Ktarget)     = epochInfo.kCorrect(Ktarget);
+			Knovel(Knovel)       = epochInfo.kCorrect(Knovel);
+			% non-rejected epochs
+			Kstandard(Kstandard) = kEpoch(Kstandard);
+			Ktarget(Ktarget)     = kEpoch(Ktarget);
+			Knovel(Knovel)       = kEpoch(Knovel);
+			% average across epochs
+			YmStandard = mean( EEG.data(Ichan,jTime,Kstandard), 3, nanFlag );
+			YmTarget   = mean( EEG.data(Ichan,jTime,Ktarget  ), 3, nanFlag );
+			YmNovel    = mean( EEG.data(Ichan,jTime,Knovel   ), 3, nanFlag );
+			% average aross channels, #sets x #samples matrices
+			[ ymStandard, ymTarget, ymNovel ] = deal( zeros( nSet, nTime ) );
+			for iSet = 1:nSet
+				ymStandard(iSet,:) = mean( YmStandard(chanSet{iSet,2},:), 1, nanFlag );
+				ymTarget(iSet,:)   = mean(   YmTarget(chanSet{iSet,2},:), 1, nanFlag );
+				ymNovel(iSet,:)    = mean(    YmNovel(chanSet{iSet,2},:), 1, nanFlag );
+			end
+			% plot limits
+% 			yRange = yRangeFcn( cat( 3, YmStandard, YmTarget, YmNovel, YmTarget - YmStandard, YmNovel - YmStandard ) );
+			yRange = yRangeFcn( cat( 3, ymStandard, ymTarget, ymNovel, ymTarget - ymStandard, ymNovel - ymStandard ) );
+			kSetT = strcmp( chanSet(:,1), 'Pz' );
+			if sum( kSetT ) ~= 1
+				error( 'invalid channel set name' )
+			end
+			kSetN = strcmp( chanSet(:,1), 'Cz' );
+			if sum( kSetN ) ~= 1
+				error( 'invalid channel set name' )
+			end
+			kPk = EEG.times(jTime) >= 200 & EEG.times(jTime) <= 500;
+			[ ~, jPkT ] = findpeaks( ymTarget(kSetT,kPk) - ymStandard(kSetT,kPk) );
+			[ ~, jPkN ] = findpeaks(  ymNovel(kSetN,kPk) - ymStandard(kSetN,kPk) );
+			switch numel( jPkT )
+				case 1
+				case 0		% use an endpoint if no peaks?
+					[ ~, jPkT ] = max( ymTarget(kSetT,kPk) - ymStandard(kSetT,kPk) );
+				otherwise
+					ikPk = find( kPk );
+					[ ~, ijPk ] = max( ymTarget(kSetT,ikPk(jPkT)) - ymStandard(kSetT,ikPk(jPkT)) );
+					jPkT = jPkT(ijPk);
+					clear ikPk
+			end
+			switch numel( jPkN )
+				case 1
+				case 0		% use an endpoint if no peaks?
+					[ ~, jPkN ] = max( ymNovel(kSetN,kPk) - ymStandard(kSetN,kPk) );
+				otherwise
+					ikPk = find( kPk );
+					[ ~, ijPk ] = max( ymNovel(kSetN,ikPk(jPkN)) - ymStandard(kSetN,ikPk(jPkN)) );
+					jPkN = jPkN(ijPk);
+					clear ikPk
+			end
+			jPkT(:) = jPkT + find( kPk, 1, 'first' ) - 1;
+			jPkN(:) = jPkN + find( kPk, 1, 'first' ) - 1;
+			jtT = jPkT + jT0;
+			jtN = jPkN + jT0;
+			
+			[ tmStandardT, tmStandardN, tmTarget, tmNovel ] = deal( nan( nChan, 2 ) );
+			if tWidthTopo == 0
+				tmStandardT(:,1) = YmStandard(:,jPkT);
+				tmStandardN(:,1) = YmStandard(:,jPkN);
+				tmTarget(:,1)    =   YmTarget(:,jPkT);
+				tmNovel(:,1)     =    YmNovel(:,jPkN);
+				tStr1T = sprintf( '%0.0f ms', EEG.times(jtT) );
+				tStr1N = sprintf( '%0.0f ms', EEG.times(jtN) );
+			else
+				tAvg = EEG.times(jtT) + [ -1, 1 ]*tWidthTopo/2;
+				jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
+				tmStandardT(:,1) = mean( YmStandard(:,jAvg), 2, nanFlag );
+				tmTarget(:,1)    = mean(   YmTarget(:,jAvg), 2, nanFlag );
+				tAvg = EEG.times(jtN) + [ -1, 1 ]*tWidthTopo/2;
+				jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
+				tmStandardN(:,1) = mean( YmStandard(:,jAvg), 2, nanFlag );
+				tmNovel(:,1)     = mean(    YmNovel(:,jAvg), 2, nanFlag );
+				tStr1T = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jtT), tWidthTopo/2 );
+				tStr1N = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jtN), tWidthTopo/2 );
+			end
+			tFix = 350;		% AOD ~ 330 target, 320 novel; VOD ~ 410 target, 355 novel
+			wFix = tWidthTopo;
+			tAvg = tFix + [ -1, 1 ]*wFix/2;
+			jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
+			tmStandardT(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
+			tmTarget(:,2)    = mean(   YmTarget(:,jAvg), 2, nanFlag );
+			tmStandardN(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
+			tmNovel(:,2)     = mean(    YmNovel(:,jAvg), 2, nanFlag );
+			tStr2 = sprintf( '%0.0f \\pm %0.0f ms', tFix, wFix/2 );
+
+
+			hFig  = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256) );		% 225% SCN laptop
+			hAx   = gobjects( 4*nSet+8, 1 );
+			hTopo = gobjects(        8, 1 );
+			
+			topoOpts = [ topoOpts, { 'maplimits', yRange } ];
+			pkColorT = [ 0, 0, 1 ];
+			pkColorN = [ 1, 0, 0 ];
+			
+			axL  = 0.1;
+			axR  = 0.05;
+			axT  = 0.1;
+			axB  = 0.05;
+			axGh = 0.075;
+			axGv = [ 0.05, 0.1, 0.05 ];
+			axH = ( 1 - axT - axB - (nSet-1)*axGv(1) - axGv(2) - axGv(3) ) / ( nSet + 2 );
+			axW = ( 1 - axL - axR - axGh*3 ) / 4;		% left, right, middle
+
+			% Plot
+			for iSet = 1:nSet
+				% waveforms
+				py = 1 - axT + axGv(1) - ( axGv(1) + axH )*iSet;
+				hAx(4*iSet-3) = subplot( 'Position', [ axL             , py, axW, axH ] );
+				hAx(4*iSet-2) = subplot( 'Position', [ axL+axW+axGh    , py, axW, axH ] );
+				hAx(4*iSet-1) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
+				hAx(4*iSet)   = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
+				plot( hAx(4*iSet-3), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymTarget(iSet,:), 'b' )
+				plot( hAx(4*iSet-2), EEG.times(jTime),   ymTarget(iSet,:) - ymStandard(iSet,:), 'b' )
+				plot( hAx(4*iSet-1), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymNovel(iSet,:), 'r' )
+				plot( hAx(4*iSet)  , EEG.times(jTime),    ymNovel(iSet,:) - ymStandard(iSet,:), 'r' )
+			end
+			% topographies
+			% -- peak detection
+			py(:) = 1 - axT + axGv(1) - ( axGv(1) + axH )*nSet - axGv(2) - axH;
+			hAx(4*nSet+1) = subplot( 'Position', [ axL, py, axW, axH ] );
+				hTopo(1) = topoplot( tmTarget(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+			hAx(4*nSet+2) = subplot( 'Position', [ axL+axW+axGh, py, axW, axH ] );
+				hTopo(2) = topoplot( tmTarget(:,1) - tmStandardT(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+			hAx(4*nSet+3) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
+				hTopo(3) = topoplot( tmNovel(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+			hAx(4*nSet+4) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
+				hTopo(4) = topoplot( tmNovel(:,1) - tmStandardN(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+			% -- fixed time range
+			py(:) = py - axGv(3) - axH;
+			hAx(4*nSet+5) = subplot( 'Position', [ axL, py, axW, axH ] );
+				hTopo(5) = topoplot( tmTarget(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+			hAx(4*nSet+6) = subplot( 'Position', [ axL+axW+axGh, py, axW, axH ] );
+				hTopo(6) = topoplot( tmTarget(:,2) - tmStandardT(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+			hAx(4*nSet+7) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
+				hTopo(7) = topoplot( tmNovel(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+			hAx(4*nSet+8) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
+				hTopo(8) = topoplot( tmNovel(:,2) - tmStandardN(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+
+			set( hAx(1:nSet*4), 'XLim', tWinPlot, 'YLim', yRange, 'CLim', yRange, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
+			set( hAx(1:(nSet-1)*4), 'XTickLabel', '' )
+% 			set( hAx(iSet), 'UserData', iSet )
+			set( hAx(nSet*4+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ] )
+
+			title( hAx(1), sprintf( '{\\fontsize{%g}%s\n{\\rm%s  (%s-%s-%s)}}\nStandard (%d)  \\color{blue}Target (%d)', fontSize+2,...
+				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), sum( Kstandard ), sum( Ktarget ) ), 'FontSize', fontSize )
+			title( hAx(2), '\color{blue}Target - Standard', 'FontSize', fontSize )
+			title( hAx(3), sprintf( 'Standard  \\color{red}Novel (%d)', sum( Knovel ) ), 'FontSize', fontSize )
+			title( hAx(4), '\color{red}Novel - Standard', 'FontSize', fontSize )
+			for iSet = 1:nSet
+				ylabel( hAx(4*iSet-3), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
+			end
+			xlabel( hAx(4*nSet-3), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+			xlabel( hAx(4*nSet-2), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+			xlabel( hAx(4*nSet-1), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+			xlabel( hAx(4*nSet)  , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+			title(  hAx(4*nSet+1), 'Target'           , 'FontSize', fontSize )
+			title(  hAx(4*nSet+2), 'Target - Standard', 'FontSize', fontSize )
+			title(  hAx(4*nSet+3), 'Novel'            , 'FontSize', fontSize )
+			title(  hAx(4*nSet+4), 'Novel - Standard' , 'FontSize', fontSize )
+			ylabel( hAx(4*nSet+1), tStr1T, 'Visible', 'on', 'Color', pkColorT, 'FontSize', fontSize, 'FontWeight', 'bold' )
+			ylabel( hAx(4*nSet+3), tStr1N, 'Visible', 'on', 'Color', pkColorN, 'FontSize', fontSize, 'FontWeight', 'bold' )
+			ylabel( hAx(4*nSet+5), tStr2 , 'Visible', 'on', 'Color',      'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+
+			iSet(:) = find( kSetT );
+			if tWidthTopo == 0
+				line( hAx(4*iSet-2), EEG.times([jtT,jtT]), yRange, 'Color', pkColorT, 'LineStyle', '--' )
+			else
+				uistack( patch( hAx(4*iSet-2), EEG.times(jtT)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
+% 				line( hAx(4*iSet), EEG.times([jtT,jtT]), yRange, 'Color', pkColorT, 'LineStyle', '--' )
+			end
+			iSet(:) = find( kSetN );
+			if tWidthTopo == 0
+				line( hAx(4*iSet), EEG.times([jtN,jtN]), yRange, 'Color', pkColorN, 'LineStyle', '--' )
+			else
+				uistack( patch( hAx(4*iSet), EEG.times(jtN)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
+% 				line( hAx(4*iSet), EEG.times([jtN,jtN]), yRange, 'Color', pkColorN, 'LineStyle', '--' )
+			end
+			
+			
+		otherwise
 	end
-	for iAx = 1:numel( hAx )
-		set( get( hAx(iAx), 'Title' ), 'FontSize', 10 )
+	subplot( 'Position', [ 1-axR*0.75, 1-axT+axGv(1)-(axGv(1)+axH)*iSet, axR*0.5, axH ] )
+	image( (256:-1:1)' )
+	set( gca, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )
+	
+
+	figure( hFig )
+	
+	if isunix
+% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
+		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
+	else %if ispc
+		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
 	end
 	
-	hMenu = gobjects( 1, 5 );
-	hMenu(1) = uimenu( hFig, 'Text', 'Waveforms' );
-	hMenu(2) = uimenu( hMenu(1), 'Text', 'Regular' );
-	hMenu(3) = uimenu( hMenu(1), 'Text', 'Difference' );
-	hMenu(4) = uimenu( hMenu(1), 'Text', 'All' );
-	hMenu(5) = uimenu( hMenu(1), 'Text', 'Std+Diff' );
-	set( hMenu(2:5), 'Callback', @wavePicker )
-	wavePicker( hMenu(2) )
+	siteId   = subjSess{1}(1:2);
+	siteInfo = AMPSCZ_EEG_siteInfo;
+	kSite    = strcmp( siteInfo(:,1), siteId );
+	if sum( kSite ) ~= 1
+		error( 'side id bug' )
+	end
+	networkName = siteInfo{kSite,2};
 	
+	pngDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjSess{1}, 'eeg', [ 'ses-', subjSess{2} ], 'Figures' );
+	if ~isfolder( pngDir )
+		mkdir( pngDir )
+		fprintf( 'created %s\n', pngDir )
+	end
+	pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QC.png' ]
 
+	writeFlag = [];
+	if isempty( writeFlag )
+		writeFlag = exist( pngOut, 'file' ) ~= 2;		
+		if ~writeFlag
+			writeFlag(:) = strcmp( questdlg( 'png exists. overwrite?', mfilename, 'no', 'yes', 'no' ), 'yes' );
+		end
+	end
+	if writeFlag
+		% print( hFig, ... ) & saveas( hFig, ... ) don't preserve pixel dimensions
+		figPos = get( hFig, 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
+		img = getframe( hFig );
+		img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+		imwrite( img, pngOut, 'png' )
+		fprintf( 'wrote %s\n', pngOut )
+	end
+	
 	return
 
+	function yRange = yRangeFcn( Y )
+		% extrema
+		yRange = [ min( Y, [], 'all' ), max( Y, [], 'all' ) ];
+		% make symmetric about zero
+		yRange(2) = max( -yRange(1), yRange(2) );
+		yRange(1) = -yRange(2);
+		% pad a little?
+		yRange(:) = yRange + [ -1, 1 ] * diff( yRange ) * 0.125;
+	end
+	
+	
+	
+
+%{
+
+	% relics of interactive peak picking, won't work as is!
 
 	function sliceClickCB( varargin )
 		if varargin{2}.Button ~= 3
@@ -566,36 +631,9 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 		end
 	end
 
-	function wavePicker( varargin )
-		switch get( varargin{1}, 'Text' )
-			case 'Regular'
-				Ion  = 1:3;
-				set( hMenu(2)      , 'Checked', 'on'  )
-				set( hMenu([3 4 5]), 'Checked', 'off' )
-			case 'Difference'
-				Ion  = 4:5;
-				set( hMenu(3)      , 'Checked', 'on'  )
-				set( hMenu([2 4 5]), 'Checked', 'off' )
-			case 'All'
-				Ion  = 1:5;
-				set( hMenu(4)      , 'Checked', 'on'  )
-				set( hMenu([2 3 5]), 'Checked', 'off' )
-			case 'Std+Diff'
-				Ion  = [ 1, 4:5 ];
-				set( hMenu(5)      , 'Checked', 'on'  )
-				set( hMenu([2 3 4]), 'Checked', 'off' )
-		end
-		hOn = hLine(Ion,:);
-		hOn = hOn(ishandle(hOn));
-		Ioff = setdiff( 1:5, Ion );
-		if ~isempty( Ioff )
-			hOff = hLine(Ioff,:);
-			hOff = hOff(ishandle(hOff));
-			set( hOff, 'Visible', 'off' )
-		end
-		set( hOn, 'Visible', 'on' )
-		
-	end
+
+%}
+
 
 end
 
