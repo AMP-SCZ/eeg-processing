@@ -59,7 +59,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 		epochInfo = EEG.epochInfo;
 		EEG       = EEG.EEG;
 	else
-		error( 'invalid EEG structure' )
+		error( 'invalid EEG input' )
 	end
 	
 	% concatenate epoch info across runs
@@ -635,6 +635,28 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 %}
 
 
+%%
+%{
+	if isunix
+% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
+		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
+	else %if ispc
+		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
+	end
+	
+	proc = AMPSCZ_EEG_findProcSessions;
+	
+	taskName = { 'MMN', 'VOD', 'AOD' };
+	for iProc = 4:size(proc,1)
+		close all
+		matDir = fullfile( AMPSCZdir, proc{iProc,1}(1:end-2), 'PHOENIX', 'PROTECTED', proc{iProc,1}, 'processed', proc{iProc,2}, 'eeg', [ 'ses-', proc{iProc,3} ], 'mat' );
+		for iTask = 1:numel( taskName )
+			AMPSCZ_EEG_ERPplot( fullfile( matDir, [ proc{iProc,2}, '_', proc{iProc,3}, '_', taskName{iTask}, '_[0.1,50].mat' ] ) )
+		end
+	end
+%}
+%%
+	
 end
 
 
