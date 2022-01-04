@@ -943,6 +943,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 	set( hAx(4), 'XGrid', 'on' )
 
 	figure( hFig )
+% 	drawnow
+	pause( 0.010 )		% figure renders OK 1 at a time, but png had text in wrong place?
 % 	return
 
 	pngDir = fullfile( sessDir, 'Figures' );				% keep everything organized by site/subject/session for BWH
@@ -965,7 +967,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 %		getframe( hFig )					% 1800x1000 figure window has     3600x2000 cdata
 		figPos = get( hFig, 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
 		img = getframe( hFig );
-		img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+		if size( img.cdata, 1 ) ~= figPos(4)
+			img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+		end
 %		size( img )
 		imwrite( img, pngOut, 'png' )
 		fprintf( 'wrote %s\n', pngOut )

@@ -192,7 +192,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 					if ~isfolder( procDir )
 						mkdir( procDir )
 						if verbose
-							fprintf( '\ncreated %s\n\n', procDir )
+							fprintf( '\ncreated %s\n\n', procDir )		% *** this gets printed outside session boundary below, could look like part of another site
 						end
 					end
 					
