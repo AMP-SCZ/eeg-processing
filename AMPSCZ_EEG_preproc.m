@@ -1,5 +1,19 @@
 function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceWrite )
-% AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceWrite )
+% Pre-process segmented AMP SCZ Brain Vision files for MMN, VOD, or AOD ERP analysis.
+% Saves output in mat-file format
+%
+% Usage:
+% >> AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, [passBand], [forceWrite] )
+%
+% Where:
+%   subjectID   = 7-character subject identifier, 2-char site code + 5-digit subject #
+%   sessionDate = 8-character date 'YYYYMMDD'
+%   epochName   = 'AOD', 'MMN', or 'VOD'
+%   passBand    = option input [ lowFreq, highFreq ] (Hz), default = [ 0.1, 50 ]
+%   forceWrite  = how to handle mat-files that already exist, default = []
+%                 true = overwrite, false = don't overwrite, [] = prompt if needed
+%
+% Dependencies: EEGLAB
 
 % using BJR's faster_batch_AOD.m as a guide
 

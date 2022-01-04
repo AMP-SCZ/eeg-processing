@@ -13,6 +13,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 %               default = []
 %
 % Written by: Spero Nicholas, NCIRE
+%
+% Dependencies: EEGLAB
 
 % to do:
 % add some verbosity flag for warnings?

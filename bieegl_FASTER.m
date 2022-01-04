@@ -15,7 +15,8 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 % or cell vector of char labels & they'll get converted to integers
 %
 % original pipeline by Brian Roach
-
+%
+% Dependencies: EEGLAB w/ FASTER plugin, ADJUST
 
 % you could have physiological non-EEG channels that you might want rereferenced, hence the need for the IrefExlude input
 % IpropExclude allows for high-offset functionality that was present in older BJR BioSemi code
