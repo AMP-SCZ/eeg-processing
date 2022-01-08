@@ -1,6 +1,6 @@
-function AMPSCZ_EEG_QC( sessionName, writeFlag )
+function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 % Usage:
-% >> AMPSCZ_EEG_QC( [sessionName], [writeFlag] )
+% >> AMPSCZ_EEG_QC( [sessionName], [writeFlag], [legacyPaths] )
 %
 % Optional Inputs:
 % sessionName = 16-character [ subjId, '_', date ] vector, e.g. 'BI00001_20220101'
@@ -21,7 +21,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 % re-ref by epoch in preprocessing
 % make sure hann is Matlab function not Fieldtrip! - DONE, but need better way of adding EEGLAB to path, save extra paths in mat-file
 
-	narginchk( 0, 2 )
+	narginchk( 0, 3 )
 
 	if isunix
 % 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
@@ -30,6 +30,10 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 	else %if ispc
 		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
 		eegLabDir = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1';
+	end
+
+	if exist( 'legacyPaths', 'var' ) ~= 1 || isempty( legacyPaths )
+		legacyPaths = false;		% temporary hack to be able to process files in old folder heirarchy
 	end
 
 	if exist( 'writeFlag', 'var' ) == 1
@@ -63,7 +67,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 		end
 		sessionList = AMPSCZ_EEG_findProcSessions;
 		iSession = strcmp( strcat( sessionList(:,2), '_', sessionList(:,3) ), sessionName );
-		if ~any( iSession )
+		if ~any( iSession ) && ~legacyPaths
 			error( 'Session %s not available', sessionName )
 		end
 % 		iSession = find( iSession, 1, 'first' );		% there can't be duplicates in sessionList!
@@ -149,6 +153,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 	sessDir  = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg', sessTag );
 	bvDir    = fullfile( sessDir, 'BIDS' );
 
+	if legacyPaths
+		% hack for old BIDS folder structure
+		sessDir = fullfile( fileparts( AMPSCZdir ), 'ProNET' );
+		bvDir   = fullfile( sessDir, siteId, 'BIDS', subjTag, sessTag, 'eeg' );
+	end
 	
 	% e.g. pop_chanedit( struct( 'labels', Z(:,1) ) )...
 	chanLocs = readlocs( locsFile );
@@ -315,14 +324,23 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 			end
 		end
 
-		eeg    = bieegl_readBVdata( bieegl_readBVtxt( bvFile ), bvDir );
-		kStim  = strcmp( { M.Marker.Mk.type }, 'Stimulus' );
-		i1     = M.Marker.Mk(find(kStim,1,'first')).position;
-		i2     = M.Marker.Mk(find(kStim,1,'last' )).position;
-		i2(:)  = i2 + ceil( 2 * fs );
-		i2(:)  = min( i2, size( eeg, 2 ) );
-		eeg    = eeg(:,i1:i2);
-		nfft   = size( eeg, 2 );
+		eeg   = bieegl_readBVdata( H );
+		kStim = strcmp( { M.Marker.Mk.type }, 'Stimulus' );
+		i1    = M.Marker.Mk(find(kStim,1,'first')).position;
+		i2    = M.Marker.Mk(find(kStim,1,'last' )).position;
+		switch taskName
+			case { 'VODMMN', 'AOD' }
+% 				i1(:) = i1 - ceil( 1 * fs );
+				i2(:) = i2 + ceil( 2 * fs );
+			case { 'ASSR', 'RestEO', 'RestEC' }
+				i2(:) = i2 + median( diff( [ M.Marker.Mk(kStim).position ] ) );
+			otherwise
+				error( 'bug' )
+		end
+% 		i1(:) = max( i1, 1 );
+		i2(:) = min( i2, size( eeg, 2 ) );
+		eeg   = eeg(:,i1:i2);
+		nfft  = size( eeg, 2 );
 		
 % 		Iblink = find( ismember( { chanLocs(1:64).labels }, { 'Fp1', 'Fp2', 'AFz' } ) );		% channel(s) to use for blink detection
 % 		yBlink = mean( eeg(Iblink,:), 1 );
@@ -365,6 +383,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 			end
 		end
 		
+		% Get subject performance data
 		if ismember( taskName, { 'VODMMN', 'AOD' } )
 			% convert descriptions to numeric codes for easier comparison w/ taskInfo
 			kStim = strcmp( { M.Marker.Mk.type }, 'Stimulus' );
@@ -464,15 +483,50 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 			stimResp(kResp,2) = stimResp(kResp,2) / fs;
 			respData = [ respData; stimResp ];
 		end
+
 % 		if ismember( taskName, { 'ASSR', 'RestEO', 'RestEC' } )
+% 		end
+% 		if ismember( iSeq, 11:12 )		% RestEO, RestEC
 % 		end
 		
 		% percentage of [1,80]Hz power @ line frequency
 		nu     = floor(   nfft       / 2 ) + 1;		% # unique points in spectrum
 		n2     = floor( ( nfft + 1 ) / 2 );			% index of last non-unique point in spectrum
 		f      = (0:nu-1) * (fs/nfft);
-% 		EEG    = fft( bsxfun( @minus, eeg(1:63,:), mean( eeg(1:63,:), 1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
-		EEG    = fft( bsxfun( @times, bsxfun( @minus, eeg(1:63,:), mean( eeg(1:63,:), 1 ) ), shiftdim( hann( nfft, 'periodic' ), -1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
+		% exclude any channels in average reference?
+		% e.g. correlation,variance,hurst exponent as in FASTER
+		% or   extreme amplitudes, lack of correlation, lack of predicatability, unusal high-frequency noise as in PREP
+% 		Imean = [];
+		Imean = 1:63;
+		switch 2
+			case 0
+			case 1
+				% channel_properties.m requires EEGLAB structure
+				chanProp = max( eeg(Imean,:), [], 2 ) - min( eeg(Imean,:), [], 2 );
+				nStd = 3;
+				kOld = true( 63, 1 );
+				nIt  = 1;
+				kNew = chanProp <= median( chanProp(kOld) ) + std( chanProp(kOld) ) * nStd;
+				while any( kNew ~= kOld )
+					kOld(:) = kNew;
+					kNew(:) = chanProp <= median( chanProp(kOld) ) + std( chanProp(kOld) ) * nStd;
+					nIt(:)  = nIt + 1;
+				end
+				Imean = find( kNew );
+% 				nIt
+			case 2
+% 				chanProp = channel_properties( eeg(Imean,:), 1:63, [] );	% 63x3
+% 				chanOutlier = min_z( chanProp );							% 63x1
+% 				Imean = find( ~chanOutlier );
+				Imean = find( ~min_z( channel_properties( eeg(Imean,:), 1:63, [] ) ) );
+		end
+		
+%			EEG    = fft(                 bsxfun( @minus, eeg(1:63,:), mean( eeg(Imean,:), 1 ) ),                                             nfft, 2 );		% exclude VIS channel, re-reference
+		if isempty( Imean )
+			EEG    = fft( bsxfun( @times,                 eeg(1:63,:)                           , shiftdim( hann( nfft, 'periodic' ), -1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
+		else
+			EEG    = fft( bsxfun( @times, bsxfun( @minus, eeg(1:63,:), mean( eeg(Imean,:), 1 ) ), shiftdim( hann( nfft, 'periodic' ), -1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
+		end
 		EEG    = abs( EEG(:,1:nu) ) / nfft;			% amplitude
 		EEG(:,2:n2) = EEG(:,2:n2) * 2;				% double non-unique freqencies
 		EEG(:) = EEG.^2;							% power?
@@ -481,46 +535,35 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 		kNum(kNum) = abs( f(kNum) - fLine ) <= wf;
 		pLine(:,iSeq) = sum( EEG(:,kNum), 2 ) ./ sum( EEG(:,kDen), 2 ) * 100;
 
+		switch taskName
+			case 'RestEO'
+				eegEO = eeg(1:63,:);
+				if ~isempty( Imean )
+					eegEO(:) = bsxfun( @minus, eegEO, mean( eeg(Imean,:), 1 ) );
+				end
+				fsEO  = 1 / ( H.Common.SamplingInterval * 1e-6 );		% sampling interval is in microseconds, get sampling rate in Hz
+			case 'RestEC'
+				eegEC = eeg(1:63,:);
+				if ~isempty( Imean )
+					eegEC(:) = bsxfun( @minus, eegEC, mean( eeg(Imean,:), 1 ) );
+				end
+				fsEC  = 1 / ( H.Common.SamplingInterval * 1e-6 );
+		end
+
 	end
 	pLineMax = max( pLine, [], 2 );
 	
 	
 	%% Resting state data
-	doRestSpectra = all( QCstatus(11:12,[1,2,11]) == 2, 1:2 );
+	doRestSpectra = all( QCstatus(11:12,[1,2,11]) ~= 0, 1:2 );
 	if doRestSpectra
 
-		iSeq = 11;
-		taskName = taskInfo{taskSeq(iSeq),1};
-		codeInfo = taskInfo{taskSeq(iSeq),2};
-		bvFile = fullfile( bvDir, sprintf( '%s_%s_%s_%s_eeg.vhdr', subjTag, sessTag, sprintf( 'task-%s', taskName ), sprintf( 'run-%02d', nRun(iSeq) ) ) );
-		H      = bieegl_readBVtxt( bvFile );
-		M      = bieegl_readBVtxt( [ bvFile(1:end-3), 'mrk' ] );
-		eegEO  = bieegl_readBVdata( bieegl_readBVtxt( bvFile ), bvDir );
-		kStim  = strcmp( { M.Marker.Mk.type }, 'Stimulus' );
-		i1     = M.Marker.Mk(find(kStim,1,'first')).position;
-		i2     = M.Marker.Mk(find(kStim,1,'last' )).position;
-		i2(:)  = i2 + median( diff( [ M.Marker.Mk(kStim).position ] ) );
-		i2(:)  = min( i2, size( eegEO, 2 ) );
-		eegEO  = eegEO(1:63,i1:i2);
-		fs     = 1 / ( H.Common.SamplingInterval * 1e-6 );					% sampling interval is in microseconds, get sampling rate in Hz
-
-		iSeq = 12;
-		taskName = taskInfo{taskSeq(iSeq),1};
-		codeInfo = taskInfo{taskSeq(iSeq),2};
-		bvFile = fullfile( bvDir, sprintf( '%s_%s_%s_%s_eeg.vhdr', subjTag, sessTag, sprintf( 'task-%s', taskName ), sprintf( 'run-%02d', nRun(iSeq) ) ) );
-		H      = bieegl_readBVtxt( bvFile );
-		if 1 / ( H.Common.SamplingInterval * 1e-6 ) ~= fs
+		% verify sampling rate match
+		if fsEC ~= fsEO
 			error( 'sampling rate varies between EO & EC Rest' )
 		end
-		M      = bieegl_readBVtxt( [ bvFile(1:end-3), 'mrk' ] );
-		eegEC  = bieegl_readBVdata( bieegl_readBVtxt( bvFile ), bvDir );
-		kStim  = strcmp( { M.Marker.Mk.type }, 'Stimulus' );
-		i1     = M.Marker.Mk(find(kStim,1,'first')).position;
-		i2     = M.Marker.Mk(find(kStim,1,'last' )).position;
-		i2(:)  = i2 + median( diff( [ M.Marker.Mk(kStim).position ] ) );
-		i2(:)  = min( i2, size( eegEC, 2 ) );
-		eegEC  = eegEC(1:63,i1:i2);
-		
+
+		% trim longer resting EEG file to length of shorter
 		i1(:) = size( eegEO, 2 );
 		i2(:) = size( eegEC, 2 );
 		if i1 < i2
@@ -529,10 +572,6 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 			eegEO(:,i2+1:i1) = [];
 		end
 		
-		% re-reference?
-		eegEO(:) = bsxfun( @minus, eegEO, mean( eegEO, 1 ) );
-		eegEC(:) = bsxfun( @minus, eegEC, mean( eegEC, 1 ) );
-
 		% downsample data to double highest frequency you want to look at
 		if fs == 1000 && size( eegEO, 2 ) >= 180000
 			% 200 Hz
@@ -552,7 +591,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 		eegEC    = abs( eegEC(:,1:nu) ) / nfft;
 		eegEO(:,2:n2) = eegEO(:,2:n2) * 2;				% double non-unique freqencies
 		eegEC(:,2:n2) = eegEC(:,2:n2) * 2;
-		
+		% power
+		eegEO(:) = eegEO.^2;
+		eegEC(:) = eegEC.^2;
 		
 		% do something to smooth out spectrum
 		switch 2
@@ -818,15 +859,15 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 %				kf = f > 0;
 				kf = f >= 1 & f <= 100;
 				if strcmp( restChan, 'Mean' )
-					hLine = loglog( f(kf), mean( eegEC(:,kf), 1 ), f(kf), mean( eegEO(:,kf), 1 ) );
+					hLine = semilogy( f(kf), mean( eegEC(:,kf), 1 ), f(kf), mean( eegEO(:,kf), 1 ) );
 				else
 					iRest = find( strcmp( {chanLocs.labels}, restChan ) );
-					hLine = loglog( f(kf), eegEC(iRest,kf), f(kf), eegEO(iRest,kf) );
+					hLine = semilogy( f(kf), eegEC(iRest,kf), f(kf), eegEO(iRest,kf) );
 				end
 				set( hLine(1), 'Color', cOrder(4,:) )
 				set( hLine(2), 'Color', cOrder(5,:) )
 				set( [
-					text( 'Units', 'normalized', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'bottom', 'Position', [ 0.05, 0.05 ],...
+					text( 'Units', 'normalized', 'HorizontalAlignment', 'right', 'VerticalAlignment', 'top', 'Position', [ 0.95, 0.95 ],...
 						'String', sprintf( '\\color[rgb]{%g,%g,%g}Eyes Closed\n\\color[rgb]{%g,%g,%g}Eyes Open', cOrder(4,:), cOrder(5,:) ) )
 					], 'FontSize', fontSize, 'FontWeight', fontWeight )
 			case 2
@@ -864,7 +905,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 % 		QCline1 = QCvars;
 % 		QCline1 = { 'Run',  'Oddball',       '',      '',      'MMN',        '', 'Display',    'Hit',    'FA',         '', 'Misc' };
 		QCline1 = {    'Run',       'OD',     'OD',    'OD',      'MMN',     'MMN', 'Display',    'Hit',    'FA',       'FA',    'Misc.' };
-		QCline2 = { '(seq#)', 'Standard', 'Target', 'Novel', 'Standard', 'Deviant',   '(160)', 'Target', 'Novel', 'Standard', 'commnens' };
+		QCline2 = { '(seq#)', 'Standard', 'Target', 'Novel', 'Standard', 'Deviant',   '(160)', 'Target', 'Novel', 'Standard', 'comments' };
 		xTxt = [ 1.6, 1, 0.8, 0.8, 1, 0.8, 1, 0.8, 0.8, 1, 1.2 ];
 		horizAlign = 'left';
 % 		horizAlign = 'right';
@@ -925,7 +966,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 			
 			xlabel( hAx(4), 'Target Reaction Time (ms)' )
 	
-			ylabel( hAx(5), [ restChan, ' Amplitude (\muV)' ] )
+% 			ylabel( hAx(5), [ restChan, ' Amplitude (\muV)' ] )
+			ylabel( hAx(5), [ restChan, ' Power (\muV^2)' ] )
 % 			ylabel( hAx(5), { 'EC / EO'; [ restChan, ' Amplitude' ] } )
 			xlabel( hAx(5), 'Frequency (Hz)' )
 		], 'FontSize', fontSize, 'FontWeight', fontWeight )
@@ -949,6 +991,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag )
 
 	pngDir = fullfile( sessDir, 'Figures' );				% keep everything organized by site/subject/session for BWH
 % 	pngDir = fullfile( AMPSCZdir, 'Figures', 'QC' );		% write all sessions in 1 common directory for ease of local analysis
+	if legacyPaths
+		pngDir = fullfile( sessDir, 'Figures', 'QC' );
+	end
 	if ~isfolder( pngDir )
 		mkdir( pngDir )
 		fprintf( 'created %s\n', pngDir )

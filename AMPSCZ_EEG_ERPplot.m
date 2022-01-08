@@ -121,6 +121,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			chanSet = {
 				'Fz', { 'Fz' }
 				'Cz', { 'Cz' }
+				'Frontal 6', { 'F3', 'Fz', 'F4', 'C3', 'Cz', 'C4' }
 			};
 			figSize  = [ 500, 700 ];
 		case { 'S 32', 'S 64', 'S128', 32, 64, 128 }
@@ -236,8 +237,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 				tmDeviant(:,1)  = mean(  YmDeviant(:,jAvg), 2, nanFlag );
 				tStr1 = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jt), tWidthTopo/2 );
 			end
-			tFix = 120;
-			wFix = tWidthTopo;
+			tFix = 138;
+			wFix =  80;
 			tAvg = tFix + [ -1, 1 ]*wFix/2;
 			jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
 			tmStandard(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
@@ -393,15 +394,29 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 				tStr1T = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jtT), tWidthTopo/2 );
 				tStr1N = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jtN), tWidthTopo/2 );
 			end
-			tFix = 350;		% AOD ~ 330 target, 320 novel; VOD ~ 410 target, 355 novel
-			wFix = tWidthTopo;
+			if strcmp( epochName, 'AOD' )
+				tFix = 330;		% AOD ~ 330 target, 320 novel; VOD ~ 410 target, 355 novel
+			else
+				tFix = 423;
+			end
+			wFix = 80;
 			tAvg = tFix + [ -1, 1 ]*wFix/2;
 			jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
 			tmStandardT(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
 			tmTarget(:,2)    = mean(   YmTarget(:,jAvg), 2, nanFlag );
+			tStr2T = sprintf( '%0.0f \\pm %0.0f ms', tFix, wFix/2 );
+
+			if strcmp( epochName, 'AOD' )
+				tFix = 325;
+			else
+				tFix = 344;
+			end
+% 			wFix = 80;
+			tAvg = tFix + [ -1, 1 ]*wFix/2;
+			jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
 			tmStandardN(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
 			tmNovel(:,2)     = mean(    YmNovel(:,jAvg), 2, nanFlag );
-			tStr2 = sprintf( '%0.0f \\pm %0.0f ms', tFix, wFix/2 );
+			tStr2N = sprintf( '%0.0f \\pm %0.0f ms', tFix, wFix/2 );
 
 
 			hFig  = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256) );		% 225% SCN laptop
@@ -479,7 +494,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			title(  hAx(4*nSet+4), 'Novel - Standard' , 'FontSize', fontSize )
 			ylabel( hAx(4*nSet+1), tStr1T, 'Visible', 'on', 'Color', pkColorT, 'FontSize', fontSize, 'FontWeight', 'bold' )
 			ylabel( hAx(4*nSet+3), tStr1N, 'Visible', 'on', 'Color', pkColorN, 'FontSize', fontSize, 'FontWeight', 'bold' )
-			ylabel( hAx(4*nSet+5), tStr2 , 'Visible', 'on', 'Color',      'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+			ylabel( hAx(4*nSet+5), tStr2T, 'Visible', 'on', 'Color',      'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+			ylabel( hAx(4*nSet+7), tStr2N, 'Visible', 'on', 'Color',      'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
 
 			iSet(:) = find( kSetT );
 			if tWidthTopo == 0
@@ -655,10 +671,10 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 	proc = AMPSCZ_EEG_findProcSessions;
 	
 	taskName = { 'MMN', 'VOD', 'AOD' };
-	for iProc = 4:size(proc,1)
+	for iProc = 6%4:size(proc,1)
 		close all
 		matDir = fullfile( AMPSCZdir, proc{iProc,1}(1:end-2), 'PHOENIX', 'PROTECTED', proc{iProc,1}, 'processed', proc{iProc,2}, 'eeg', [ 'ses-', proc{iProc,3} ], 'mat' );
-		for iTask = 1:numel( taskName )
+		for iTask = 1%1:numel( taskName )
 			AMPSCZ_EEG_ERPplot( fullfile( matDir, [ proc{iProc,2}, '_', proc{iProc,3}, '_', taskName{iTask}, '_[0.1,50].mat' ] ) )
 		end
 	end
