@@ -132,8 +132,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 
 	% Check for dependencies
 	% get rid of fieldtrip, nuclear option of restoring default path
-	hannPath = which( 'hann.m' );		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
-	if ~contains( hannPath, matlabroot )
+	if ~contains( which( 'hann.m' ), matlabroot )		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
 % 		error( 'fix path so hann.m is native MATLAB' )
 		restoredefaultpath
 	end	
@@ -200,7 +199,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9
 
 	end
-	if ~contains( which( 'topoplot.m' ), 'modifications' )
+	if ~contains( which( 'pop_select.m' ), 'modifications' )
 		addpath( fullfile( AMPSCZtools, 'modifications', 'eeglab' ), '-begin' )
 	end
 	if ~contains( which( 'channel_properties.m.m' ), 'modifications' )
@@ -582,7 +581,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 		% e.g.
 		% need to weed out incomplete sessions, findProcSessions not good enough for ERPs
 		proc = AMPSCZ_EEG_findProcSessions;
-		for iSession = [ 1 3 4 5 6 7 8 ]%1:size( proc, 1 )
+		for iSession = [ 3, 9, 11 ]%1:size( proc, 1 )
 			AMPSCZ_EEG_preproc( proc(iSession,2), proc(iSession,3), { 'MMN', 'VOD', 'AOD' }, [], false )
 		end
 %}

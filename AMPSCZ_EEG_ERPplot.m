@@ -1,4 +1,4 @@
-function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
+function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 % ERP plots from the output of AMPSCZ_EEG_preproc.m
 % 
 % Usage:
@@ -48,7 +48,32 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 		% https://sccn.ucsd.edu/wiki/Makoto's_preprocessing_pipeline					too ICA based but interesting
 
 
-	narginchk( 1, 2 )
+	narginchk( 1, 3 )
+	
+	if isunix
+		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
+% 		eegLabDir = '/PHShome/sn1005/Downloads/eeglab/eeglab2021.1';
+	else %if ispc
+		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
+% 		eegLabDir = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1';
+	end
+	if ~contains( which( 'hann.m' ), matlabroot )		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
+		error( 'remove Fieldtrip?' )
+% 		restoredefaultpath
+	end	
+	if isempty( which( 'eeglab' ) )
+		error( 'add EEGLAB' )
+% 		addpath( eegLabDir, '-begin' )
+% 		eeglab
+% 		drawnow
+% 		close( gcf )
+% 		clear global EEG ALLEEG LASTCOM CURRENTSET		% there's still a bunch of variables, some global.
+	end
+	if ~contains( which( 'topoplot.m' ), 'modifications' )
+		AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
+		addpath( fullfile( AMPSCZtools, 'modifications', 'eeglab' ), '-begin' )
+	end
+
 	% suppress warning about (xmax-xmin)*srate+1 ~= pnts?
 % 	if isstruct( EEG ) && all( isfield( EEG, fieldnames( eeg_checkset( eeg_emptyset ) ) ) )
 	blank = eeg_emptyset;
@@ -69,14 +94,17 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 	else
 		error( 'invalid EEG input' )
 	end
-	
+
+	if exist( 'writeFlag', 'var' ) ~= 1 % || isempty( writeFlag )
+		writeFlag = [];
+	end
+
 	% concatenate epoch info across runs
 	for fn = fieldnames( epochInfo )'
 		epochInfo(1).(fn{1}) = [ epochInfo.(fn{1}) ];
 	end
 	epochInfo = epochInfo(1);
 	
-	tWinPlot   = [ -100, 500 ];	% (ms)
 % 	tWidthTopo = 0;
 	tWidthTopo = 25*2;
 	
@@ -84,10 +112,6 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 	nChan  = numel( Ichan );
 % 	nSamp  = EEG.pnts;
 % 	nEpoch = EEG.trials;
-
-	jTime = EEG.times >= tWinPlot(1) & EEG.times <= tWinPlot(2);
-	jT0   = find( jTime, 1, 'first' ) - 1;
-	nTime = sum( jTime );
 
 	% pull out the latency=0 events from each epoch, cell array of 'S#' codes, should all be stim codes, not responses
 	eventType = cellfun( @(u,v)u{[v{:}]==0}, { EEG.epoch.eventtype }, { EEG.epoch.eventlatency }, 'UniformOutput', false );
@@ -109,7 +133,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 	% there's got to be a better way to identify task! probably should just make it an input since it's saved in mat-files
 	switch eventType{1}
 		case { 'S  1', 'S  2', 'S  4', 1, 2, 4 }
-			epochName   = 'AOD';
+			epochName = 'AOD';
+			tWinPlot  = [ -100, 600 ];	% (ms)
 			% { label, channel members }
 			chanSet = {
 				'Cz', { 'Cz' }
@@ -117,15 +142,17 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			};
 			figSize  = [ 1000, 700 ];
 		case { 'S 16', 'S 18', 16, 18 }
-			epochName   = 'MMN';
+			epochName = 'MMN';
+			tWinPlot  = [ -100, 500 ];	% (ms)
 			chanSet = {
 				'Fz', { 'Fz' }
 				'Cz', { 'Cz' }
 				'Frontal 6', { 'F3', 'Fz', 'F4', 'C3', 'Cz', 'C4' }
 			};
-			figSize  = [ 500, 700 ];
+			figSize  = [ 500, 700+150*1 ];		% add height for 3-row w/ frontal 6
 		case { 'S 32', 'S 64', 'S128', 32, 64, 128 }
-			epochName   = 'VOD';
+			epochName = 'VOD';
+			tWinPlot  = [ -100, 600 ];	% (ms)
 % 			chanSet = {
 % 				'Pz', { 'Pz' }		% target & peak detection
 % 				'Oz', { 'Oz' }		% standard
@@ -136,7 +163,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			};
 			figSize  = [ 1000, 700 ];
 		case { 'S  8', 8 }
-			epochName   = 'ASSR';
+			epochName = 'ASSR';
+			tWinPlot  = [ -100, 600 ];	% (ms)
 % 		case { 'S 20 ', 20 }
 % 			epochName = 'RestEO';
 % 		case { 'S 24', 24 }
@@ -144,6 +172,10 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 		otherwise
 			error( 'can''t identify task' )
 	end
+
+	jTime = EEG.times >= tWinPlot(1) & EEG.times <= tWinPlot(2);
+	jT0   = find( jTime, 1, 'first' ) - 1;
+	nTime = sum( jTime );
 
 	% convert cell arrays of channel names to numeric indices
 	nSet = size( chanSet, 1 );		% # waveform axes
@@ -167,7 +199,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 %			end
 %		end
 
-	[ standardCode, targetCode, novelCode ] = AMPSCZ_EEG_eventCodes( epochName );
+% 	[ standardCode, targetCode, novelCode ] = AMPSCZ_EEG_eventCodes( epochName );
 	% non-rejected epochs
 	kEpoch = shiftdim( ~isnan( EEG.data(1,1,:) ), 1 );
 	nanFlag = 'includenan';		% shouldn't be any NaNs, include them as safety
@@ -179,6 +211,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			
 	% stop automatic datatips - they're super annoying!
 	set( groot , 'defaultAxesCreateFcn' , 'disableDefaultInteractivity(gca)' )
+	
+	hFig = gobjects( 1, 2 );
 	
 	switch epochName
 
@@ -229,13 +263,13 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			if tWidthTopo == 0
 				tmStandard(:,1) = YmStandard(:,jPk);
 				tmDeviant(:,1)  =  YmDeviant(:,jPk);
-				tStr1 = sprintf( '%0.0f ms', EEG.times(jt) );
+				tStr1 = sprintf( 'Peak\n%0.0f ms', EEG.times(jt) );
 			else
 				tAvg = EEG.times(jt) + [ -1, 1 ]*tWidthTopo/2;
 				jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
 				tmStandard(:,1) = mean( YmStandard(:,jAvg), 2, nanFlag );
 				tmDeviant(:,1)  = mean(  YmDeviant(:,jAvg), 2, nanFlag );
-				tStr1 = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jt), tWidthTopo/2 );
+				tStr1 = sprintf( 'Peak\n%0.0f \\pm %0.0f ms', EEG.times(jt), tWidthTopo/2 );
 			end
 			tFix = 138;
 			wFix =  80;
@@ -244,11 +278,11 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			tmStandard(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
 			tmDeviant(:,2)  = mean(  YmDeviant(:,jAvg), 2, nanFlag );
 % 			tStr2 = sprintf( '[ %0.0f, %0.0f ] ms', tAvg );
-			tStr2 = sprintf( '%0.0f \\pm %0.0f ms', tFix, wFix/2 );
+			tStr2 = sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 );
 
-			hFig  = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256) );		% 225% SCN laptop
-			hAx   = gobjects( 2*nSet+4, 1 );
-			hTopo = gobjects(        4, 1 );
+			hFig(1) = figure( 'Position', [ 600, 100, figSize ], 'Colormap', jet(256), 'MenuBar', 'none' );		% 225% SCN laptop
+			hAx     = gobjects( 2*nSet+4, 1 );
+			hTopo   = gobjects(        4, 1 );
 
 			topoOpts = [ topoOpts, { 'maplimits', yRange } ];
 			pkColor = [ 1, 0, 0 ];
@@ -310,7 +344,29 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 				uistack( patch( hAx(2*iSet), EEG.times(jt)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
 % 				line( hAx(2*iSet), EEG.times([jt,jt]), yRange, 'Color', pkColor, 'LineStyle', '--' )
 			end
-		
+
+			hAx2 = gobjects( 1, 3 );
+			hFig(2) = figure( 'Position', [ 650, 200, 1000, 250 ], 'MenuBar', 'none' );
+			hAx2(1) = subplot( 1, 3, 1 );
+				plot( EEG.times(jTime), YmStandard' )
+				ylim( [ -1, 1 ] * max( abs( YmStandard ), [], 'all' ) * 1.05 )
+			hAx2(2) = subplot( 1, 3, 2 );
+				plot( EEG.times(jTime), YmDeviant' )
+				ylim( [ -1, 1 ] * max( abs( YmDeviant ), [], 'all' ) * 1.05 )
+			hAx2(3) = subplot( 1, 3, 3 );
+				plot( EEG.times(jTime), ( YmDeviant - YmStandard )' )
+				ylim( [ -1, 1 ] * max( abs( YmDeviant - YmStandard ), [], 'all' ) * 1.05 )
+			set( hAx2, 'XGrid', 'on', 'YGrid', 'on', 'XLim', tWinPlot )
+			set([
+					title(  hAx2(1), sprintf( 'Standard (%d)', sum( Kstandard ) ) )
+					title(  hAx2(2), sprintf(  'Deviant (%d)', sum( Kdeviant  ) ) )
+					title(  hAx2(3), 'Deviant - Standard' )
+					ylabel( hAx2(1), sprintf( '%s\n%s-%s-%s\nMean %s ERP (\\muV)', subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), epochName ) )
+					xlabel( hAx2(1), 'Time (ms)' )
+					xlabel( hAx2(2), 'Time (ms)' )
+					xlabel( hAx2(3), 'Time (ms)' )
+				], 'FontSize', 12 )
+
 		case { 'VOD', 'AOD' }
 
 			Kstandard = epochInfo.kStandard;
@@ -380,8 +436,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 				tmStandardN(:,1) = YmStandard(:,jPkN);
 				tmTarget(:,1)    =   YmTarget(:,jPkT);
 				tmNovel(:,1)     =    YmNovel(:,jPkN);
-				tStr1T = sprintf( '%0.0f ms', EEG.times(jtT) );
-				tStr1N = sprintf( '%0.0f ms', EEG.times(jtN) );
+				tStr1T = sprintf( 'Peak\n%0.0f ms', EEG.times(jtT) );
+				tStr1N = sprintf( 'Peak\n%0.0f ms', EEG.times(jtN) );
 			else
 				tAvg = EEG.times(jtT) + [ -1, 1 ]*tWidthTopo/2;
 				jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
@@ -391,8 +447,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 				jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
 				tmStandardN(:,1) = mean( YmStandard(:,jAvg), 2, nanFlag );
 				tmNovel(:,1)     = mean(    YmNovel(:,jAvg), 2, nanFlag );
-				tStr1T = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jtT), tWidthTopo/2 );
-				tStr1N = sprintf( '%0.0f \\pm %0.0f ms', EEG.times(jtN), tWidthTopo/2 );
+				tStr1T = sprintf( 'Peak\n%0.0f \\pm %0.0f ms', EEG.times(jtT), tWidthTopo/2 );
+				tStr1N = sprintf( 'Peak\n%0.0f \\pm %0.0f ms', EEG.times(jtN), tWidthTopo/2 );
 			end
 			if strcmp( epochName, 'AOD' )
 				tFix = 330;		% AOD ~ 330 target, 320 novel; VOD ~ 410 target, 355 novel
@@ -404,7 +460,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
 			tmStandardT(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
 			tmTarget(:,2)    = mean(   YmTarget(:,jAvg), 2, nanFlag );
-			tStr2T = sprintf( '%0.0f \\pm %0.0f ms', tFix, wFix/2 );
+			tStr2T = sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 );
 
 			if strcmp( epochName, 'AOD' )
 				tFix = 325;
@@ -416,12 +472,11 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 			jAvg = EEG.times(jTime) >= tAvg(1) & EEG.times(jTime) <= tAvg(2);
 			tmStandardN(:,2) = mean( YmStandard(:,jAvg), 2, nanFlag );
 			tmNovel(:,2)     = mean(    YmNovel(:,jAvg), 2, nanFlag );
-			tStr2N = sprintf( '%0.0f \\pm %0.0f ms', tFix, wFix/2 );
+			tStr2N = sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 );
 
-
-			hFig  = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256) );		% 225% SCN laptop
-			hAx   = gobjects( 4*nSet+8, 1 );
-			hTopo = gobjects(        8, 1 );
+			hFig(1) = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256), 'MenuBar', 'none' );		% 225% SCN laptop
+			hAx     = gobjects( 4*nSet+8, 1 );
+			hTopo   = gobjects(        8, 1 );
 			
 			topoOpts = [ topoOpts, { 'maplimits', yRange } ];
 			pkColorT = [ 0, 0, 1 ];
@@ -512,22 +567,36 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 % 				line( hAx(4*iSet), EEG.times([jtN,jtN]), yRange, 'Color', pkColorN, 'LineStyle', '--' )
 			end
 			
+			hAx2 = gobjects( 1, 3 );
+			hFig(2) = figure( 'Position', [ 650, 200, 1000, 250 ], 'MenuBar', 'none' );
+			hAx2(1) = subplot( 1, 3, 1 );
+				plot( EEG.times(jTime), YmStandard' )
+				ylim( [ -1, 1 ] * max( abs( YmStandard ), [], 'all' ) * 1.05 )
+			hAx2(2) = subplot( 1, 3, 2 );
+				plot( EEG.times(jTime), YmTarget' )
+				ylim( [ -1, 1 ] * max( abs( YmTarget ), [], 'all' ) * 1.05 )
+			hAx2(3) = subplot( 1, 3, 3 );
+				plot( EEG.times(jTime), YmNovel' )
+				ylim( [ -1, 1 ] * max( abs( YmNovel ), [], 'all' ) * 1.05 )
+			set( hAx2, 'XGrid', 'on', 'YGrid', 'on', 'XLim', tWinPlot )
+			set([
+					title(  hAx2(1), sprintf( 'Standard (%d)', sum( Kstandard ) ) )
+					title(  hAx2(2), sprintf(   'Target (%d)', sum( Ktarget   ) ) )
+					title(  hAx2(3), sprintf(    'Novel (%d)', sum( Knovel    ) ) )
+					ylabel( hAx2(1), sprintf( '%s\n%s-%s-%s\nMean %s ERP (\\muV)', subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), epochName ) )
+					xlabel( hAx2(1), 'Time (ms)' )
+					xlabel( hAx2(2), 'Time (ms)' )
+					xlabel( hAx2(3), 'Time (ms)' )
+				], 'FontSize', 12 )
 			
 		otherwise
 	end
-	subplot( 'Position', [ 1-axR*0.75, 1-axT+axGv(1)-(axGv(1)+axH)*iSet, axR*0.5, axH ] )
-	image( (256:-1:1)' )
-	set( gca, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )
+	hColorbar = subplot( 'Position', [ 1-axR*0.75, 1-axT+axGv(1)-(axGv(1)+axH)*iSet, axR*0.5, axH ], 'Parent', hFig(1) );
+	image( hColorbar, (256:-1:1)' )
+	set( hColorbar, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )
 	
 
-	figure( hFig )
-	
-	if isunix
-% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
-	else %if ispc
-		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-	end
+	figure( hFig(1) )
 	
 	siteId   = subjSess{1}(1:2);
 	siteInfo = AMPSCZ_EEG_siteInfo;
@@ -542,24 +611,44 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo )
 		mkdir( pngDir )
 		fprintf( 'created %s\n', pngDir )
 	end
-	pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QC.png' ]
 
-	writeFlag = [];
+	pngOut1 = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );
+	pngOut2 = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '_butterfly.png' ] );
+
 	if isempty( writeFlag )
-		writeFlag = exist( pngOut, 'file' ) ~= 2;		
-		if ~writeFlag
-			writeFlag(:) = strcmp( questdlg( 'png exists. overwrite?', mfilename, 'no', 'yes', 'no' ), 'yes' );
+		writeFlag1 = exist( pngOut1, 'file' ) ~= 2;		
+		if ~writeFlag1
+			writeFlag1(:) = strcmp( questdlg( [ epochName ' png exists. overwrite?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
 		end
+	else
+		writeFlag1 = writeFlag;
 	end
-	if writeFlag
+	if writeFlag1
 		% print( hFig, ... ) & saveas( hFig, ... ) don't preserve pixel dimensions
-		figPos = get( hFig, 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
-		img = getframe( hFig );
+		figPos = get( hFig(1), 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
+		img = getframe( hFig(1) );
 		img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
-		imwrite( img, pngOut, 'png' )
-		fprintf( 'wrote %s\n', pngOut )
+		imwrite( img, pngOut1, 'png' )
+		fprintf( 'wrote %s\n', pngOut1 )
 	end
 	
+	if isempty( writeFlag )
+		writeFlag2 = exist( pngOut2, 'file' ) ~= 2;		
+		if ~writeFlag2
+			writeFlag2(:) = strcmp( questdlg( [ epochName ' butterfly png exists. overwrite?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
+		end
+	else
+		writeFlag2 = writeFlag;
+	end
+	if writeFlag2
+		% print( hFig, ... ) & saveas( hFig, ... ) don't preserve pixel dimensions
+		figPos = get( hFig(2), 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
+		img = getframe( hFig(2) );
+		img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+		imwrite( img, pngOut2, 'png' )
+		fprintf( 'wrote %s\n', pngOut2 )
+	end
+
 	return
 
 	function yRange = yRangeFcn( Y )
