@@ -23,14 +23,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 
 	narginchk( 0, 3 )
 
-	if isunix
-% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
-		eegLabDir = '/PHShome/sn1005/Downloads/eeglab/eeglab2021.1';
-	else %if ispc
-		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-		eegLabDir = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1';
-	end
+	[ AMPSCZdir, eegLabDir ] = AMPSCZ_EEG_paths;
 
 	if exist( 'legacyPaths', 'var' ) ~= 1 || isempty( legacyPaths )
 		legacyPaths = false;		% temporary hack to be able to process files in old folder heirarchy

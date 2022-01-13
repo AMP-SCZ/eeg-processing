@@ -24,12 +24,7 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 
 	siteInfo = AMPSCZ_EEG_siteInfo;
 
-	if isunix
-% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
-	else %if ispc
-		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-	end
+	AMPSCZdir = AMPSCZ_EEG_paths;
 
 	NSess = 0;
 	Sess  = cell( 0, 3 );

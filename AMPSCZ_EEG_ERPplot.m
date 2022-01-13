@@ -49,14 +49,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 
 
 	narginchk( 1, 3 )
-	
-	if isunix
-		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
-% 		eegLabDir = '/PHShome/sn1005/Downloads/eeglab/eeglab2021.1';
-	else %if ispc
-		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-% 		eegLabDir = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1';
-	end
+
+	AMPSCZdir = AMPSCZ_EEG_paths;
 	if ~contains( which( 'hann.m' ), matlabroot )		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
 		error( 'remove Fieldtrip?' )
 % 		restoredefaultpath
@@ -750,13 +744,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 
 %%
 %{
-	if isunix
-% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
-	else %if ispc
-		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-	end
-	
+	AMPSCZdir = AMPSCZ_EEG_paths;
+
 	proc = AMPSCZ_EEG_findProcSessions;
 	
 	taskName = { 'MMN', 'VOD', 'AOD' };

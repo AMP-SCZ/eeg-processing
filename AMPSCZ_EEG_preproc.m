@@ -69,20 +69,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	end
 
 	% Machine-dependent paths
-	if isunix
-% 		AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-		AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?	
-		eegLabDir = '/PHShome/sn1005/Downloads/eeglab/eeglab2021.1';
-		adjustDir = '';
-		error( 'needs ADJUST1.1.1' )
-	else %if ispc
-		AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-		eegLabDir = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1';
-		adjustDir = 'C:\Users\donqu\Downloads\adjust\ADJUST1.1.1';
-	end
-	if ~isfolder( AMPSCZdir )
-		error( 'Invalid project directory' )
-	end
+	[ AMPSCZdir, eegLabDir, ~, adjustDir ] = AMPSCZ_EEG_paths;
 	AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
 	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref.ced' );
 

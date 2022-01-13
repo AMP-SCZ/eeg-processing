@@ -45,17 +45,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 			verbose = true;
 		end
 
-		if isunix
-% 			AMPSCZdir = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-			AMPSCZdir = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?
-			fieldTripDir = '/PHShome/sn1005/Downloads/fieldtrip/fieldtrip-20211209';
-		else %if ispc
-			AMPSCZdir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-			fieldTripDir = 'C:\Users\donqu\Downloads\fieldtrip\fieldtrip-20210929';
-		end
-		if ~isfolder( AMPSCZdir )
-			error( 'Invalid project directory' )
-		end
+		[ AMPSCZdir, ~, fieldTripDir ] = AMPSCZ_EEG_paths;
 		
 		if isempty( which( 'data2bids.m' ) )
 			addpath( fieldTripDir, '-begin' )
