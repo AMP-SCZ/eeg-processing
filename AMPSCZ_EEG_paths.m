@@ -5,7 +5,7 @@ function [ AMPSCZdir, eegLabDir, fieldTripDir, adjustDir ] = AMPSCZ_EEG_paths
 % >> [ AMPSCZdataDir, eegLabDir, fieldTripDir, adjustDir ] = AMPSCZ_EEG_paths;
 
 
-	narginchk( 0, 0 )
+% 	narginchk( 0, 0 )
 
 % 	bwhHostName = 'grx##.research.partners.org';		% max ScreenSize ~ 1812x1048
 	[ ~, hostname ] = system( 'hostname' );

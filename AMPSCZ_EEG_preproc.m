@@ -121,70 +121,72 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	% get rid of fieldtrip, nuclear option of restoring default path
 	if ~contains( which( 'hann.m' ), matlabroot )		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
 % 		error( 'fix path so hann.m is native MATLAB' )
-		restoredefaultpath
+		if ~AMPSCZ_EEG_matlabPaths
+			restoredefaultpath
+		end
 	end	
 	% -- EEGLAB + plugins
 	if isempty( which( 'eeglab' ) )
-		addpath( eegLabDir, '-begin' )
-		% nogui doesn't actually put every thing on path???  FASTER yes, ERPLAB subfolders no
-% 		eeglab( 'nogui' )
-		eeglab
-		% GUI: File > Quit
-		% MenuSelectedFcn: 'close(gcf); disp('To save the EEGLAB command history  >> pop_saveh(ALLCOM);');clear global EEG ALLEEG LASTCOM CURRENTSET;'
-		drawnow
-		close( gcf )
-		% ALLCOM                       CURRENTERP                   ERP                          STUDY
-		% ALLEEG                       CURRENTSET                   LASTCOM                      eegLabDir
-		% ALLERP                       CURRENTSTUDY                 PLUGINLIST                   globalvars
-		% ALLERPCOM                    EEG                          RESTOREDEFAULTPATH_EXECUTED  plotset
-		clear global EEG ALLEEG LASTCOM CURRENTSET		% there's still a bunch of variables, some global.
-
-	% paths added by both eeglab & eeglab('noqui')
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\adminfunc
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\guifunc
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\miscfunc
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\popfunc
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\sigprocfunc
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\statistics
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\studyfunc
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\supportfiles
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\timefreqfunc
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\doc
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\t200_FileAccess
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\t250_ArtifactPreProcessingQualityControl
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\FASTER1.2.3b
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\bva-io1.7
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\dipfit4.3
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\firfilt
-	% paths added by eeglab but not eeglab('noqui')
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\.github
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\GUIs
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\deprecated_functions
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\erplab_Box
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\functions
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\functions\csd
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\images
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\images\colormap_lic
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\pop_functions
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\examples
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\mex
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\simplenn
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\xtest
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\core
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\manifolds\grassmann
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\solvers\trustregions
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\tools
-	% paths added by eeglab('noqui') but not eeglab
-	% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9
-
+		if ~AMPSCZ_EEG_matlabPaths
+			addpath( eegLabDir, '-begin' )
+			% nogui doesn't actually put every thing on path???  FASTER yes, ERPLAB subfolders no
+%			eeglab( 'nogui' )
+			eeglab
+			% GUI: File > Quit
+			% MenuSelectedFcn: 'close(gcf); disp('To save the EEGLAB command history  >> pop_saveh(ALLCOM);');clear global EEG ALLEEG LASTCOM CURRENTSET;'
+			drawnow
+			close( gcf )
+			% ALLCOM                       CURRENTERP                   ERP                          STUDY
+			% ALLEEG                       CURRENTSET                   LASTCOM                      eegLabDir
+			% ALLERP                       CURRENTSTUDY                 PLUGINLIST                   globalvars
+			% ALLERPCOM                    EEG                          RESTOREDEFAULTPATH_EXECUTED  plotset
+			clear global EEG ALLEEG LASTCOM CURRENTSET		% there's still a bunch of variables, some global.
+		end
+		% paths added by both eeglab & eeglab('noqui')
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\adminfunc
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\guifunc
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\miscfunc
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\popfunc
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\sigprocfunc
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\statistics
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\studyfunc
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\supportfiles
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\timefreqfunc
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\doc
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\t200_FileAccess
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\t250_ArtifactPreProcessingQualityControl
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\FASTER1.2.3b
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\bva-io1.7
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\dipfit4.3
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\firfilt
+		% paths added by eeglab but not eeglab('noqui')
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\.github
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\GUIs
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\deprecated_functions
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\erplab_Box
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\functions
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\functions\csd
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\images
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\images\colormap_lic
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\pop_functions
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\examples
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\mex
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\simplenn
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\xtest
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\core
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\manifolds\grassmann
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\solvers\trustregions
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\tools
+		% paths added by eeglab('noqui') but not eeglab
+		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9
 	end
 	if ~contains( which( 'pop_select.m' ), 'modifications' )
 		addpath( fullfile( AMPSCZtools, 'modifications', 'eeglab' ), '-begin' )
@@ -192,7 +194,6 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	if ~contains( which( 'channel_properties.m.m' ), 'modifications' )
 		addpath( fullfile( AMPSCZtools, 'modifications', 'faster' ), '-begin' )
 	end
-	
 	% -- ADJUST
 	if isempty( which( 'ADJUST.m' ) )
 		addpath( adjustDir, '-begin' )

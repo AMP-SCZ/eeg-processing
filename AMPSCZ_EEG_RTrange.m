@@ -12,7 +12,7 @@ function RTrange = AMPSCZ_EEG_RTrange
 %
 % Date Created: 12/06/2021
 
-	narginchk( 0, 0 )
+% 	narginchk( 0, 0 )
 
 	% shortest interval bewteen [standars,target,novel] is ~1.1 sec (AOD) & ~1.7 sec (VOD)
 	% setting the maximum range <= 1.1 will remove any ambiguity about what was being responded to

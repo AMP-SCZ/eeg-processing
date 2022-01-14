@@ -11,7 +11,7 @@ function siteInfo = AMPSCZ_EEG_siteInfo
 
 % lochness is using 'Prescient' and 'Pronet' + 'PrescientXX' & 'PronetXX' folder names
 
-	narginchk( 0, 0 )
+% 	narginchk( 0, 0 )
 
 	% ProNET & PRESCIENT Site IDs
 	siteInfo = {

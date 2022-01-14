@@ -24,7 +24,7 @@ function [ taskInfo, taskSeq ] = AMPSCZ_EEG_taskSeq
 	% (12) Resting state, eyes closed       1
 
 
-	narginchk( 0, 0 )
+% 	narginchk( 0, 0 )
 
 	% sequence# 1  2  3  4  5  6  7  8  9 10 11 12
 	% run#      1  1  2  2  3  3  4  4  5  1  1  1

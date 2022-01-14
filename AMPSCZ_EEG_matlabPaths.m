@@ -1,6 +1,41 @@
-% get strings of full AMPSCZ_EEG paths (w/o fieldtrip)
-% and differences from default
-% save to mat?
+function success = AMPSCZ_EEG_matlabPaths
+% add AMPSCZ_EEG paths from AMPSCZ_EEG_matlabPaths.mat
+% if it exists in toolbox directory.  see lower section after
+% function return for how to make this mat-file
+%
+% EEGLAB + ADJUST + AMPSCZ + faster & eeglab mods get added
+% fieldtrip & its mods not included
+%
+% usage:
+% >> success = AMPSCZ_EEG_matlabPaths
+%
+% returns true if paths added, false if not
+
+% to do:
+% put in checks and only add paths if needed?
+%	removing redundant code from AMPSCZ_EEG_preproc, AMPSCZ_EEG_QC, AMPSCZ_EEG_ERPplot
+% include an option of force addpath if i do the above
+
+% 	narginchk( 0, 0 )
+	success = false;
+	pathMatFile = fullfile( fileparts( mfilename( 'fullpath' ) ), 'AMPSCZ_EEG_matlabPaths.mat' );
+	if exist( pathMatFile, 'file' ) ~= 2
+		return
+	end
+	AMPSCZpaths = load( pathMatFile );
+% 	path(    AMPSCZpaths.pathFull )
+	addpath( AMPSCZpaths.pathDiff, '-begin' )
+% 	verbose = true;
+% 	if verbose
+		fprintf( 'AMPSCZ EEG added to top of path\n' )
+% 	end
+	success(:) = true;
+
+	return
+
+	%% get strings of full AMPSCZ_EEG paths (w/o fieldtrip)
+	%% and differences from default
+	%% save to mat?
 
 	clear
 	close all
@@ -35,3 +70,4 @@
 
 % 	save( fullfile( AMPSCZtools, 'AMPSCZ_EEG_matlabPaths.mat' ), 'pathFull', 'pathDiff' )
 	
+end

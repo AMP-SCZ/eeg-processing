@@ -102,14 +102,17 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	hannPath = which( 'hann.m' );		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
 	if ~contains( hannPath, matlabroot )
 % 		error( 'fix path so hann.m is native MATLAB' )
-		restoredefaultpath
+		if ~AMPSCZ_EEG_matlabPaths
+			restoredefaultpath
+		end
 	end
-	
 	if isempty( which( 'eeglab.m' ) )
-		addpath( eegLabDir, '-begin' )
-		eeglab
-		drawnow
-		close( gcf )
+		if ~AMPSCZ_EEG_matlabPaths
+			addpath( eegLabDir, '-begin' )
+			eeglab
+			drawnow
+			close( gcf )
+		end
 	end
 	if ~contains( which( 'topoplot.m' ), 'modifications' )
 		addpath( fullfile( AMPSCZtools, 'modifications', 'eeglab' ), '-begin' )
@@ -119,13 +122,13 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	[ taskInfo, taskSeq ] = AMPSCZ_EEG_taskSeq;
 	nTask = size( taskInfo, 1 );		% i.e. 5
 	nSeq  = numel( taskSeq );
-	cTask = [
-		0   , 0.75, 0.75
-		1   , 0.75, 0
-		0   , 0.75, 0
-		0.75, 0.75, 0
-		0.75, 0.75, 0.75
-	];
+% 	cTask = [
+% 		0   , 0.75, 0.75
+% 		1   , 0.75, 0
+% 		0   , 0.75, 0
+% 		0.75, 0.75, 0
+% 		0.75, 0.75, 0.75
+% 	];
 
 	% Replace some names w/ Standard to get event counts in a meaningful column
 	for iTask = find( ismember( taskInfo(:,1), { 'ASSR', 'RestEO', 'RestEC' } ) )'
@@ -283,9 +286,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 			QCstatus(iSeq,kVar) = 1;
 		end
 
-		H      = bieegl_readBVtxt( bvFile );
-		fs     = 1 / ( H.Common.SamplingInterval * 1e-6 );					% sampling interval is in microseconds, get sampling rate in Hz
-		M      = bieegl_readBVtxt( [ bvFile(1:end-3), 'mrk' ] );
+		H  = bieegl_readBVtxt( bvFile );
+		fs = 1 / ( H.Common.SamplingInterval * 1e-6 );					% sampling interval is in microseconds, get sampling rate in Hz
+		M  = bieegl_readBVtxt( [ bvFile(1:end-3), 'mrk' ] );
 
 		kLostSamples = strncmp( { M.Marker.Mk.description }, 'LostSamples:', 12 );
 		kVar(:) = strcmp( QCvars, 'Misc' );
@@ -486,40 +489,49 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		nu     = floor(   nfft       / 2 ) + 1;		% # unique points in spectrum
 		n2     = floor( ( nfft + 1 ) / 2 );			% index of last non-unique point in spectrum
 		f      = (0:nu-1) * (fs/nfft);
+
 		% exclude any channels in average reference?
 		% e.g. correlation,variance,hurst exponent as in FASTER
 		% or   extreme amplitudes, lack of correlation, lack of predicatability, unusal high-frequency noise as in PREP
-% 		Imean = [];
-		Imean = 1:63;
-		switch 2
+		Ieeg        = 1:63;		% EEG channels.  exclude 'VIS'
+		Ireref      = Ieeg;		% channels to potentially inlcude in reference estimate
+		rerefMethod = 2;		% 0 = none, 1 = iterative winsorized peak-to-peak, 2 = FASTER
+		switch rerefMethod
 			case 0
 			case 1
-				% channel_properties.m requires EEGLAB structure
-				chanProp = max( eeg(Imean,:), [], 2 ) - min( eeg(Imean,:), [], 2 );
+				% winsorize on peak-to-peak
+				chanProp = max( eeg(Ireref,:), [], 2 ) - min( eeg(Ireref,:), [], 2 );
 				nStd = 3;
 				kOld = true( 63, 1 );
 				nIt  = 1;
 				kNew = chanProp <= median( chanProp(kOld) ) + std( chanProp(kOld) ) * nStd;
-				while any( kNew ~= kOld )
+				while any( kNew ~= kOld ) && nIt < 1e2
 					kOld(:) = kNew;
 					kNew(:) = chanProp <= median( chanProp(kOld) ) + std( chanProp(kOld) ) * nStd;
 					nIt(:)  = nIt + 1;
 				end
-				Imean = find( kNew );
 % 				nIt
+				if any( kNew )
+					Ireref = Ireref( kNew );
+					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ireref,:), 1 ) );
+				end
 			case 2
-% 				chanProp = channel_properties( eeg(Imean,:), 1:63, [] );	% 63x3
-% 				chanOutlier = min_z( chanProp );							% 63x1
-% 				Imean = find( ~chanOutlier );
-				Imean = find( ~min_z( channel_properties( eeg(Imean,:), 1:63, [] ) ) );
+				% average reference after FASTER channel exclusions
+				% how about interpolate excluded channels & include them in average
+				% might require adopting EEGLAB structure
+% 				chanProp = channel_properties( eeg(Ireref,:), 1:numel(Ireref), [] );	% #x3
+% 				chanOutlier = min_z( chanProp );										% #x1
+				kGood = ~min_z( channel_properties( eeg(Ireref,:), 1:numel(Ireref), [] ) );
+				if any( kGood )
+					Ireref = Ireref( kGood );
+					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ireref,:), 1 ) );
+				end
+			case 3
+				% PREP robust reference - can I do this w/o full EEGLAB structures?  needs chanlocs for sure
+				error( 'under construction' )
 		end
 		
-%			EEG    = fft(                 bsxfun( @minus, eeg(1:63,:), mean( eeg(Imean,:), 1 ) ),                                             nfft, 2 );		% exclude VIS channel, re-reference
-		if isempty( Imean )
-			EEG    = fft( bsxfun( @times,                 eeg(1:63,:)                           , shiftdim( hann( nfft, 'periodic' ), -1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
-		else
-			EEG    = fft( bsxfun( @times, bsxfun( @minus, eeg(1:63,:), mean( eeg(Imean,:), 1 ) ), shiftdim( hann( nfft, 'periodic' ), -1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
-		end
+		EEG    = fft( bsxfun( @times, eeg(1:63,:), shiftdim( hann( nfft, 'periodic' ), -1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
 		EEG    = abs( EEG(:,1:nu) ) / nfft;			% amplitude
 		EEG(:,2:n2) = EEG(:,2:n2) * 2;				% double non-unique freqencies
 		EEG(:) = EEG.^2;							% power?
@@ -531,16 +543,10 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		switch taskName
 			case 'RestEO'
 				eegEO = eeg(1:63,:);
-				if ~isempty( Imean )
-					eegEO(:) = bsxfun( @minus, eegEO, mean( eeg(Imean,:), 1 ) );
-				end
-				fsEO  = 1 / ( H.Common.SamplingInterval * 1e-6 );		% sampling interval is in microseconds, get sampling rate in Hz
+				fsEO = fs;
 			case 'RestEC'
 				eegEC = eeg(1:63,:);
-				if ~isempty( Imean )
-					eegEC(:) = bsxfun( @minus, eegEC, mean( eeg(Imean,:), 1 ) );
-				end
-				fsEC  = 1 / ( H.Common.SamplingInterval * 1e-6 );
+				fsEC = fs;
 		end
 
 	end
@@ -726,7 +732,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		if isempty( Z ) || all( isnan( [ Z{kZ,2,iZ} ] ) )
 			text( 'Units', 'normalized', 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Position', [ 0.5, 0.5, 0 ],...
 				'String', [ badColor, zMsg ], 'FontSize', fontSize, 'FontWeight', fontWeight )
-			set( hAx(1), 'Visible', 'off' )		% why can I title invisible topo axis, but this hides title!!!
+			set( hAx(1), 'Visible', 'off', 'DataAspectRatio', [ 1, 1, 1 ] )		% why can I title invisible topo axis, but this hides title!!!
 		else
 			% [ hTopo, cdata ] = topoplot...
 			topoplot( min( [ Z{kZ,2,iZ} ], zLimit*2 ), chanLocs(ILocs(kZ)), topoOpts{:} );		% Infs don't get interpolated

@@ -52,16 +52,22 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 
 	AMPSCZdir = AMPSCZ_EEG_paths;
 	if ~contains( which( 'hann.m' ), matlabroot )		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
-		error( 'remove Fieldtrip?' )
-% 		restoredefaultpath
+% 		error( 'remove Fieldtrip?' )
+		if ~AMPSCZ_EEG_matlabPaths
+			restoredefaultpath
+		end
 	end	
 	if isempty( which( 'eeglab' ) )
-		error( 'add EEGLAB' )
-% 		addpath( eegLabDir, '-begin' )
-% 		eeglab
-% 		drawnow
-% 		close( gcf )
-% 		clear global EEG ALLEEG LASTCOM CURRENTSET		% there's still a bunch of variables, some global.
+% 		error( 'add EEGLAB' )
+		if ~AMPSCZ_EEG_matlabPaths
+			addpath( eegLabDir, '-begin' )
+			eeglab
+			drawnow
+			close( gcf )
+			% this clear is from EEGLAB uimenu callback
+			% there's still a bunch of variables left behind, some global.
+			clear global EEG ALLEEG LASTCOM CURRENTSET
+		end
 	end
 	if ~contains( which( 'topoplot.m' ), 'modifications' )
 		AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
