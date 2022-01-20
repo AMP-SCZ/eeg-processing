@@ -1,2 +1,6 @@
 
 AMPSCZ_EEG_matlabPaths.mat
+debugICAcomps.m
+eegPreICA.mat
+ICArepeatability.mat
+tempDebugICA_ADJUST.txt

@@ -93,7 +93,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		% -- reference channel(s)
 		if exist( 'Iref', 'var' ) ~= 1
 			Iref = [];
-		else
+		elseif ~( ischar( Iref ) && strcmp( Iref, 'robust' ) )
 			Iref = getChanInd( Iref, 'reference' );
 		end
 		% -- exclude channel(s)	
@@ -145,6 +145,16 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		writeToLog( 'Reference channel(s):' )
 		if isempty( Iref )
 			writeToLog( ' none given.  Skipping re-referencing!' )
+		elseif ischar( Iref )
+			if strcmp( Iref, 'robust' )
+				error( 'Under Construction' )		% raise threshold for interpolation? & remove interpolation
+				rerefOpts = struct( 'referenceChannels', Ireref, 'evaluationChannels', Ireref, 'rereference', Ieeg, 'referenceType', 'robust' );
+% 				[ eeg(iRun), rerefOpts ] = performReference( eeg(iRun), rerefOpts );
+				[ ~, rerefOpts ] = performReference( eegStruct, rerefOpts );
+				eeg(iRun).data(Ieeg,:) = bsxfun( @minus, eeg(iRun).data(Ieeg,:), rerefOpts.referenceSignal );
+			else
+				error( 'bug' )	% shouldn't be possible
+			end
 		elseif isempty( IrefExclude )		% would empty cell {} work as pop_reref input? - no, throws error
 			for iRun = 1:nRun
 				eeg(iRun) = pop_reref( eeg(iRun), Iref, 'keepref', 'on' );
@@ -231,6 +241,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 				ChanProp(IpropInclude,:,iRun) = channel_properties( eeg(iRun), IpropInclude, [] );				% 3rd input is refChan, removes corr vs distance fit if scalar
 			end
 			chanOutlier = min_z( ChanProp(IpropInclude,:,iRun) );
+% 				chanOutlier(:) = false;		% temporary hack to test if Fp1+Fp2 interpolation is killing ICA removal of blinks
 			IchanInterp = union( IpropInclude(chanOutlier), intersect( Ieeg, IpropExclude ), 'sorted' );	% note: re-referencing exclusions e.g. VIS not getting interpolated
 			nChanInterp = numel( IchanInterp );
 			if nChanInterp ~= 0
@@ -312,6 +323,8 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		%		eeg.icaact is still empty
 		nComp = min( floor( sqrt( eeg.pnts * eeg.trials / 25 ) ), numel( Ieeg ) - nChanInterp - 1 );
 		icaOpts = { 'icatype', 'runica', 'verbose', 'off', 'chanind', Ieeg, 'options', { 'extended', 1, 'pca', nComp } };
+% save( 'eegPreICA.mat', 'eeg', 'icaWinSec', 'icaOpts' )
+% error( 'stop' )
 		if icaWinSec(1) > eeg.times(1) || icaWinSec(2) < eeg.times(eeg.pnts)
 			eegICA = pop_select( eeg, 'time', icaWinSec );		% eeg.times >= icaWinSec(1)*1e3 & eeg.times < icaWinSec(2)*1e3
 			eegICA = pop_runica( eegICA, icaOpts{:} );
@@ -351,18 +364,42 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 				icaData.Iremove = find( compOutlier );									% IcompRempve = # x 1
 
 			case 'ADJUST'		% ADJUST component rejection
-		
+
 				% addpath( 'R:\ERP Research\Brian\Brian''s Matlab Stuff\ADJUST1.1.1', '-begin' )
-				
+
 				% note: pop_select as below removes icaact, needs to be recalculated
 				eegOnly        = pop_select( eeg, 'channel', Ieeg );
 				eegOnly.icaact = eeg_getdatact( eegOnly, 'component', 1:size( eegOnly.icaweights, 1 ) );	% can size( icaweights, 1 ) ever not equal nComp here?
-				
+
 				% logFile = fullfile( matDir, sprintf( '%s_%s_%s.log', subjTag(5:end), sessTag(5:end), epochName ) );
 				[ logPath, logName ] = fileparts( logFile );
 				adjustFile           = fullfile( logPath, [ logName, '_ADJUST.txt' ] );
 				icaData.Iremove      = ADJUST( eegOnly, adjustFile )';		% 1st output is "List of artifacted ICs" does it need to be transposed? returns a row vector
 																			% output file is mandatory, gets overwritten
+
+				% Iart is the union of the others
+% 				[ Iart, Ihem, Ivem, Iblink, Idisc ] = ADJUST( eegOnly, adjustFile );
+% 				icaData.Iremove = Iart';
+% 				keyboard
+				% Outputs:
+				%   art        - List of artifacted ICs
+				%   horiz      - List of HEM ICs 
+				%   vert       - List of VEM ICs   
+				%   blink      - List of EB ICs     
+				%   disc       - List of GD ICs     
+				%   soglia_DV  - SVD threshold      
+				%   diff_var   - SVD feature values
+				%   soglia_K   - TK threshold      
+				%   meanK      - TK feature values
+				%   soglia_SED - SED threshold      
+				%   SED        - SED feature values
+				%   soglia_SAD - SAD threshold      
+				%   SAD        - SAD feature values
+				%   soglia_GDSF- GDSF threshold      
+				%   GDSF       - GDSF feature values
+				%   soglia_V   - MEV threshold      
+				%   nuovaV     - MEV feature values
+
 				clear eegOnly
 		end
 		

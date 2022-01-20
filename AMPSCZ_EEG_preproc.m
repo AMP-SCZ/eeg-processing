@@ -71,7 +71,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	% Machine-dependent paths
 	[ AMPSCZdir, eegLabDir, ~, adjustDir ] = AMPSCZ_EEG_paths;
 	AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
-	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref.ced' );
+	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref_noseX.ced' );
 
 	sessionList = AMPSCZ_EEG_findProcSessions;
 	

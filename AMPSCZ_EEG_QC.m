@@ -94,7 +94,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	end
 
 	AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
-	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref.ced' );
+	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref_noseX.ced' );
 	
 	% minimum & maximum reaction times (s), button presses out of this range not counted as responses
 	RTrange = AMPSCZ_EEG_RTrange;
@@ -495,7 +495,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		% or   extreme amplitudes, lack of correlation, lack of predicatability, unusal high-frequency noise as in PREP
 		Ieeg        = 1:63;		% EEG channels.  exclude 'VIS'
 		Ireref      = Ieeg;		% channels to potentially inlcude in reference estimate
-		rerefMethod = 2;		% 0 = none, 1 = iterative winsorized peak-to-peak, 2 = FASTER
+		rerefMethod = 2;		% 0 = none, 1 = iterative winsorized peak-to-peak, 2 = FASTER, 3 = PREP (too slow for QC)
 		switch rerefMethod
 			case 0
 			case 1
@@ -528,7 +528,28 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 				end
 			case 3
 				% PREP robust reference - can I do this w/o full EEGLAB structures?  needs chanlocs for sure
-				error( 'under construction' )
+% 				error( 'under construction' )
+% 				eegStruct = struct( 'data', eeg(Ieeg,:), 'srate', fs, 'chanlocs', chanLocs(Ieeg) );
+				eegStruct = eeg_checkset( eeg_emptyset );
+				[ eegStruct.nbchan, eegStruct.pnts, eegStruct.trials ] = size( eeg(Ieeg,:) );
+				eegStruct.times    = (0:eegStruct.pnts-1) / fs;
+				eegStruct.data     = eeg(Ieeg,:);
+				eegStruct.srate    = fs;
+				eegStruct.chanlocs = chanLocs(Ieeg);
+				eegStruct.xmin     = 0;
+				eegStruct.xmax     = ( eegStruct.pnts - 1 ) / eegStruct.srate + eegStruct.xmin;
+
+				rerefOpts = struct( 'referenceChannels', Ireref, 'evaluationChannels', Ireref, 'rereference', Ieeg, 'referenceType', 'robust' );
+				doInterp = false;
+				if doInterp
+					[ eegStruct, rerefOpts ] = performReference( eegStruct, rerefOpts );
+					eeg(Ieeg,:) = eegStruct.data;
+				else
+					fprintf( '\n\n\n\t\t\t%d\n\n\n\n', iSeq )
+% 					rerefOpts.interpolationOrder = 'none';		% this doesn't work, at least w/ robust referenceType
+					[ ~, rerefOpts ] = performReference( eegStruct, rerefOpts );
+					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), rerefOpts.referenceSignal );
+				end
 		end
 		
 		EEG    = fft( bsxfun( @times, eeg(1:63,:), shiftdim( hann( nfft, 'periodic' ), -1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
@@ -704,7 +725,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	%   shading: [flat] interp
 	zThresh = 25;
 	zLimit  = zThresh * 2;
-	topoOpts = { 'nosedir', '+Y', 'style', 'map', 'colormap', cmap, 'shading', 'flat', 'maplimits', [ 0, zLimit ], 'conv', 'on',...
+	topoOpts = { 'nosedir', '+X', 'style', 'map', 'colormap', cmap, 'shading', 'flat', 'maplimits', [ 0, zLimit ], 'conv', 'on',...
 		'headrad', 0.5, 'electrodes', 'on', 'emarker', { '.', 'k', 8, 0.5 }, 'hcolor', repmat( 0.333, 1, 3 ),...
 		'gridscale', 200, 'circgrid', 360 };
 % 	'intrad', max( [ chanLocs(ILocs(kZ)).radius ] )

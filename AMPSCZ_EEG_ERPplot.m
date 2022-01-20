@@ -204,7 +204,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 	kEpoch = shiftdim( ~isnan( EEG.data(1,1,:) ), 1 );
 	nanFlag = 'includenan';		% shouldn't be any NaNs, include them as safety
 	
-	topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+Y', 'conv', 'on', 'shading', 'interp' };		% electrodes: 'pts' or 'ptslabels'?
+	topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp' };		% electrodes: 'pts' or 'ptslabels'?
 
 	fontSize = 10;
 	subjSess = regexp( EEG.comments, '^Original file: sub-([A-Z]{2}\d{5})_ses-(\d{8})_task-\S+_run-\d+_eeg.eeg$', 'tokens', 'once' );
