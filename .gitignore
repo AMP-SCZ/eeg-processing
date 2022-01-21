@@ -4,3 +4,5 @@ debugICAcomps.m
 eegPreICA.mat
 ICArepeatability.mat
 tempDebugICA_ADJUST.txt
+AMPSCZ_EEG_montage.png
+debugInterpThresh.m

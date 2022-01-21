@@ -9,7 +9,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 %   subjectID   = 7-character subject identifier, 2-char site code + 5-digit subject #
 %   sessionDate = 8-character date 'YYYYMMDD'
 %   epochName   = 'AOD', 'MMN', or 'VOD'
-%   passBand    = option input [ lowFreq, highFreq ] (Hz), default = [ 0.1, 50 ]
+%   passBand    = option input [ lowFreq, highFreq ] (Hz), default = [ 0.1, Inf ]
 %   forceWrite  = how to handle mat-files that already exist, default = []
 %                 true = overwrite, false = don't overwrite, [] = prompt if needed
 %
@@ -51,7 +51,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	% if doing bandpass, do it in 2 parts? to avoid low-pass having steeper slope than highpass? not relevant for ERPLAB pop_basicfilter.m
 	% https://eeglab.org/tutorials/05_Preprocess/Filtering.html
 	if exist( 'passBand', 'var' ) ~= 1 || isempty( passBand )
-		passBand = [ 0.1, 50 ];
+		passBand = [ 0.1, Inf ];
 	end
 	if exist( 'forceWrite', 'var' ) ~= 1 %|| isempty( forceWrite )
 % 		forceWrite = false;
@@ -93,7 +93,6 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	end
 	iTask = find( iTask );
 	
-	Ieog = [];
 	
 	baselineWin = [ -0.100, 0 ];
 	
@@ -199,7 +198,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 		addpath( adjustDir, '-begin' )
 	end
 
-	siteTag = sessionList{iSession,2}(1:2);
+% 	siteTag = sessionList{iSession,2}(1:2);
 	subjTag = [ 'sub-',  sessionList{iSession,2} ];
 	sessTag = [ 'ses-',  sessionList{iSession,3} ];
 	taskTag = [ 'task-', taskList{iTask,1} ];
@@ -209,18 +208,45 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	% standard locations saved in file
 	% e.g. pop_chanedit( struct( 'labels', { eeg.chanlocs.labels } ) )...		w/ or w/o FCz ref?
 	% readlocs vs pop_readlocs?
-	chanLocs = readlocs( locsFile );
+	locsOpts = { 'importmode', '' };
+	if contains( lower( locsFile ), 'noseX' )
+		locsOpts{2} = 'eeglab';
+	else
+		locsOpts{2} = 'native';
+	end
+	[ ~, ~, locsExt ] = fileparts( locsFile );
+	if strcmpi( locsExt, '.ced' )
+		locsOpts = [ locsOpts, { 'filetype', 'chanedit' } ];
+	end
+	chanLocs = readlocs( locsFile, locsOpts{:} );
 	nLoc     = numel( chanLocs );
-	Ieeg     = find( strcmp( { chanLocs.type }, 'EEG' ) );
+	Ieeg     = find( strcmp( { chanLocs.type }, 'EEG' ) );		% this will include FCz and only exclude VIS
 	InotEEG  = setdiff( 1:nLoc, Ieeg );
 	nEEG     = numel( Ieeg );
+	chanLocsOrdered = chanLocs;
 	if all( Ieeg == (1:nEEG) )
 		Ireorder = [];
 	else
 		Ireorder   = [ Ieeg, InotEEG ];
 		Ieeg(:)    = 1:nEEG;
 		InotEEG(:) = nEEG+1:nLoc;
+		chanLocsOrdered(:) = chanLocsOrdered(Ireorder);
 	end
+	filterFcn       = 'removeTrend';
+	Ifilter         = Ieeg;
+% 	refType         = 'average';
+% 	IcomputeRef     = { 'TP9', 'TP10' };
+	[ ~, Ifrontal ] = ismember( { 'Fp1', 'Fp2' } , { chanLocsOrdered.labels } );		%  1, 33
+	[ ~, Imastoid ] = ismember( { 'TP9', 'TP10' }, { chanLocsOrdered.labels } );		% 23, 50
+	refType         = 'robust';
+% 	IcomputeRef     = setdiff( Ieeg, Imastoid );
+	IcomputeRef     = setdiff( Ieeg, union( Imastoid, Ifrontal ) );
+	IremoveRef      = Ieeg;
+	IcomputeInterp  = Ieeg;
+	IexcludeInterp  = InotEEG;
+	zThreshInterp   = [ 4, 10, 4 ];		% [ correlation, variance, hurst exponent ]
+	compMethod      = 'ADJUST';
+	Iocular         = [];
 
 	sessDir = fullfile( AMPSCZdir, sessionList{iSession,1}(1:end-2), 'PHOENIX', 'PROTECTED', sessionList{iSession,1}, 'processed', sessionList{iSession,2}, 'eeg', sessTag );
 	bvDir   = fullfile( sessDir, 'BIDS' );
@@ -256,11 +282,12 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 		% Load BrainVision data ------------------------------------------------
 		% pop_loadbv requires bva-io
 		% note:	EEG(iRun).ref = 'common';
-		%       EEG(iRun).chaninfo.nosedir = '+X' even though there's no coords in eeg.chanlocs!
-
+		%       EEG(iRun).chaninfo.nosedir = '+X'
 		runTag = sprintf( 'run-%02d', iRun );
 		bvFile = sprintf( '%s_%s_%s_%s_eeg.vhdr', subjTag, sessTag, taskTag, runTag );
 		EEG(iRun) = pop_loadbv( bvDir, bvFile );
+		
+		% Check for lost samples
 		% lost samples markers end up as 'New Segment' code, 'boundary' type, just like regular new segment markers!
 		% if there's more than 1, I can probably assume it's a lost segment, but it sure would be nice if EEGLAB
 		% didn't strip this info.
@@ -272,11 +299,13 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 			error( '%d Lost epochs, %d samples total in %s', numel( nLost ), sum( nLost ), bvFile )
 		end
 
+		% Get impedance data
 		if iRun == 1
 			% impedance will be the same for all runs & all tasks, since it is replicated when segmented
 			% the exception will be if there are multiple zip files, it may only be in the 1st
-			Z = AMPSCZ_EEG_readBVimpedance( fullfile( bvDir, bvFile ) );		% 65x2 { name, impedance }
+% 			Z = AMPSCZ_EEG_readBVimpedance( fullfile( bvDir, bvFile ) );		% 65x2 { name, impedance }
 		end
+
 		% handle AOD stimulus bug, replace any repsonse code 17s w/ 5s ---------
 		if strcmp( taskList{iTask,1}, 'AOD' )
 			k17 = strcmp( { EEG(iRun).event.type }, 'S 17' );
@@ -299,16 +328,18 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 			if any( strcmp( { EEG(iRun).chanlocs.labels }, chanLocs(nLoc).labels ) )
 				error( 'channel %s already exists in data', chanLocs(nLoc).labels )
 			end
-			% set reference in EEG structure, loads as 'common'
+			% set reference in EEG structure?  loads as 'common'
 			EEG(iRun).ref = chanLocs(nLoc).labels;
 			% add in reference channel full of zeros
 			EEG(iRun).nbchan(:) = nLoc;
 			EEG(iRun).data(EEG(iRun).nbchan,:) = 0;
 			EEG(iRun).chanlocs(EEG(iRun).nbchan).labels = EEG(iRun).ref;
-			EEG(iRun).chanlocs(EEG(iRun).nbchan).ref    = '';		% this is not EEG.ref!  they're all empty, make it char?
-			EEG(iRun).chanlocs(EEG(iRun).nbchan).type   = '';
+			% convert [] to ''
+			EEG(iRun).chanlocs(EEG(iRun).nbchan).ref    = '';		% this is not EEG.ref!  they're all empty
+			EEG(iRun).chanlocs(EEG(iRun).nbchan).type   = '';		% this will get set to 'EEG' later via chanLocs
 		else
 			% don't add any channels, just get reference channel name from .vhdr file and put in in EEG.ref
+			% i'm pretty sure this isn't important at all
 			hdr  = bieegl_readBVtxt( fullfile( bvDir, bvFile ) );
 			kRef = ~cellfun( @isempty, regexp( hdr.Comment, '^Reference Channel Name = .+$', 'once', 'start' ) );
 			if sum( kRef ) ~= 1
@@ -322,18 +353,19 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 
 		% Get channel locations ------------------------------------------------
 		% verify that your locations file labels match the data file
-		% then copy fields from chanLocs to EEG
+		% then copy fields from chanLocs to EEG.  there aren't any new fields.
+		% eeg structure has extra fields ref='', urchan=[]
 		if numel( chanLocs ) ~= EEG(iRun).nbchan || ~all( strcmp( { EEG(iRun).chanlocs.labels }, { chanLocs.labels } ) )
 			error( '%s labels don''t match data' )
 		end
-		replaceChanField = ~false;	% replace existing fields of EEG(iRun).chanlocs?
-		addChanField     = ~false; 	%     add      new fields to EEG(iRun).chanlocs?
+		replaceChanField = true;	% replace existing fields of EEG(iRun).chanlocs?
+		addChanField     = true; 	%     add      new fields to EEG(iRun).chanlocs?
 		fn1 = setdiff( fieldnames( EEG(iRun).chanlocs ), 'labels' );
 		fn2 = setdiff( fieldnames(           chanLocs ), 'labels' );
 		for iChan = 1:EEG(iRun).nbchan
-			for fn = fn2'
-				if ~isempty( chanLocs(iChan).(fn{1}) )
-					if ismember( fn{1}, fn1 )
+			for fn = fn2'									% locations file fields
+				if ~isempty( chanLocs(iChan).(fn{1}) )		% non-empty in locations file
+					if ismember( fn{1}, fn1 )				% exists in eeg structure
 						if isempty( EEG(iRun).chanlocs(iChan).(fn{1}) )
 							EEG(iRun).chanlocs(iChan).(fn{1}) = chanLocs(iChan).(fn{1});	% replace empty with new
 						elseif replaceChanField
@@ -357,32 +389,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 			EEG(iRun).data(:)     = EEG(iRun).data(Ireorder,:);
 		end
 
-
-		% Replace EEG(iRun).event.type with numeric value ----------------------
-		% *** this was a bad idea ***
-		% note: segment  markers have type='boundary', code='New Segment'
-		%       stimulus markers have type='S###'    , code='Stimulus'
-		%       in .vmrk file 'New Segment' and 'Stimulus' are both type
-		%       epochs get created based on type, so identifying codes must go there
-% 		nEvent = numel( EEG(iRun).event );
-% 		for iEvent = 1:nEvent
-% 			switch EEG(iRun).event(iEvent).code
-% 				case 'New Segment'
-% 					% change 'boundary' type events to numeric code 0
-% 					EEG(iRun).event(iEvent).type = 0;
-% 				case 'Stimulus'
-% 					% change 'stimulus' type events to numeric 
-% 					eventTok  = regexp( EEG(iRun).event(iEvent).type, '^S\s*(\d+)$', 'once', 'tokens' );
-% 					if isempty( eventTok )
-% 						error( 'Unknown event type' )
-% 					end
-% 					EEG(iRun).event(iEvent).type = eval( eventTok{1} );		% numeric code
-% 				otherwise
-% 					error( 'Unknown event oode(s)' )
-% 			end
-% 		end
-% 		clear iEvent
-
+		% DONE messing with eeg structure, now extract behavioral data
+		
 		% Stimulus indices & type sequence -------------------------------------
 		Istim     = find( ismember( { EEG(iRun).event.type }, epochEventCodes ) );
 		stimSeq   = { EEG(iRun).event(Istim).type };
@@ -403,50 +411,54 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 		% Response latencies & correct button flags for target & novel ---------
 		respLat = nan( 1, nStim );		% response latency (samples)
 		dIRange = RTrange * EEG(iRun).srate;
-% 		if isempty( respCode )			% MMN
-% 			Iresp = find( strcmp( { EEG(iRun).event.type }, 'S 17' ) );		% use VOD response code
-% 		else
+		if isempty( respCode )			% ASSR, RestEO, RestEC
+			Iresp = [];
+		else
 			Iresp = find( strcmp( { EEG(iRun).event.type }, respCode ) );
-% 		end
-
-		% store extra button presses? logic could be simplified if not tracking this
-		nExtra(iRun)  = sum( Iresp <= Istim(1) );
-		for iStim = 1:nStim-1
-			% button presses between current stimulus (standard/target/novel) and next one
-			% button and stim trigger can't be simultaneous can they?
-% 			kResp = Iresp > Istim(iStim) & Iresp <= Istim(iStim+1);		% this is almost certainly fine here, but not when adding dIRange below
-			kResp = [ EEG(iRun).event(Iresp).latency ] > EEG(iRun).event(Istim(iStim)).latency & [ EEG(iRun).event(Iresp).latency ] <= EEG(iRun).event(Istim(iStim+1)).latency;
-			if any( kResp )
-				% start by adding all responses in an inter-stimulus interval
-				nExtra(iRun) = nExtra(iRun) + sum( kResp );
-				% then check if any reaction times are in bounds
-% 				kResp(kResp) = Iresp(kResp) >= ( Istim(iStim) + dIRange(1) ) & Iresp(kResp) <= ( Istim(iStim) + dIRange(2) );
-				kResp(kResp) = [ EEG(iRun).event(Iresp(kResp)).latency ] >= ( EEG(iRun).event(Istim(iStim)).latency + dIRange(1) ) &...
-				               [ EEG(iRun).event(Iresp(kResp)).latency ] <= ( EEG(iRun).event(Istim(iStim)).latency + dIRange(2) );
-			end
-			if any( kResp )
-				% the good response wasn't extra, subtract it
-				nExtra(:) = nExtra(iRun) - 1;
-				% take the 1st of multiple viable button presses
-% 				respLat(iStim) = Iresp(find(kResp,1,'first')) - Istim(iStim);
-				respLat(iStim) = EEG(iRun).event(Iresp(find(kResp,1,'first'))).latency - EEG(iRun).event(Istim(iStim)).latency;
-			end
 		end
-		iStim = nStim;
-			% button presses after final stimulus
-% 			kResp = Iresp > Istim(iStim);
-			kResp = [ EEG(iRun).event(Iresp).latency ] > EEG(iRun).event(Istim(iStim)).latency;
-			if any( kResp )
-				nExtra(iRun) = nExtra(iRun) + sum( kResp );
-% 				kResp(kResp) = Iresp(kResp) >= ( Istim(iStim) + dIRange(1) ) & Iresp(kResp) <= ( Istim(iStim) + dIRange(2) );
-				kResp(kResp) = [ EEG(iRun).event(Iresp(kResp)).latency ] >= ( EEG(iRun).event(Istim(iStim)).latency + dIRange(1) ) &...
-				               [ EEG(iRun).event(Iresp(kResp)).latency ] <= ( EEG(iRun).event(Istim(iStim)).latency + dIRange(2) );
+		
+		if ~isempty( Iresp )
+
+			% store extra button presses? logic could be simplified if not tracking this
+			nExtra(iRun)  = sum( Iresp <= Istim(1) );
+			for iStim = 1:nStim-1
+				% button presses between current stimulus (standard/target/novel) and next one
+				% button and stim trigger can't be simultaneous can they?
+%				kResp = Iresp > Istim(iStim) & Iresp <= Istim(iStim+1);		% this is almost certainly fine here, but not when adding dIRange below
+				kResp = [ EEG(iRun).event(Iresp).latency ] > EEG(iRun).event(Istim(iStim)).latency & [ EEG(iRun).event(Iresp).latency ] <= EEG(iRun).event(Istim(iStim+1)).latency;
+				if any( kResp )
+					% start by adding all responses in an inter-stimulus interval
+					nExtra(iRun) = nExtra(iRun) + sum( kResp );
+					% then check if any reaction times are in bounds
+%					kResp(kResp) = Iresp(kResp) >= ( Istim(iStim) + dIRange(1) ) & Iresp(kResp) <= ( Istim(iStim) + dIRange(2) );
+					kResp(kResp) = [ EEG(iRun).event(Iresp(kResp)).latency ] >= ( EEG(iRun).event(Istim(iStim)).latency + dIRange(1) ) &...
+					               [ EEG(iRun).event(Iresp(kResp)).latency ] <= ( EEG(iRun).event(Istim(iStim)).latency + dIRange(2) );
+				end
+				if any( kResp )
+					% the good response wasn't extra, subtract it
+					nExtra(:) = nExtra(iRun) - 1;
+					% take the 1st of multiple viable button presses
+%					respLat(iStim) = Iresp(find(kResp,1,'first')) - Istim(iStim);
+					respLat(iStim) = EEG(iRun).event(Iresp(find(kResp,1,'first'))).latency - EEG(iRun).event(Istim(iStim)).latency;
+				end
 			end
-			if any( kResp )
-				nExtra(iRun) = nExtra(iRun) - 1;
-% 				respLat(iStim) = Iresp(find(kResp,1,'first')) - Istim(iStim);
-				respLat(iStim) = EEG(iRun).event(Iresp(find(kResp,1,'first'))).latency - EEG(iRun).event(Istim(iStim)).latency;
-			end
+			iStim = nStim;
+				% button presses after final stimulus
+%				kResp = Iresp > Istim(iStim);
+				kResp = [ EEG(iRun).event(Iresp).latency ] > EEG(iRun).event(Istim(iStim)).latency;
+				if any( kResp )
+					nExtra(iRun) = nExtra(iRun) + sum( kResp );
+%					kResp(kResp) = Iresp(kResp) >= ( Istim(iStim) + dIRange(1) ) & Iresp(kResp) <= ( Istim(iStim) + dIRange(2) );
+					kResp(kResp) = [ EEG(iRun).event(Iresp(kResp)).latency ] >= ( EEG(iRun).event(Istim(iStim)).latency + dIRange(1) ) &...
+						           [ EEG(iRun).event(Iresp(kResp)).latency ] <= ( EEG(iRun).event(Istim(iStim)).latency + dIRange(2) );
+				end
+				if any( kResp )
+					nExtra(iRun) = nExtra(iRun) - 1;
+%					respLat(iStim) = Iresp(find(kResp,1,'first')) - Istim(iStim);
+					respLat(iStim) = EEG(iRun).event(Iresp(find(kResp,1,'first'))).latency - EEG(iRun).event(Istim(iStim)).latency;
+				end
+
+		end
 
 		kCorrect = false( 1, nStim );
 		kCorrect(kStandard) =  isnan( respLat(kStandard) );
@@ -476,91 +488,18 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 
 	end
 
-% keyboard, return
-
-	%% test ref channels on raw data for FASTER channel property outliers? mean corrcoef, var, hurst exponent
-	% filter 1st? makes a big difference
-	% what will we do when we get an outlier ref channel? e.g. TP10 in HA00018 20211021 AOD unfiltered
-	% these channel property distributions can be highly non-normal, z-scoring perhaps not the best outlier detector?
-	%{
-			% use min_z()
-			iRun      = 1;
-			chanTest  = { 'TP9', 'TP10' };
-			IchanTest = eeg_chaninds( EEG(iRun), chanTest );
-			IchanInit = 1:nEEG-addRefChan;		% don't include all-zero ref channel
-			nProp     = 3;
-			nTest     = numel( IchanTest );
-			nInit     = numel( IchanInit );
-			chanPropInit = zeros( nInit, nProp, nRun );
-			for iRun = 1:nRun
-% 				chanPropInit(:,:,iRun) = channel_properties( EEG(iRun), IchanInit, [] );
-				chanPropInit(:,:,iRun) = channel_properties( pop_basicfilter( EEG(iRun), Ieeg, 'RemoveDC', 'on', 'Design', 'butter', 'Filter', 'bandpass', 'Cutoff', passBand ), IchanInit, [] );
-			end
-			chanPropInit(:) = zscore( chanPropInit, 0, 1 );
-			clf
-			figure(gcf)
-					subplot( 1+nProp, nRun, 1 )
-					Zinit = zscore( [ Z{IchanInit,2} ], 0 );
-					[ ~, Isort ] = sort( Zinit, 'ascend' );
-					plot( Zinit(Isort), (1:nInit)/nInit, '.-' )
-					for ii = 1:nTest
-						yy = find( Isort == IchanTest(ii) ) / nInit;
-						line( Zinit(IchanTest(ii)), yy, 'Marker', 'o', 'Color', 'r' )
-						text( Zinit(IchanTest(ii)), yy, chanTest{ii}, 'Color', 'r', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top' )
-					end
-					line( repmat( [ -1, 1 ]*3, [ 2, 1 ] ), [ 0; 1 ], 'Color', 'c' )
-% 					xlim( [ 0, ceil( max( Zinit ) ) ] )
-					xlim( [ -1, 1 ] * ceil( max( abs( Zinit ) ) ) )
-					grid
-					ylabel( 'Impedance' )
-			for iProp = 1:nProp
-				for iRun = 1:nRun
-					[ ~, Isort ] = sort( chanPropInit(:,iProp,iRun), 'ascend' );
-% 					clf
-					subplot( 1+nProp, nRun, nRun + sub2ind( [ nRun, nProp ], iRun, iProp ) )
-					plot( chanPropInit(Isort,iProp,iRun), (1:nInit)/nInit, '.-' )
-					for ii = 1:nTest
-						yy = find( Isort == IchanTest(ii) ) / nInit;
-						line( chanPropInit(IchanTest(ii),iProp,iRun), yy, 'Marker', 'o', 'Color', 'r' )
-						text( chanPropInit(IchanTest(ii),iProp,iRun), yy, chanTest{ii}, 'Color', 'r', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top' )
-					end
-					line( repmat( [ -1, 1 ]*3, [ 2, 1 ] ), [ 0; 1 ], 'Color', 'c' )
-% 					if min( chanPropInit(:,iProp,iRun) ) < 0
-						xlim( [ -1, 1 ] * ceil( max( abs( chanPropInit(:,iProp,iRun) ) ) ) )
-% 					else
-% 						xlim( [ 0, ceil( max( chanPropInit(:,iProp,iRun) ) ) ] )
-% 					end
-					grid
-					if iRun == 1
-						ylabel( sprintf( 'property %d', iProp ) )
-					end
-					if iProp == nProp
-						xlabel( sprintf( 'run %d', iRun ) )
-					end
-% 					title( sprintf( 'property %d, run %d', iProp, iRun ) )
-% 					pause
-				end
-			end
-			return
-	%}
-	%%
-	
-	
-	
-	[ EEG, chanProp, ccaStats, icaData ] = bieegl_FASTER( EEG, epochEventCodes, passBand, epochWin, baselineWin, icaWin,...
-											    Ieeg, { 'TP9', 'TP10' }, InotEEG, [], Ieog,...
+	[ EEG, chanProp, ccaStats, icaData ] = bieegl_FASTER( EEG, epochEventCodes, epochWin, baselineWin, icaWin,...
+											    Ieeg, filterFcn, passBand, Ifilter, refType, IcomputeRef, IremoveRef, IcomputeInterp, IexcludeInterp, zThreshInterp, compMethod, Iocular,...
 											    logFile, '' );
-											
+
 	fprintf( 'Finished analyzing %s %s. \n', subjTag(5:end), epochName )
 	if writeFlag		% there's no reason to run bieegl_FASTER & not save anything other than debugging.  writeFlag=false already forces return above, so this if is moot
 		fprintf( 'writing %s\n', matFile )
-		save( matFile, 'EEG', 'epochInfo', 'chanProp', 'ccaStats', 'icaData', 'passBand', 'epochWin', 'baselineWin', 'icaWin', 'Ieog',...
-		               'epochName', 'standardCode', 'targetCode', 'novelCode', 'logFile', 'RTrange', 'nExtra' )
+		save( matFile, 'EEG', 'epochName', 'epochInfo', 'chanProp', 'ccaStats', 'icaData', 'epochWin', 'baselineWin', 'icaWin',...
+			'filterFcn', 'passBand', 'Ifilter', 'refType', 'IcomputeRef', 'IremoveRef', 'IcomputeInterp', 'IexcludeInterp', 'zThreshInterp', 'compMethod', 'Iocular',...
+			'standardCode', 'targetCode', 'novelCode', 'logFile', 'RTrange', 'nExtra' )
 	end
 	fprintf( 'done\n' )
-
-
-
 
 	return
 

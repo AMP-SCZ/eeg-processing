@@ -1,4 +1,5 @@
-function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEventCodes, filterBand, epochWinSec, baselineWinSec, icaWinSec, Ieeg, Iref, IrefExclude, IpropExclude, Ieog, logFile, logStr )
+function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEventCodes, epochWinSec, baselineWinSec, icaWinSec,...
+	Ieeg, filterFcn, filterBand, Ifilter, refType, IcomputeRef, IremoveRef, IcomputeInterp, IexcludeInterp, zThreshInterp, compMethod, Iocular, logFile, logStr )
 % BIEEGL implementation of FASTER with BSS-CCA cleaning inserted
 % FASTER is described in doi:10.1016/j.neumeth.2010.07.015
 %
@@ -9,7 +10,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 % IpropExclude indices of channels to exclude from FASTER channel property stats, 
 %              e.g. high-offset channels BJR flagged w/ BioSemi system
 %              these will get automatically interpolated if they are in Ieeg
-% Ieog         indices of EOG channels, used in PCA cleaning
+% Iocular      indices of EOG channels, used in PCA cleaning
 %
 % Ieeg, Iref, IrefExclude, IpropExclude can be input either as integer indices
 % or cell vector of char labels & they'll get converted to integers
@@ -31,8 +32,11 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 
 	try
 
-		narginchk( 4, 13 )
+		narginchk( 5, 19 )
 		
+		% Validate inputs:
+		% required inputs
+		% -- eeg
 		nRun = numel( eeg );
 		if any( [ eeg(2:nRun).nbchan ] ~= eeg(1).nbchan )
 			error( 'inconsistent #channels per file' )
@@ -42,32 +46,17 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 				error( 'inconsistent channels labels across files' )
 			end
 		end
-
-		% Validate inputs:
 		% -- epochEventCodes
 		if ~iscell( epochEventCodes )
-			error( 'invalid epoch event codes input' )
-		elseif ischar( epochEventCodes{1} )
+			error( 'non-cell epoch event codes input' )
+		elseif ~all( cellfun( @ischar, epochEventCodes ) )
+			error( 'unsupported epoch event codes class' )
+		else
 			for iRun = 1:nRun
 				if ~all( ismember( epochEventCodes, { eeg(iRun).event.type } ) )
 					error( 'invalid epoch event codes input' )
 				end
 			end
-		% I was using numeric types for a bit - turned out to be a bad idea, no more.
-% 		elseif isnumeric( epochEventCodes{1} ) 		% can't do ismember on cell of numeric!
-% 			for iRun = 1:nRun
-% 				if ~all( ismember( [ epochEventCodes{:} ], [ eeg(iRun).event.type ] ) )
-% 					error( 'invalid epoch event codes input' )
-% 				end
-% 			end
-		else
-			error( 'unsupported epoch event codes class' )
-		end
-		% -- filter passband
-		if exist( 'filterBand', 'var' ) ~= 1 || isempty( filterBand )
-			filterBand = [ 1, inf ];
-		elseif ~isnumeric( filterBand ) || numel( filterBand ) ~= 2 || diff( filterBand ) <= 0
-			error( 'invalid filter band input, must be [ lowFreq, highFreq ]' )
 		end
 		% -- epochWinSec
 		if ~isnumeric( epochWinSec ) || numel( epochWinSec ) ~= 2 || diff( epochWinSec ) <= 0
@@ -81,6 +70,8 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		if ~isnumeric( icaWinSec ) || numel( icaWinSec ) ~= 2 || diff( icaWinSec ) <= 0
 			error( 'invalid ICA window input, must be [ timeLow, timeHigh ] (sec)' )
 		end
+		
+		% optional inputs
 		% -- EEG channel(s)
 		if exist( 'Ieeg', 'var' ) ~= 1
 			Ieeg = [];
@@ -88,31 +79,79 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			Ieeg = getChanInd( Ieeg, 'EEG' );
 		end
 		if isempty( Ieeg )
-			Ieeg = 1:eeg(1).nbchan;
+			Ieeg = 1:eeg(1).nbchan;		% all channels
 		end
-		% -- reference channel(s)
-		if exist( 'Iref', 'var' ) ~= 1
-			Iref = [];
-		elseif ~( ischar( Iref ) && strcmp( Iref, 'robust' ) )
-			Iref = getChanInd( Iref, 'reference' );
+		% -- filter function
+		if exist( 'filterFcn', 'var' ) ~= 1 || isempty( filterFcn )
+			filterFcn = 'removeTrend';
 		end
-		% -- exclude channel(s)	
-		if exist( 'IrefExclude', 'var' ) ~= 1
-			IrefExclude = [];
+		if ~ischar( filterFcn ) || ~ismember( filterFcn, { 'pop_eegfilt', 'pop_eegfiltnew', 'pop_basicfilter', 'removeTrend' } )
+			error( 'invalid filter function' )
+		end
+		% -- filter passband
+		if exist( 'filterBand', 'var' ) ~= 1 || isempty( filterBand )
+			filterBand = [ 0.1, inf ];
+		elseif ~isnumeric( filterBand ) || numel( filterBand ) ~= 2 || diff( filterBand ) <= 0
+			error( 'invalid filter band input, must be [ lowFreq, highFreq ]' )
+		end
+		if strcmp( filterFcn, 'removeTrend' ) && ~isinf( filterBand(2) )
+			error( '%s can''t do bandpass', filterFcn )
+		end
+		% -- filter channel(s)
+		if exist( 'Ifilter', 'var' ) ~= 1
+			Ifilter = [];
 		else
-			IrefExclude = getChanInd( IrefExclude, 'exclude' );				
+			Ifilter = getChanInd( Ifilter, 'filter' );
 		end
-		% -- channel(s)	to interpolate no matter what
-		if exist( 'IpropExclude', 'var' ) ~= 1
-			IpropExclude = [];
-		else
-			IpropExclude = getChanInd( IpropExclude, 'exclude' );
+		if isempty( Ifilter )
+			Ifilter = 1:eeg(1).nbchan;		% all channels
 		end
-		% -- EOG channel(s)
-		if exist( 'Ieog', 'var' ) ~= 1
-			Ieog = [];
+		% -- reference type
+		if exist( 'refType', 'var' ) ~= 1
+			refType = 'robust';
+		elseif ~ischar( refType ) || ~ismember( refType, { 'robust', 'average', 'mean', 'none' } )
+			error( 'invalid reference type' )
+		end
+		% -- channel(s) used to compute reference
+		if exist( 'IcomputeRef', 'var' ) ~= 1
+			IcomputeRef = Ieeg;
 		else
-			Ieog = getChanInd( Ieog, 'exclude' );
+			IcomputeRef = getChanInd( IcomputeRef, 'reference' );
+		end
+		% -- channel(s)	that get re-referenced
+		if exist( 'IremoveRef', 'var' ) ~= 1
+			IremoveRef = Ieeg;
+		else
+			IremoveRef = getChanInd( IremoveRef, 'reference' );				
+		end
+		% -- channel(s)	to include in property distributions that are candidates for interpolation
+		if exist( 'IcomputeInterp', 'var' ) ~= 1
+			IcomputeInterp = Ieeg;
+		else
+			IcomputeInterp = getChanInd( IcomputeInterp, 'interp' );
+		end
+		if exist( 'IexcludeInterp', 'var' ) ~= 1
+			IexcludeInterp = setdiff( 1:eeg(1).nbchan, Ieeg );
+		else
+			IexcludeInterp = getChanInd( IexcludeInterp, 'interp' );
+		end
+		% -- z-score thresholds for interpolating channels [ mean correlation, variance, hurst exponent ]
+		if exist( 'zThreshInterp', 'var' ) ~= 1
+			zThreshInterp = [ 3, 3, 3 ];		% faster defaults are 3
+		elseif ~isnumeric( zThreshInterp ) || numel( zThreshInterp ) ~= 3 || any( zThreshInterp <= 0 )
+			error( 'invalid z threshold for channel interpolation' )
+		end
+		% -- ICA component rejection method
+		if exist( 'zThreshInterp', 'var' ) ~= 1
+			compMethod = 'ADJUST';
+		elseif ~ischar( compMethod ) || ~ismember( compMethod, { 'FASTER', 'ADJUST' } )
+			error( 'invalid ICA component rejection method' )
+		end
+		% -- EOG channel(s) used by FASTER ICA rejection method only
+		if exist( 'Iocular', 'var' ) ~= 1
+			Iocular = [];
+		else
+			Iocular = getChanInd( Iocular, 'ocular' );
 		end
 		% -- log file
 		writeLog = exist( 'logFile', 'var' ) == 1 && ~isempty( logFile );
@@ -127,101 +166,152 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			end
 			writeToLog( '%s started @ %s\n', mfilename, datestr( now, 'yyyymmddTHHMMSS' ) )
 		end
-		eegNoRef = ismember( Ieeg, IrefExclude );
-		if writeLog && any( eegNoRef )
-			writeToLog( 'WARNING: %d EEG channels excluded from re-referencing!', sum( eegNoRef ) )
-			writeToLog( ' %s', eeg(1).chanlocs(Ieeg(eegNoRef)).labels )
-			writeToLog( '\n' )
-		end
 
 		
 		% ======================================================================
+
+		% 0.2: Filter
+		%      add in input option for this switch?
+		if filterBand(1) <= 0 && isinf( filterBand(2) )
+			writeToLog( 'passband = [ %g, %g ] Hz, i.e. no filtering!\n', filterBand )
+		else
+			switch filterFcn
+				case 'pop_eegfilt'		% Legacy EEGLAB
+					writeToLog( 'Legacy EEGLAB filter (%s)', filterFcn )
+					for iRun = 1:nRun
+						eegOut = pop_eegfilt( eeg(iRun), filterBand(1), filterBand(2) );	% much slower, way steeper falloff
+						eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+					end
+					clear eegOut
+				case 'pop_eegfiltnew'		% Modern EEGLAB
+					writeToLog( 'Modern EEGLAB filter (%s)', filterFcn )
+					if isinf( filterBand(2) )
+						for iRun = 1:nRun
+							eegOut = pop_eegfiltnew( eeg(iRun), filterBand(1), [] );
+							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+						end
+					elseif filterBand(1) == 0
+						for iRun = 1:nRun
+							eegOut = pop_eegfiltnew( eeg(iRun), [], filterBand(2) );
+							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+						end
+					else
+						for iRun = 1:nRun
+							eegOut = pop_eegfiltnew( eeg(iRun), filterBand(1), filterBand(2) );
+							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+						end
+					end
+					clear eegOut
+				case 'pop_basicfilter'		% ERPLAB
+					% note: pop_basicfilter requires numeric channel inputs
+					removeDC   = 'on';
+					filterType = 'butter';		% 'butter' or 'fir'
+					filterOpts = { 'RemoveDC', removeDC, 'Design', filterType };
+					writeToLog( 'ERPLAB filter (%s), type = %s, remove DC = %s', filterFcn, filterType, removeDC )
+					if isinf( filterBand(2) )
+						for iRun = 1:nRun
+							eeg(iRun) = pop_basicfilter( eeg(iRun), Ifilter, filterOpts{:}, 'Filter', 'highpass', 'Cutoff', filterBand(1) );
+						end
+					elseif filterBand(1) == 0
+						for iRun = 1:nRun
+							eeg(iRun) = pop_basicfilter( eeg(iRun), Ifilter, filterOpts{:}, 'Filter', 'lowpass',  'Cutoff', filterBand(2) );
+						end
+					else
+						for iRun = 1:nRun
+							eeg(iRun) = pop_basicfilter( eeg(iRun), Ifilter, filterOpts{:}, 'Filter', 'bandpass', 'Cutoff', filterBand    );
+						end
+					end
+				case 'removeTrend'		% PREP
+					writeToLog( 'PREP filter (%s)', filterFcn )
+					% see http://vislab.github.io/EEG-Clean-Tools/
+					% removeTrend converts eeg.data to double
+					% no band pass option even though pop_eegfiltnew.m supports it
+					% w/ 'high pass' option, basically does eeg.data(detrendChannels,:) = pop_eegfiltnew( eeg.data(detrendChannels,:), detrendCutoff, [] );
+					% high pass cutoff is barely attenuated.
+					%	w/ 0.1 Hz, -3dB is around 0.062 & @0.1 Hz there's ~-0.04 dB
+					%	w/ 0.2 Hz, -3dB is around 0.125 & @0.1 Hz there's ~-6 dB & @0.2Hz ~-0.03 dB
+					% work as advertised, only requested channels are detrended
+					detrendOpts = struct(...
+						'detrendCutoff'  , filterBand(1),...	% default = 1Hz
+						'detrendChannels', Ifilter );
+				% 		'detrendType'    , 'high pass',...		% ['high pass'], 'high pass sinc', 'linear', 'none'
+				% 		'detrendStepSize', 0.02,...				% only used for linear detrendType
+% 					[ eeg, detrendOpts ] = removeTrend( eeg, detrendOpts );		% fills & defaults & adds detrendOpts.detrendCommand
+					% I don't like the output of PREP's cleanLineNoise at all
+% 					lineNoiseOpts = struct( ... );
+					for iRun = 1:nRun
+						eeg(iRun) = removeTrend( eeg(iRun), detrendOpts );
+%						[ eeg(iRun), lineNoiseOptsOut ] = cleanLineNoise( eeg(iRun), lineNoiseOpts );
+					end
+			end
+			writeToLog( ', passband = [ %g, %g ] Hz\nfilter channels:', filterBand )
+			writeToLog( ' %s', eeg(1).chanlocs(Ifilter).labels )
+			writeToLog( '\n' )
+		end
+
 		% 0.1: Re-reference
 		%      FASTER paper uses Fz reference here, BIEEGL does not
 		%      erpinfo.org suggesting filtering before re-referencing
 		%      BIEEGL has done it the other way to avoid onset transients
 		%      FASTER re-references before filtering too
 		%      really doesn't make a lot of difference
-		writeToLog( 'Reference channel(s):' )
-		if isempty( Iref )
-			writeToLog( ' none given.  Skipping re-referencing!' )
-		elseif ischar( Iref )
-			if strcmp( Iref, 'robust' )
-				error( 'Under Construction' )		% raise threshold for interpolation? & remove interpolation
-				rerefOpts = struct( 'referenceChannels', Ireref, 'evaluationChannels', Ireref, 'rereference', Ieeg, 'referenceType', 'robust' );
-% 				[ eeg(iRun), rerefOpts ] = performReference( eeg(iRun), rerefOpts );
-				[ ~, rerefOpts ] = performReference( eegStruct, rerefOpts );
-				eeg(iRun).data(Ieeg,:) = bsxfun( @minus, eeg(iRun).data(Ieeg,:), rerefOpts.referenceSignal );
-			else
-				error( 'bug' )	% shouldn't be possible
-			end
-		elseif isempty( IrefExclude )		% would empty cell {} work as pop_reref input? - no, throws error
-			for iRun = 1:nRun
-				eeg(iRun) = pop_reref( eeg(iRun), Iref, 'keepref', 'on' );
-			end
-			writeToLog( ' %s', eeg(1).chanlocs(Iref).labels )
-		else
-			for iRun = 1:nRun
-				eeg(iRun) = pop_reref( eeg(iRun), Iref, 'keepref', 'on', 'exclude', IrefExclude );
-			end
-			if writeLog
-				writeToLog( ' %s', eeg(1).chanlocs(Iref).labels )
-				writeToLog( '\nChannel(s) excluded from re-referencing:' )
-				writeToLog( ' %s', eeg(1).chanlocs(IrefExclude).labels )
-			end
+		switch refType
+			case 'none'
+				writeToLog( 'No Re-Referencing' )
+			case 'robust'
+				writeToLog( 'Robust Re-Referencing\ncompute ref channels:' )
+				writeToLog( ' %s', eeg(1).chanlocs(IcomputeRef).labels )
+				writeToLog( '\nremove ref channels:' )
+				writeToLog( ' %s', eeg(1).chanlocs(IremoveRef).labels )
+				% see http://vislab.github.io/EEG-Clean-Tools/
+				rerefOpts = struct(...
+					'referenceChannels'          , IcomputeRef,...		% channel indices for rereferencing, eeg only, not eog or mastoids
+					'evaluationChannels'         , IcomputeRef,...		% channel indices for evaluating noisy channels, not extraneous channels, often same as referenceChannels
+					'rereference'                , IremoveRef,...		% channel indices from which to subtract computed reference
+					'robustDeviationThreshold'   , 5,...
+					'referenceType'              , 'robust' );
+% 					'interpolationOrder'         , 'post-reference',...
+% 					'meanEstimationType'         , 'median',...
+% 					'highFrequencyNoiseThreshold', 5,...
+% 					'correlationWindowSeconds'   , 1,...
+% 					'correlationThreshold'       , 0.4,...
+% 					'badTimeThreshold'           , 0.01,...
+% 					'ransacOff'                  , false,...
+% 					'ransacSampleSize'           , 50,...
+% 					'ransacChannelFraction'      , 0.25,...
+% 					'ransacCorrelationThreshold' , 0.75,...
+% 					'ransacUnbrokenTime'         , 0.4,...
+% 					'ransacWindowSeconds'        , 5,...
+% 					'maxReferenceIterations'     , 4,...
+% 					'reportingLevel'             , 'verbose',...
+				for iRun = 1:nRun
+%					[ eeg(iRun), rerefOptsOut ] = performReference( eeg(iRun), rerefOpts );
+					[ ~, rerefOptsOut ] = performReference( eeg(iRun), rerefOpts );
+					eeg(iRun).data(IremoveRef,:) = bsxfun( @minus, eeg(iRun).data(IremoveRef,:), rerefOptsOut.referenceSignal );
+				end
+			otherwise
+				writeToLog( 'Average Re-Referencing\ncompute ref channel(s):' )
+				writeToLog( ' %s', eeg(1).chanlocs(IcomputeRef).labels )
+				writeToLog( '\nremove ref channels:' )
+				writeToLog( ' %s', eeg(1).chanlocs(IremoveRef).labels )
+				IexcludeRef = setdiff( 1:eeg(1).nbchan, IremoveRef );
+% 				writeToLog( '\nexclude ref channels:' )
+% 				writeToLog( ' %s', eeg(1).chanlocs(IexcludeRef).labels )
+				if numel( IcomputeRef ) == 1
+					keepRef = 'off';
+				else
+					keepRef = 'on';
+				end
+				for iRun = 1:nRun
+					if isempty( IexcludeRef )
+						eeg(iRun) = pop_reref( eeg(iRun), IcomputeRef, 'keepref', keepRef );
+					else
+						eeg(iRun) = pop_reref( eeg(iRun), IcomputeRef, 'keepref', keepRef, 'exclude', IexcludeRef );
+					end
+				end
 		end
 		writeToLog( '\n' )
 
-		% 0.2: Filter
-		%      add in input option for this switch?
-		if filterBand(1) == 0 && isinf( filterBand(2) )
-			writeToLog( 'passband = [ %g, %g ] Hz, i.e. no filtering!\n', filterBand )
-		else
-			switch 2
-				case 0		% Legacy EEGLAB
-					writeToLog( 'Legacy EEGLAB filter' )
-					for iRun = 1:nRun
-						eeg(iRun) = pop_eegfilt( eeg(iRun), filterBand(1), filterBand(2) );	% much slower, way steeper falloff
-					end
-				case 1		% Modern EEGLAB
-					writeToLog( 'Modern EEGLAB filter' )
-					if isinf( filterBand(2) )
-						for iRun = 1:nRun
-							eeg(iRun) = pop_eegfiltnew( eeg(iRun), filterBand(1),            [] );
-						end
-					elseif filterBand(1) == 0
-						for iRun = 1:nRun
-							eeg(iRun) = pop_eegfiltnew( eeg(iRun),            [], filterBand(2) );
-						end
-					else
-						for iRun = 1:nRun
-							eeg(iRun) = pop_eegfiltnew( eeg(iRun), filterBand(1), filterBand(2) );
-						end
-					end
-				case 2		% ERPLAB
-					% note: pop_basicfilter requires numeric channel inputs
-					removeDC   = 'on';
-					filterType = 'butter';		% 'butter' or 'fir'
-					filterOpts = { 'RemoveDC', removeDC, 'Design', filterType };
-					writeToLog( 'ERPLAB %s filter, remove DC = %s', filterType, removeDC )
-					if isinf( filterBand(2) )
-						for iRun = 1:nRun
-							eeg(iRun) = pop_basicfilter( eeg(iRun), Ieeg, filterOpts{:}, 'Filter', 'highpass', 'Cutoff', filterBand(1) );
-						end
-					elseif filterBand(1) == 0
-						for iRun = 1:nRun
-							eeg(iRun) = pop_basicfilter( eeg(iRun), Ieeg, filterOpts{:}, 'Filter', 'lowpass',  'Cutoff', filterBand(2) );
-						end
-					else
-						for iRun = 1:nRun
-							eeg(iRun) = pop_basicfilter( eeg(iRun), Ieeg, filterOpts{:}, 'Filter', 'bandpass', 'Cutoff', filterBand    );
-						end
-					end
-			end
-			writeToLog( ', passband = [ %g, %g ] Hz\n', filterBand )
-		end
-
-		IpropInclude = setdiff( Ieeg, IpropExclude );
 		% FASTER channel properties
 		% 1: mean correlation coeffiecient of each channel w/ all other channels
 		%    corrected for quadratic fit of correlation vs polar distance from ref electrode
@@ -230,29 +320,35 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		%    corrected as above
 		% 3: Hurst exponent
 		% all 3 properties get NaNs replaced with the non-NaN mean, then subtract the median
+		chanPropName = { 'corr', 'var', 'hurst' };
 		ChanProp = nan( eeg(1).nbchan, 3, nRun );
+		interpOpts = struct( 'measure', true( 1, 3 ), 'z', zThreshInterp(:)' );
 		for iRun = 1:nRun
 			% ======================================================================
 			% 1: Interpolate outlier channels, whole recording
 			%    FASTER's channel_properties.m had errors, replaced by edited version in "modifications" folder
-			if isscalar( Iref )		% refChan would be all zeros in this case
-				ChanProp(IpropInclude,:,iRun) = channel_properties( eeg(iRun), IpropInclude, Iref );		% note: I had to modify channel_properties to fix a bug!
+			if isscalar( IcomputeRef )		% refChan would be all zeros in this case
+				ChanProp(IcomputeInterp,:,iRun) = channel_properties( eeg(iRun), IcomputeInterp, IcomputeRef );		% note: I had to modify channel_properties to fix a bug!
 			else
-				ChanProp(IpropInclude,:,iRun) = channel_properties( eeg(iRun), IpropInclude, [] );				% 3rd input is refChan, removes corr vs distance fit if scalar
+				ChanProp(IcomputeInterp,:,iRun) = channel_properties( eeg(iRun), IcomputeInterp, [] );				% 3rd input is refChan, removes corr vs distance fit if scalar
 			end
-			chanOutlier = min_z( ChanProp(IpropInclude,:,iRun) );
-% 				chanOutlier(:) = false;		% temporary hack to test if Fp1+Fp2 interpolation is killing ICA removal of blinks
-			IchanInterp = union( IpropInclude(chanOutlier), intersect( Ieeg, IpropExclude ), 'sorted' );	% note: re-referencing exclusions e.g. VIS not getting interpolated
+			chanOutlier = min_z( ChanProp(IcomputeInterp,:,iRun), interpOpts );
+			IchanInterp = IcomputeInterp(chanOutlier);
 			nChanInterp = numel( IchanInterp );
 			if nChanInterp ~= 0
-				eeg(iRun) = h_eeg_interp_spl( eeg(iRun), IchanInterp, IrefExclude );			% note: help says 3rd input is interpolation method, but really its channels to ignore!
+				eeg(iRun) = h_eeg_interp_spl( eeg(iRun), IchanInterp, IexcludeInterp );			% note: help says 3rd input is interpolation method, but really its channels to ignore!
 			end
 			if writeLog
+				ChanProp(IcomputeInterp,:,iRun) = abs( zscore( ChanProp(IcomputeInterp,:,iRun), [], 1 ) );
 				writeToLog( 'Run %d/%d Interpolated channel(s):', iRun, nRun )
-				if isempty( IchanInterp )
+				if nChanInterp == 0
 					writeToLog( ' none' )
 				else
-					writeToLog( ' %s', eeg(iRun).chanlocs(IchanInterp).labels )
+% 					writeToLog( ' %s', eeg(iRun).chanlocs(IchanInterp).labels )
+					for iChan = IchanInterp(:)'
+						[ ~, iProp ] = max( ChanProp(iChan,:,iRun) - interpOpts.z );
+						writeToLog( ' %s (%s)', eeg(iRun).chanlocs(iChan).labels, chanPropName{iProp} )
+					end
 				end
 				writeToLog( ' (%d/%d)\n', nChanInterp, eeg(iRun).nbchan )
 			end
@@ -279,6 +375,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		[ eeg, bssccaStats ]= bieegl_BSSCCA( eeg, Ieeg, [ 0, 125 ], 1e3, 0.95 );
 
 		%    Baseline correct
+		%    Dan found suggestion of not doing this before ICA?
 		eeg = pop_rmbase( eeg, baselineWinSec * 1e3 );
 
 		%    Store some stuff so you can restore dimensions of eeg.data later
@@ -287,7 +384,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 
 		%    Remove outlier epochs
 		%    eeg.chaninfo.removedchans gets added by pop_rejepoch
-		epochProp    = epoch_properties( eeg, Ieeg );
+		epochProp    = epoch_properties( eeg, Ieeg );		% mean deviation from channel means, variance, max amplitude difference
 		epochOutlier = min_z( epochProp );
 		IepochRej    = find( epochOutlier );
 		nEpochRej    = numel( IepochRej );
@@ -323,8 +420,6 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		%		eeg.icaact is still empty
 		nComp = min( floor( sqrt( eeg.pnts * eeg.trials / 25 ) ), numel( Ieeg ) - nChanInterp - 1 );
 		icaOpts = { 'icatype', 'runica', 'verbose', 'off', 'chanind', Ieeg, 'options', { 'extended', 1, 'pca', nComp } };
-% save( 'eegPreICA.mat', 'eeg', 'icaWinSec', 'icaOpts' )
-% error( 'stop' )
 		if icaWinSec(1) > eeg.times(1) || icaWinSec(2) < eeg.times(eeg.pnts)
 			eegICA = pop_select( eeg, 'time', icaWinSec );		% eeg.times >= icaWinSec(1)*1e3 & eeg.times < icaWinSec(2)*1e3
 			eegICA = pop_runica( eegICA, icaOpts{:} );
@@ -355,11 +450,10 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 
 		icaData.icaact = eeg.icaact;
 
-		compMethod = 'ADJUST';									
 		switch compMethod
 			case 'FASTER'		% default EEGLAB FASTER plugin component rejection
 
-				compProp        = component_properties( eeg, Ieog, [ 1.5, 55 ] );		% compProp    = #components x 5
+				compProp        = component_properties( eeg, Iocular, [ 1.5, 55 ] );		% compProp    = #components x 5
 				compOutlier     = min_z( compProp );									% compOutlier = #components x 1
 				icaData.Iremove = find( compOutlier );									% IcompRempve = # x 1
 
@@ -422,6 +516,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		% compvar() call has to be before components get removed by pop_subcomp, logging before doing in reverse of the normal order
 		eeg = pop_subcomp( eeg, icaData.Iremove, 0, 0 );		% icaact will get reset to []
 
+%{
 		% ======================================================================
 		% 4: Channels within non-rejected epochs
 		%    bad channels have already been interpolated, use them all here
@@ -452,6 +547,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 				writeToLog( ' (%d/%d)\n', nChanInterp(iEpoch), eeg.nbchan )
 			end
 		end
+%}
 
 		% remove baseline
 		eeg = pop_rmbase( eeg, baselineWinSec * 1e3 );
@@ -496,6 +592,9 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		if iscell( chanList ) || ischar( chanList )
 % 			chanInds = eeg_chaninds( eeg, chanList );							% eeg_chaninds.m sorts outputs! misleading an generally undesirable
 			[ ~, chanInds ] = ismember( chanList, { eeg(1).chanlocs.labels } );
+			if any( chanInds == 0 )
+				error( 'invalid %s channel(s) input', listType )
+			end
 		elseif ~isnumeric( chanList ) || ~all( ismember( chanList, 1:eeg(1).nbchan ) )
 			error( 'invalid %s channel(s) input', listType )
 		else
