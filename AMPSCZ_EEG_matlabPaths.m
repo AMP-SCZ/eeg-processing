@@ -23,8 +23,8 @@ function success = AMPSCZ_EEG_matlabPaths
 		return
 	end
 	AMPSCZpaths = load( pathMatFile );
-% 	path(    AMPSCZpaths.pathFull )
-	addpath( AMPSCZpaths.pathDiff, '-begin' )
+	path(    AMPSCZpaths.pathFull )					% need to wipe out fieldtrip
+% 	addpath( AMPSCZpaths.pathDiff, '-begin' )
 % 	verbose = true;
 % 	if verbose
 		fprintf( 'AMPSCZ EEG added to top of path\n' )

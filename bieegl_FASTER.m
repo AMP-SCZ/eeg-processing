@@ -1,5 +1,6 @@
 function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEventCodes, epochWinSec, baselineWinSec, icaWinSec,...
-	Ieeg, filterFcn, filterBand, Ifilter, refType, IcomputeRef, IremoveRef, IcomputeInterp, IexcludeInterp, zThreshInterp, compMethod, Iocular, logFile, logStr )
+	Ieeg, filterFcn, filterBand, Ifilter, refType, IcomputeRef, IremoveRef, IcomputeInterp, IexcludeInterp, zThreshInterp, compMethod, Iocular,...
+	logFile, logStr, replaceLog )
 % BIEEGL implementation of FASTER with BSS-CCA cleaning inserted
 % FASTER is described in doi:10.1016/j.neumeth.2010.07.015
 %
@@ -32,7 +33,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 
 	try
 
-		narginchk( 5, 19 )
+		narginchk( 5, 20 )
 		
 		% Validate inputs:
 		% required inputs
@@ -154,9 +155,19 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			Iocular = getChanInd( Iocular, 'ocular' );
 		end
 		% -- log file
+		if exist( 'replaceLog', 'var' ) ~= 1
+			replaceLog = false;
+		elseif ~islogical( replaceLog ) || ~isscalar( replaceLog )
+			error( 'replaceLog must be logical scalar' )
+		end
 		writeLog = exist( 'logFile', 'var' ) == 1 && ~isempty( logFile );
 		if writeLog
-			fidLog  = fopen( logFile, 'a+' );		% creates empty file if it doesn't exist
+			if replaceLog
+				permStr = 'w';
+			else
+				permStr = 'a+';		% is the + needed?
+			end
+			fidLog = fopen( logFile, permStr );		% creates empty file if it doesn't exist
 			if fidLog == -1
 				error( 'Can''t open log file %s', logFile )
 			end
@@ -170,6 +181,12 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		
 		% ======================================================================
 
+% 		for iRun = 1:nRun
+% 			if ~isdouble( eeg(iRun).data )
+% 				eeg(iRun).data = double( eeg(iRun).data );
+% 			end
+% 		end
+		
 		% 0.2: Filter
 		%      add in input option for this switch?
 		if filterBand(1) <= 0 && isinf( filterBand(2) )
@@ -244,7 +261,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 %						[ eeg(iRun), lineNoiseOptsOut ] = cleanLineNoise( eeg(iRun), lineNoiseOpts );
 					end
 			end
-			writeToLog( ', passband = [ %g, %g ] Hz\nfilter channels:', filterBand )
+			writeToLog( ', passband = [ %g, %g ] Hz\n\tfilter channels:', filterBand )
 			writeToLog( ' %s', eeg(1).chanlocs(Ifilter).labels )
 			writeToLog( '\n' )
 		end
@@ -259,9 +276,9 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			case 'none'
 				writeToLog( 'No Re-Referencing' )
 			case 'robust'
-				writeToLog( 'Robust Re-Referencing\ncompute ref channels:' )
+				writeToLog( 'Robust Re-Referencing\n\tcompute ref channels:' )
 				writeToLog( ' %s', eeg(1).chanlocs(IcomputeRef).labels )
-				writeToLog( '\nremove ref channels:' )
+				writeToLog( '\n\tremove ref channels:' )
 				writeToLog( ' %s', eeg(1).chanlocs(IremoveRef).labels )
 				% see http://vislab.github.io/EEG-Clean-Tools/
 				rerefOpts = struct(...
@@ -290,9 +307,9 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 					eeg(iRun).data(IremoveRef,:) = bsxfun( @minus, eeg(iRun).data(IremoveRef,:), rerefOptsOut.referenceSignal );
 				end
 			otherwise
-				writeToLog( 'Average Re-Referencing\ncompute ref channel(s):' )
+				writeToLog( 'Average Re-Referencing\n\tcompute ref channel(s):' )
 				writeToLog( ' %s', eeg(1).chanlocs(IcomputeRef).labels )
-				writeToLog( '\nremove ref channels:' )
+				writeToLog( '\n\tremove ref channels:' )
 				writeToLog( ' %s', eeg(1).chanlocs(IremoveRef).labels )
 				IexcludeRef = setdiff( 1:eeg(1).nbchan, IremoveRef );
 % 				writeToLog( '\nexclude ref channels:' )
@@ -323,6 +340,9 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		chanPropName = { 'corr', 'var', 'hurst' };
 		ChanProp = nan( eeg(1).nbchan, 3, nRun );
 		interpOpts = struct( 'measure', true( 1, 3 ), 'z', zThreshInterp(:)' );
+		if writeLog
+			writeToLog( 'Outlier channel interpolation\n' )
+		end
 		for iRun = 1:nRun
 			% ======================================================================
 			% 1: Interpolate outlier channels, whole recording
@@ -340,7 +360,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			end
 			if writeLog
 				ChanProp(IcomputeInterp,:,iRun) = abs( zscore( ChanProp(IcomputeInterp,:,iRun), [], 1 ) );
-				writeToLog( 'Run %d/%d Interpolated channel(s):', iRun, nRun )
+				writeToLog( '\tRun %d/%d Interpolated channel(s):', iRun, nRun )
 				if nChanInterp == 0
 					writeToLog( ' none' )
 				else
@@ -391,7 +411,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 %		eeg = pop_select( eeg, 'notrial', IepochRej );	% equivalent
 		eeg = pop_rejepoch( eeg, IepochRej, 0 );		% 3rd input is confirm query flag
 		if writeLog
-			writeToLog( 'Rejected epoch(s):' )
+			writeToLog( 'Outlier epoch removal\n\tRejected epoch(s):' )
 			if isempty( IepochRej )
 				writeToLog( ' none' )
 			else
@@ -499,7 +519,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		
 		nCompRemove = numel( icaData.Iremove );
 		if writeLog
-			writeToLog( 'Removed ICA components(s):' )
+			writeToLog( '%s ICA artifact rejection\n\tRemoved ICA components(s):', compMethod )
 			if isempty( icaData.Iremove )
 				writeToLog( ' none (%d/%d)\n', nCompRemove, nComp )
 			else

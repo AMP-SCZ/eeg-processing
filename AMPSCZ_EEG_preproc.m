@@ -254,8 +254,11 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	if ~isfolder( matDir )
 		mkdir( matDir )		% you can run mkdir all at once, don't need to do it one layer at a time
 	end
-	logFile = fullfile( matDir, sprintf( '%s_%s_%s.log', subjTag(5:end), sessTag(5:end), epochName ) );
-	matFile = fullfile( matDir, sprintf( '%s_%s_%s_[%g,%g].mat', subjTag(5:end), sessTag(5:end), epochName, passBand(1), passBand(2) ) );
+% 	logFile = fullfile( matDir, sprintf( '%s_%s_%s.log', subjTag(5:end), sessTag(5:end), epochName ) );
+% 	matFile = fullfile( matDir, sprintf( '%s_%s_%s_[%g,%g].mat', subjTag(5:end), sessTag(5:end), epochName, passBand(1), passBand(2) ) );
+	outName = sprintf( '%s_%s_%s_[%g,%g]', subjTag(5:end), sessTag(5:end), epochName, passBand(1), passBand(2) );
+	logFile  = fullfile( matDir, [ outName, '.log' ] );
+	matFile  = fullfile( matDir, [ outName, '.mat' ] );
 	writeFlag = exist( matFile, 'file' ) ~= 2;
 	if ~writeFlag
 		if isempty( forceWrite )
@@ -488,9 +491,14 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 
 	end
 
+	if isempty( forceWrite )
+		replaceLog = false;		% append
+	else
+		replaceLog = forceWrite;
+	end
 	[ EEG, chanProp, ccaStats, icaData ] = bieegl_FASTER( EEG, epochEventCodes, epochWin, baselineWin, icaWin,...
 											    Ieeg, filterFcn, passBand, Ifilter, refType, IcomputeRef, IremoveRef, IcomputeInterp, IexcludeInterp, zThreshInterp, compMethod, Iocular,...
-											    logFile, '' );
+											    logFile, '', replaceLog );
 
 	fprintf( 'Finished analyzing %s %s. \n', subjTag(5:end), epochName )
 	if writeFlag		% there's no reason to run bieegl_FASTER & not save anything other than debugging.  writeFlag=false already forces return above, so this if is moot
