@@ -244,7 +244,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	IremoveRef      = Ieeg;
 	IcomputeInterp  = Ieeg;
 	IexcludeInterp  = InotEEG;
-	zThreshInterp   = [ 4, 10, 4 ];		% [ correlation, variance, hurst exponent ]
+% 	zThreshInterp   = [ 4, 10, 4 ];		% [ correlation, variance, hurst exponent ]
+	zThreshInterp   = [ 3.5, 10, 3.5 ];		% [ correlation, variance, hurst exponent ]
 	compMethod      = 'ADJUST';
 	Iocular         = [];
 

@@ -44,6 +44,7 @@ function siteInfo = AMPSCZ_EEG_siteInfo
 		'SL', 'Pronet', 'Seoul National University', 60			% South Korea is 220 V, 60 Hz
 		% PRESCIENT
 		'ME', 'Prescient', 'University of Melbourne - Orygen', 50
+		'CG', 'Prescient', 'Klinik für Psychiatrie und Psychotherapie', 50		% munich? cologne?
 		'PE', 'Prescient', 'Telethon Kids Institute', 50				% Perth
 		'AD', 'Prescient', 'University of Adelaide', 50
 		'GW', 'Prescient', 'Gwangju Early Treatment & Intervention Team (GETIT) Clinic', 60	% South Korea

@@ -6,6 +6,9 @@ function [ standardCode, targetCode, novelCode, respCode ] = AMPSCZ_EEG_eventCod
 % USAGE:
 % >> [ standardCode, targetCode, novelCode, responseCode ] = AMPSCZ_EEG_eventCodes( epochName )
 %
+% where:
+% epochName is one of 'VOD', 'AOD', 'MMN', 'ASSR', 'RestEO', 'RestEC'
+%
 % Written by: Spero Nicholas, NCIRE
 %
 % Date Created: 10/14/2021

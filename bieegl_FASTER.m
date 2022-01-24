@@ -367,7 +367,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 % 					writeToLog( ' %s', eeg(iRun).chanlocs(IchanInterp).labels )
 					for iChan = IchanInterp(:)'
 						[ ~, iProp ] = max( ChanProp(iChan,:,iRun) - interpOpts.z );
-						writeToLog( ' %s (%s)', eeg(iRun).chanlocs(iChan).labels, chanPropName{iProp} )
+						writeToLog( ' %s [%s]', eeg(iRun).chanlocs(iChan).labels, chanPropName{iProp} )
 					end
 				end
 				writeToLog( ' (%d/%d)\n', nChanInterp, eeg(iRun).nbchan )

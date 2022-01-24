@@ -1,0 +1,161 @@
+
+	clear
+	
+	subjId = 'SD00065';
+	sessId = '20211221';
+	
+	siteInfo = AMPSCZ_EEG_siteInfo;
+	networkName = siteInfo{strcmp( siteInfo(:,1), subjId(1:2) ),2};
+	
+	ampsczDir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
+% 	ampsczDir = 'C:\Users\donqu\Box\Certification Files';
+	
+	taskNames = { 'AOD', 'VOD', 'MMN' };
+	nameFmt = [ subjId, '_', sessId, '_%s_[0.1,Inf]' ];
+	for iTask = 1:3
+		
+		[ standardCode, targetCode, novelCode, respCode ] = AMPSCZ_EEG_eventCodes( taskNames{iTask} );
+	
+		matFile = fullfile( ampsczDir, networkName, 'PHOENIX', 'PROTECTED',...
+			[ networkName, subjId(1:2) ], 'processed', subjId, 'eeg', [ 'ses-', sessId ], 'mat',...
+			sprintf( [ nameFmt, '.mat' ], taskNames{iTask} ) );
+		
+		load( matFile )
+
+		% time-locked event of each trial
+		eventType = cellfun( @(u,v)u{[v{:}]==0}, { EEG.epoch.eventtype }, { EEG.epoch.eventlatency }, 'UniformOutput', false );
+		if numel( eventType ) ~= EEG.trials
+			error( 'bug' )
+		end
+		
+		switch taskNames{iTask}
+			case { 'AOD', 'VOD' }
+				timeRange = [ -0.100, 0.800 ];	% (s)
+				stimNames = { 'Standard', 'Target', 'Novel' };
+				figPos    = [ 750, 450 ];
+			case 'MMN'
+				timeRange = [ -0.100, 0.500 ];	% (s)
+				stimNames = { 'Standard', 'Novel' };
+				figPos    = [ 500, 450 ];
+		end
+		nStim = numel( stimNames );
+
+		% narrower time window
+		EEG = pop_select( EEG, 'time', timeRange );
+	
+		% non-rejected epocsh
+		kEpoch = shiftdim( ~isnan( EEG.data(1,1,:) ), 1 );
+	
+		% concatenate epoch info across runs
+		for fn = fieldnames( epochInfo )'
+			epochInfo(1).(fn{1}) = [ epochInfo.(fn{1}) ];
+		end
+		epochInfo = epochInfo(1);
+		
+		% channels to inclue
+		kChan = strcmp( { EEG.chanlocs.type }, 'EEG' );
+
+
+		%% initialize plot ----------------------------------------------------
+
+		topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp',...
+			'colormap', jet(256), 'whitebk', 'on' };		% electrodes: 'pts' or 'ptslabels'?
+
+		set( gcf, 'Units', 'pixels', 'Position', [ 100, 100, figPos ] )
+		clf
+%		set( gcf, 'Color', [ 1, 1, 1 ] )		% topoplot sets figure color, see 'whitebk' option
+%		colormap( parula( 256 ) )
+%		colormap( jet( 256 ) )
+	
+		Y = nan( EEG.pnts, sum( kChan ), nStim );
+		for iStim = 1:nStim
+			% trials to average
+			kEvent = epochInfo.(['k',stimNames{iStim}]);
+			% correct responses only
+			if ismember( taskNames{iTask}, { 'AOD', 'VOD' } )
+				kEvent(kEvent) = epochInfo.kCorrect(kEvent);
+			end
+			% non-rejected epochs
+			kEvent(kEvent) = kEpoch(kEvent);
+			Y(:,:,iStim) = mean( EEG.data(kChan,:,kEvent), 3, 'includenan' )';
+		end
+		yRange = max( abs( Y ), [], 'all' ) * 1.1 * [ -1, 1 ];
+		
+% 		iTime0 = 1;
+		iTime0 = find( EEG.times == 0 );
+		hAx   = gobjects( 2, nStim );
+		hTopo = gobjects( 1, nStim );
+		hLine = gobjects( 1, nStim );
+		axL   = 0.10;
+		axR   = 0.10;
+		axT   = 0.2;
+		axB   = 0.15;
+		axGh  = 0.04;
+		axGv  = 0;
+		axW   = ( 1 - axL - axR - axGh*(nStim-1) ) / nStim;
+		axH   = ( 1 - axT - axB - axGv           ) / 2;
+
+		for iStim = 1:nStim
+			hAx(1,iStim) = subplot( 'Position', [ axL+(axW+axGh)*(iStim-1), 1-axT-axH, axW, axH ] );% 2, nStim, iStim );
+				hTopo(iStim) = topoplot( Y(iTime0,kChan,iStim), EEG.chanlocs(kChan), topoOpts{:}, 'maplimits', yRange );	% surface class
+				if strcmp( taskNames{iTask}, 'MMN' ) && strcmp( stimNames{iStim}, 'Novel' )
+					titleStr = 'Deviant';
+				else
+					titleStr = stimNames{iStim};
+				end
+				title( titleStr, 'FontSize', 20, 'FontWeight', 'normal' )
+			hAx(2,iStim) = subplot( 'Position', [ axL+(axW+axGh)*(iStim-1), axB, axW, axH ] );%2, nStim, nStim + iStim );
+				plot( EEG.times, Y(:,:,iStim), 'Color', repmat( 0.5, 1, 3 ) )
+				hLine(iStim) = line( EEG.times([iTime0,iTime0]), yRange, 'Color', [ 0, 0.75, 0 ] );
+		end
+		set( hAx, 'CLim', yRange )
+		set( hAx(1,:),'XLim', [ -1, 1 ]*0.5, 'YLim', [ -0.4, 0.45 ] )
+		set( hAx(2,:), 'XLim', timeRange * 1e3, 'YLim', yRange, 'Box', 'off', 'Color', 'none', 'XGrid', 'on', 'YGrid', 'on', 'FontSize', 10 )
+		set( hAx(2,2:nStim), 'YColor', 'none' )
+		hYLabel = ylabel( hAx(1,1), sprintf( '%0.0f ms', EEG.times(iTime0) ), 'Visible', 'on', 'FontSize', 20, 'FontWeight', 'normal' );
+		ylabel( hAx(2,1), '\muV', 'FontSize', 14 )
+		for iStim = 1:nStim
+			xlabel( hAx(2,iStim), 'ms', 'FontSize', 14 )
+		end
+		hColorbar = subplot( 'Position', [ 1-axR*0.7, axB, axR*0.4, axH ] );
+		image( hColorbar, (256:-1:1)' )
+		set( hColorbar, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )
+		text( axes( 'Units', 'normalized', 'Position', [ 0, 0, 1, 1 ], 'Visible', 'off' ),...
+			'Units', 'normalized', 'HorizontalAlignment', 'center', 'VerticalAlignment', 'top',...
+			'Position', [ 0.5, 0.98, 0 ], 'String', sprintf( '%s %s %s', subjId, sessId, taskNames{iTask} ),...
+			'FontSize', 14 )
+% 		figure( gcf )
+
+
+		%% animate ------------------------------------------------------------
+
+		outputDir = fullfile( ampsczDir, networkName, 'PHOENIX', 'PROTECTED',...
+			[ networkName, subjId(1:2) ], 'processed', subjId, 'eeg', [ 'ses-', sessId ], 'Figures' );
+
+		figure( gcf )
+
+		V = VideoWriter( fullfile( outputDir, sprintf( [ nameFmt, '.mp4' ], taskNames{iTask} ) ), 'MPEG-4' );
+		V.Quality   = 80;	% default = 75, [0,100].  call before open?
+		V.FrameRate = 20;	% call after open? help say yes, but it throws error
+		open( V );
+		for iTime = iTime0:5:EEG.pnts;
+			for iStim = 1:nStim
+%				set( hTopo(iStim), 'CData', Y(iTime,kChan,iStim) )
+				[ ~, cdata ] = topoplot( Y(iTime,kChan,iStim), EEG.chanlocs(kChan), topoOpts{:}, 'maplimits', yRange, 'noplot', 'on' );
+				set( hTopo(iStim), 'CData', cdata )
+				set( hLine(iStim), 'XData', EEG.times([iTime,iTime]) )
+			end
+			set( hYLabel, 'String', sprintf( '%0.0f ms', EEG.times(iTime) ) )
+%			drawnow
+			fr = getframe( gcf );
+			fr.cdata = imresize( fr.cdata, figPos([2,1]) );
+			writeVideo( V, fr )
+		end
+		close( V )
+		
+		fprintf( 'wrote %s\n', fullfile( V.Path, V.Filename ) )
+		
+	end
+	fprintf( 'done\n' )
+
+		

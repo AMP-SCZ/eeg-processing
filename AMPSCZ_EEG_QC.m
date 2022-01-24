@@ -156,7 +156,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	end
 	
 	% e.g. pop_chanedit( struct( 'labels', Z(:,1) ) )...
-	chanLocs = readlocs( locsFile );
+	chanLocs = readlocs( locsFile, 'importmode', 'native', 'filetype', 'chanedit' );
 
 	% impedance will be the same for all runs & all tasks, since it is replicated when segmented
 	% the exception will be if there are multiple zip files, it may only be in the 1st
