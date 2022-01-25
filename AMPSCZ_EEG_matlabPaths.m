@@ -44,6 +44,7 @@ function success = AMPSCZ_EEG_matlabPaths
 	path0 = path;
 	
 	AMPSCZtools = 'C:\Users\donqu\Documents\GitHub\AMP-SCZ\eeg-processing';
+% 	AMPSCZtools = '/PHShome/sn1005/Documents/MATLAB/AMPSCZeeg/eeg-processing';
 	addpath( AMPSCZtools )
 	modDir = fullfile( fileparts( which( 'AMPSCZ_EEG_paths.m' ) ), 'modifications' );
 	[ AMPSCZdir, eegLabDir, fieldTripDir, adjustDir ] = AMPSCZ_EEG_paths;
@@ -58,8 +59,13 @@ function success = AMPSCZ_EEG_matlabPaths
 	pathFull = path;
 	
 	% convert long line of char to cell array
-	path0    = split( path0,    ';' );
-	pathDiff = split( pathFull, ';' );					% not diff yet
+	if isunix
+		pathDelimiter = ':';
+	elseif ispc
+		pathDelimiter = ';';
+	end
+	path0    = split( path0,    pathDelimiter );
+	pathDiff = split( pathFull, pathDelimiter );		% not diff yet
 	if ~all( ismember( path0, pathDiff ) )
 		error( 'huh?' )
 	end
