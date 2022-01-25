@@ -15,8 +15,7 @@ function [ AMPSCZdir, eegLabDir, fieldTripDir, adjustDir ] = AMPSCZ_EEG_paths
 		downloadDir  = '/PHShome/sn1005/Downloads';
 		eegLabDir    = fullfile( downloadDir, 'eeglab',    'eeglab2021.1' );
 		fieldTripDir = fullfile( downloadDir, 'fieldtrip', 'fieldtrip-20211209' );
-		adjustDir    = '';	%fullfile( downloadDir, 'adjust',    'ADJUST1.1.1' );
-		error( 'needs ADJUST1.1.1' )
+		adjustDir    = fullfile( downloadDir, 'adjust',    'ADJUST1.1.1' );
 	elseif ispc
 		AMPSCZdir    = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
 		downloadDir  = 'C:\Users\donqu\Downloads';
