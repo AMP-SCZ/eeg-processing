@@ -1,4 +1,4 @@
-function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
+function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 % Usage:
 % >> AMPSCZ_EEG_QC( [sessionName], [writeFlag], [legacyPaths] )
 %
@@ -29,12 +29,10 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		legacyPaths = false;		% temporary hack to be able to process files in old folder heirarchy
 	end
 
-	if exist( 'writeFlag', 'var' ) == 1
-		if ~isempty( writeFlag ) && ( ~isscalar( writeFlag ) || ~islogical( writeFlag ) )
-			error( 'Invalid writeFlag input' )
-		end
-	else
+	if exist( 'writeFlag', 'var' ) ~= 1
 		writeFlag = [];
+	elseif ~isempty( writeFlag ) && ~( islogical( writeFlag ) && isscalar( writeFlag ) )
+		error( 'writeFlag must be empty or logical scalar' )
 	end
 	if exist( 'sessionName', 'var' ) == 1 && ~isempty( sessionName )
 		if iscell( sessionName )
@@ -708,22 +706,125 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		sum( kAud & kStandard & kResp ) / sum( kAud & kStandard )
 		sum(        kStandard & kResp ) / sum(        kStandard )
 	];
-	dPrime = norminv( hitRate ) - norminv( FARate );
-	APrime = nan( 3, 1 );
-	k = FARate <= hitRate;
-	APrime(k) = 0.75 + ( hitRate - FARate ) / 4;
-	k = FARate <= 0.5 & 0.5 <= hitRate;
-	APrime(k) = APrime(k) - FARate(k) .* ( 1 - hitRate(k) );
-	k = FARate <= hitRate & hitRate < 0.5;
-	APrime(k) = APrime(k) - FARate(k) ./ hitRate(k) / 4;
-	k = 0.5 < FARate & FARate <= hitRate;
-	APrime(k) = APrime(k) - ( 1 - hitRate(k) ) ./ ( 1 - FARate(k) ) / 4;
+% 	dPrime = norminv( hitRate ) - norminv( FARate );
+% 	APrime = nan( 3, 1 );
+% 	k = FARate <= hitRate;
+% 	APrime(k) = 0.75 + ( hitRate - FARate ) / 4;
+% 	k = FARate <= 0.5 & 0.5 <= hitRate;
+% 	APrime(k) = APrime(k) - FARate(k) .* ( 1 - hitRate(k) );
+% 	k = FARate <= hitRate & hitRate < 0.5;
+% 	APrime(k) = APrime(k) - FARate(k) ./ hitRate(k) / 4;
+% 	k = 0.5 < FARate & FARate <= hitRate;
+% 	APrime(k) = APrime(k) - ( 1 - hitRate(k) ) ./ ( 1 - FARate(k) ) / 4;
+
+	zThresh = 25;		% impedance threshold
+	pLimit  = 10;		% line power limit/threshold
+
+	if nargout ~= 0
+		% see https://sites.google.com/g.harvard.edu/dpdash/documentation/user_doc?authuser=0
+		% in particular pages 12-14 for making dpdash compatible outputs
+		% "For runs, you can populate 1,2,3,...,12 under day column. 
+		%  Mandatory fields that do not make sense to you e.g. reftime, 
+		%  timeofday, weekday can be left empty in the CSV file" - Tashrif
+		
+		output = {
+			'reftime'        , '%0.0f'       , []
+			'day'            , '%d'          , []		% use for runs?
+			'timeofday'      , '%d:%02d:%02d', []
+			'weekday'        , '%d'          , []
+			'Technician'     , '%s'          , ''
+			'TrialsVODMMN'   , '%d'          , []
+			'TrialsAOD'      , '%d'          , []
+			'TrialsASSR'     , '%d'          , []
+			'TrialsRestEO'   , '%d'          , []
+			'TrialsRestEC'   , '%d'          , []
+			'MissingTriggers', '%d'          , []
+			'ExtraTriggers'  , '%d'          , []
+			'MissingFlashes' , '%d'          , []
+			'ExtraFlashes'   , '%d'          , []
+			'ImpRangeLo'     , '%g'          , zRange(1)
+			'ImpRangeHi'     , '%g'          , zRange(2)
+			'HighImpChans'   , '%d'          , sum( Zdata(:,iZ) > zThresh )
+			'HighNoiseChans' , '%d'          , sum( pLineMax > pLimit )
+			'HitRateVis'     , '%0.2f'       , hitRate(1) * 100		% (%)
+			'HitRateAud'     , '%0.2f'       , hitRate(2) * 100
+			'FARateNovelVis' , '%0.2f'       , FARate(1)  * 100
+			'FARateNovelAud' , '%0.2f'       , FARate(2)  * 100
+			'FARateStdVis'   , '%0.2f'       , FARate0(1) * 100
+			'FARateStdAud'   , '%0.2f'       , FARate0(2) * 100
+			'RTmedianVis'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kVis, 2 ) ) * 1e3		% (ms)
+			'RTmedianAud'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kAud, 2 ) ) * 1e3
+			'AlphaRatioEC'   , '%0.2f'       , []
+		};
+			% file sequence flag?
+				
+% 		output
+		% fileanme = <StudyName>-<SubjectID>-<Assessment>-day<D1>to<D2>.csv
+		% StudyName, SujectID, Assessment [A-Za-z0-9]
+		% D1, D2 [0-9]
+		% delmiter = comma
+		% 1st row contains variables names
+		% 1st 4 variable names must be reftime, day, timeofday, and weekday
+		% reftime = milliseconds since 6:00:00 AM on day of consent
+		% day = days since consent day, consent day = 1
+		% timeofday = time in 24 hr notation hh:mm:ss (leading zeros not required)
+		% weekday = integer day of week, 1=saturday
+% 		keyboard
+% 		return
+
+		% where should dpdash files go?
+		% need to figure out where to find consent date?
+		% need to put technician intials in here, where are they coming from? should already be there in file tree?
+		% does variable name need to be lower case?
+		% line termination convention? line terminator after last line?
+		% how do we look @ it?
+		csvDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg' );
+% 		csvDir = sessDir;
+% 		csvDir = fullfile( sessDir, '?' );				% keep everything organized by site/subject/session for BWH
+		csvName = sprintf( '%s-%s-%s-day%dto%d.csv', 'AMPSCZ', subjId, 'EEGqc', 1, 1 );
+		csvFile = fullfile( csvDir, csvName );
+		if isempty( writeFlag )
+			writeCSV = exist( csvFile, 'file' ) ~= 2;
+			if ~writeCSV
+				writeCSV(:) = strcmp( questdlg( [ 'Replace ', csvName, ' ?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
+			end
+		else
+			writeCSV = writeFlag;
+		end
+		if writeCSV
+			[ fid, msg ] = fopen( csvFile, 'w' );
+			if fid == -1
+				error( msg )
+			end
+			nOut = size( output, 1 );
+			fprintf( fid, '%s', output{1,1} );
+			if nOut > 1
+				fprintf( fid, ',%s', output{2:nOut,1} );
+			end
+% 			fprintf( fid, '\r\n' );		% windowsy
+			fprintf( fid, '\n' );		% linuxy
+			if ~isempty( output{1,3} )
+				fprintf( fid, output{1,2}, output{1,3} );
+			end
+			for iOut = 2:nOut
+				if isempty( output{iOut,3} )
+					fprintf( fid, ',' );
+				else
+					fprintf( fid, [ ',', output{iOut,2} ], output{iOut,3} );
+				end
+			end
+% 			fprintf( '\n' );			% add another line ending?
+			if fclose( fid ) == -1
+				warning( 'MATLAB:fcloseError', 'fclose error' )
+			end
+			fprintf( 'wrote %s\n', csvFile )
+		end
+	end
 
 	%% some topoplot options
 	%   electrodes [on], off, labels, numbers, ptslabels, ptsnumbers
 	%   style: map, contour, [both], fill, blank
 	%   shading: [flat] interp
-	zThresh = 25;
 	zLimit  = zThresh * 2;
 	topoOpts = { 'nosedir', '+X', 'style', 'map', 'colormap', cmap, 'shading', 'flat', 'maplimits', [ 0, zLimit ], 'conv', 'on',...
 		'headrad', 0.5, 'electrodes', 'on', 'emarker', { '.', 'k', 8, 0.5 }, 'hcolor', repmat( 0.333, 1, 3 ),...
@@ -791,7 +892,6 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		end
 		
 	% 2. Line noise
-	pLimit = 10;
 	topoOpts{10} = [ 0, pLimit ];
 	hAx(2) = subplot( 3, 2, 2 );
 		topoplot( pLineMax, chanLocs(1:63), topoOpts{:} );
@@ -829,7 +929,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		RT   = respData(kResp,2) * 1e3;
 		kVis = kVis(kResp);
 		kAud = kAud(kResp);
-		kHit = respData(kResp,1) == 1;
+		kHit = respData(kResp,1) == 1;		% target
 % 		kFA  = respData(kResp,1) == 2;
 % 		kFA0 = respData(kResp,1) == 0;
 		switch 2
@@ -1019,14 +1119,15 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		fprintf( 'created %s\n', pngDir )
 	end
 	pngOut = fullfile( pngDir, [ subjId, '_', sessDate, '_QC.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QC.png' ]
-
 	if isempty( writeFlag )
-		writeFlag = exist( pngOut, 'file' ) ~= 2;		
-		if ~writeFlag
-			writeFlag(:) = strcmp( questdlg( 'png exists. overwrite?', mfilename, 'no', 'yes', 'no' ), 'yes' );
+		writePng = exist( pngOut, 'file' ) ~= 2;
+		if ~writePng
+			writePng(:) = strcmp( questdlg( [ 'Replace ', subjId, ' ', sessDate, ' QC png?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
 		end
+	else
+		writePng = writeFlag;
 	end
-	if writeFlag
+	if writePng
 %		print( hFig, pngOut, '-dpng' )		% 1800x1000 figure window becomes 2813x1563
 %		saveas( hFig, pngOut, 'png' )		% 1800x1000 figure window becomes 2813x1563
 %		getframe( hFig )					% 1800x1000 figure window has     3600x2000 cdata

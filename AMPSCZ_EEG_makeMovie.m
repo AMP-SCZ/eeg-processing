@@ -1,33 +1,54 @@
+function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
+% Make MP4 movies from pre-processed ERP mat files
+%
+% Usage:
+% >> AMPSCZ_EEG_makeMovie( subjId, sessId, [taskNames], [filterStr] )
+%
+% Inputs:
+% subjId = 7-character AMPSCZ subject identifier.  2-char site code + 5-digit number
+% sessId = 8-character date string in YYYYMMDD format
+% taskNames = optional cell array to run subset of tasks
+%             default = { 'AOD', 'VOD', 'MMN' }
+% filterStr = optional char-class input to specify filter settings in mat file name
+%             default = '[0.1,Inf]'
+%
+% e.g.
+% >> AMPSCZ_EEG_makeMovie( 'SF12345', '20220101' )
+%
+% Written by: Spero Nicholas, NCIRE
 
-	clear
+	narginchk( 2, 4 )
 	
-	subjId = 'SD00065';
-	sessId = '20211221';
-	
+	if exist( 'taskNames', 'var' ) ~= 1 || isempty( taskNames )
+		taskNames = { 'AOD', 'VOD', 'MMN' };
+	end
+	if exist( 'filterStr', 'var' ) ~= 1 || isempty( filterStr )
+		filterStr = '[0.1,Inf]';
+	end
+
 	siteInfo = AMPSCZ_EEG_siteInfo;
 	networkName = siteInfo{strcmp( siteInfo(:,1), subjId(1:2) ),2};
 	
-	ampsczDir = 'C:\Users\donqu\Documents\NCIRE\AMPSCZ';
-% 	ampsczDir = 'C:\Users\donqu\Box\Certification Files';
+	AMPSCZdir = AMPSCZ_EEG_paths;
+% 	AMPSCZdir = 'C:\Users\donqu\Box\Certification Files';
 	
-	taskNames = { 'AOD', 'VOD', 'MMN' };
-	nameFmt = [ subjId, '_', sessId, '_%s_[0.1,Inf]' ];
-	for iTask = 1:3
+	nameFmt = [ subjId, '_', sessId, '_%s_', filterStr ];
+	for iTask = 1:numel( taskNames )
 		
-		[ standardCode, targetCode, novelCode, respCode ] = AMPSCZ_EEG_eventCodes( taskNames{iTask} );
+% 		[ standardCode, targetCode, novelCode, respCode ] = AMPSCZ_EEG_eventCodes( taskNames{iTask} );
 	
-		matFile = fullfile( ampsczDir, networkName, 'PHOENIX', 'PROTECTED',...
+		matFile = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED',...
 			[ networkName, subjId(1:2) ], 'processed', subjId, 'eeg', [ 'ses-', sessId ], 'mat',...
 			sprintf( [ nameFmt, '.mat' ], taskNames{iTask} ) );
 		
-		load( matFile )
+		load( matFile, 'EEG', 'epochInfo' )
 
 		% time-locked event of each trial
-		eventType = cellfun( @(u,v)u{[v{:}]==0}, { EEG.epoch.eventtype }, { EEG.epoch.eventlatency }, 'UniformOutput', false );
-		if numel( eventType ) ~= EEG.trials
-			error( 'bug' )
-		end
-		
+% 		eventType = cellfun( @(u,v)u{[v{:}]==0}, { EEG.epoch.eventtype }, { EEG.epoch.eventlatency }, 'UniformOutput', false );
+% 		if numel( eventType ) ~= EEG.trials
+% 			error( 'bug' )
+% 		end
+
 		switch taskNames{iTask}
 			case { 'AOD', 'VOD' }
 				timeRange = [ -0.100, 0.800 ];	% (s)
@@ -111,6 +132,13 @@
 		set( hAx, 'CLim', yRange )
 		set( hAx(1,:),'XLim', [ -1, 1 ]*0.5, 'YLim', [ -0.4, 0.45 ] )
 		set( hAx(2,:), 'XLim', timeRange * 1e3, 'YLim', yRange, 'Box', 'off', 'Color', 'none', 'XGrid', 'on', 'YGrid', 'on', 'FontSize', 10 )
+		switch taskNames{iTask}
+			case { 'AOD', 'VOD' }
+				set( hAx(2,:), 'XTick', 0:200:timeRange(2)*1e3, 'XMinorTick', 'on', 'XMinorGrid', 'on' )		% [-100,800]
+			case 'MMN'
+				set( hAx(2,:), 'XTick', timeRange(1)*1e3:100:timeRange(2)*1e3 )		% [-100,500]
+		end
+		set( hAx(2,:), 'YTick', yTickFcn( yRange(2) ) )
 		set( hAx(2,2:nStim), 'YColor', 'none' )
 		hYLabel = ylabel( hAx(1,1), sprintf( '%0.0f ms', EEG.times(iTime0) ), 'Visible', 'on', 'FontSize', 20, 'FontWeight', 'normal' );
 		ylabel( hAx(2,1), '\muV', 'FontSize', 14 )
@@ -129,7 +157,7 @@
 
 		%% animate ------------------------------------------------------------
 
-		outputDir = fullfile( ampsczDir, networkName, 'PHOENIX', 'PROTECTED',...
+		outputDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED',...
 			[ networkName, subjId(1:2) ], 'processed', subjId, 'eeg', [ 'ses-', sessId ], 'Figures' );
 
 		figure( gcf )
@@ -138,7 +166,7 @@
 		V.Quality   = 80;	% default = 75, [0,100].  call before open?
 		V.FrameRate = 20;	% call after open? help say yes, but it throws error
 		open( V );
-		for iTime = iTime0:5:EEG.pnts;
+		for iTime = iTime0:5:EEG.pnts
 			for iStim = 1:nStim
 %				set( hTopo(iStim), 'CData', Y(iTime,kChan,iStim) )
 				[ ~, cdata ] = topoplot( Y(iTime,kChan,iStim), EEG.chanlocs(kChan), topoOpts{:}, 'maplimits', yRange, 'noplot', 'on' );
@@ -157,5 +185,29 @@
 		
 	end
 	fprintf( 'done\n' )
+	
+	return
+	
+	% this is replicated in AMPSCZ_EEG_ERPplot.m
+	function yTick = yTickFcn( yExt )
+		% gives denser but ~sensible y axis ticks than Matlab defaults
+		power10scale = 10^floor( log10( yExt ) );
+		switch floor( yExt / power10scale )
+			case 1
+				yTickInc = 0.5;
+			case {2,3}
+				yTickInc = 1;
+			case {4,5,6,7}
+				yTickInc = 2;
+			case {8,9}
+				yTickInc = 4;
+			otherwise
+				error( 'YTick bug' )
+		end
+		yTickInc(:) = yTickInc * power10scale;
+		nYTick = floor( yExt / yTickInc );
+		yTick = (-nYTick:1:nYTick) * yTickInc;
+	end
 
-		
+
+end

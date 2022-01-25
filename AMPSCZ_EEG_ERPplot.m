@@ -95,8 +95,10 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 		error( 'invalid EEG input' )
 	end
 
-	if exist( 'writeFlag', 'var' ) ~= 1 % || isempty( writeFlag )
+	if exist( 'writeFlag', 'var' ) ~= 1
 		writeFlag = [];
+	elseif ~isempty( writeFlag ) && ~( islogical( writeFlag ) && isscalar( writeFlag ) )
+		error( 'writeFlag must be empty or logical scalar' )
 	end
 
 	% concatenate epoch info across runs
@@ -331,8 +333,12 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 				hTopo(4) = topoplot( tmDeviant(:,2) - tmStandard(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
 				
 			set( hAx(1:3+nSet*2), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
+			set( hAx(1:3+nSet*2), 'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100 )
+% 			set( hAx(1:3+nSet*2), 'XTick', floor(tWinPlot(1)/100)*100:100:ceil(tWinPlot(2)/100)*100 )
 			set( hAx(1:3), 'YLim', yRange0 )
+			set( hAx(1:3), 'YTick', yTickFcn( yRange0(2) ) )
 			set( hAx(4:3+nSet*2), 'YLim', yRange, 'CLim', yRange )
+			set( hAx(4:3+nSet*2), 'YTick', yTickFcn( yRange(2) ) )
 			set( hAx(2:3+(nSet-1)*2), 'XTickLabel', '' )
 % 			set( hAx(iSet), 'UserData', iSet )
 			set( hAx(3+nSet*2+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ] )
@@ -565,8 +571,12 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 				hTopo(8) = topoplot( tmNovel(:,2) - tmStandardN(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
 
 			set( hAx(1:5+nSet*4), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
+			set( hAx(1:5+nSet*4), 'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100 )
+% 			set( hAx(1:5+nSet*4), 'XTick', floor(tWinPlot(1)/100)*100:100:ceil(tWinPlot(2)/100)*100 )
 			set( hAx(1:5), 'YLim', yRange0 )
+			set( hAx(1:5), 'YTick', yTickFcn( yRange0(2) ) )
 			set( hAx(6:5+nSet*4), 'YLim', yRange, 'CLim', yRange )
+			set( hAx(6:5+nSet*4), 'YTick', yTickFcn( yRange(2) ) )
 			set( hAx(2:5+(nSet-1)*4), 'XTickLabel', '' )
 % 			set( hAx(iSet), 'UserData', iSet )
 			set( hAx(5+nSet*4+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ] )
@@ -657,44 +667,22 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 		fprintf( 'created %s\n', pngDir )
 	end
 
-	pngOut1 = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );
-% 	pngOut2 = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '_butterfly.png' ] );
+	pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );
 
 	if isempty( writeFlag )
-		writeFlag1 = exist( pngOut1, 'file' ) ~= 2;		
-		if ~writeFlag1
-			writeFlag1(:) = strcmp( questdlg( [ epochName ' png exists. overwrite?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
+		writeFlag = exist( pngOut, 'file' ) ~= 2;		
+		if ~writeFlag
+			writeFlag(:) = strcmp( questdlg( [ 'Replace ', epochName ' png?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
 		end
-	else
-		writeFlag1 = writeFlag;
 	end
-	if writeFlag1
+	if writeFlag
 		% print( hFig, ... ) & saveas( hFig, ... ) don't preserve pixel dimensions
 		figPos = get( hFig(1), 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
 		img = getframe( hFig(1) );
 		img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
-		imwrite( img, pngOut1, 'png' )
-		fprintf( 'wrote %s\n', pngOut1 )
+		imwrite( img, pngOut, 'png' )
+		fprintf( 'wrote %s\n', pngOut )
 	end
-
-%{
-	if isempty( writeFlag )
-		writeFlag2 = exist( pngOut2, 'file' ) ~= 2;		
-		if ~writeFlag2
-			writeFlag2(:) = strcmp( questdlg( [ epochName ' butterfly png exists. overwrite?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
-		end
-	else
-		writeFlag2 = writeFlag;
-	end
-	if writeFlag2
-		% print( hFig, ... ) & saveas( hFig, ... ) don't preserve pixel dimensions
-		figPos = get( hFig(2), 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
-		img = getframe( hFig(2) );
-		img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
-		imwrite( img, pngOut2, 'png' )
-		fprintf( 'wrote %s\n', pngOut2 )
-	end
-%}
 
 	numel( hTopo );		% suppress warning indicator for unused hTopo
 
@@ -710,7 +698,26 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 		yRange(:) = yRange + [ -1, 1 ] * diff( yRange ) * 0.125;
 	end
 	
-	
+	% this is replicated in AMPSCZ_EEG_makeMovie.m
+	function yTick = yTickFcn( yExt )
+		% gives denser but ~sensible y axis ticks than Matlab defaults
+		power10scale = 10^floor( log10( yExt ) );
+		switch floor( yExt / power10scale )
+			case 1
+				yTickInc = 0.5;
+			case {2,3}
+				yTickInc = 1;
+			case {4,5,6,7}
+				yTickInc = 2;
+			case {8,9}
+				yTickInc = 4;
+			otherwise
+				error( 'YTick bug' )
+		end
+		yTickInc(:) = yTickInc * power10scale;
+		nYTick = floor( yExt / yTickInc );
+		yTick = (-nYTick:1:nYTick) * yTickInc;
+	end
 	
 
 %{

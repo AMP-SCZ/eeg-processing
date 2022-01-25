@@ -1,16 +1,16 @@
-function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceWrite )
+function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeFlag )
 % Pre-process segmented AMP SCZ Brain Vision files for MMN, VOD, or AOD ERP analysis.
 % Saves output in mat-file format
 %
 % Usage:
-% >> AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, [passBand], [forceWrite] )
+% >> AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, [passBand], [writeFlag] )
 %
 % Where:
 %   subjectID   = 7-character subject identifier, 2-char site code + 5-digit subject #
 %   sessionDate = 8-character date 'YYYYMMDD'
 %   epochName   = 'AOD', 'MMN', or 'VOD'
 %   passBand    = option input [ lowFreq, highFreq ] (Hz), default = [ 0.1, Inf ]
-%   forceWrite  = how to handle mat-files that already exist, default = []
+%   writeFlag   = how to handle mat-files that already exist, default = []
 %                 true = overwrite, false = don't overwrite, [] = prompt if needed
 %
 % Dependencies: EEGLAB
@@ -53,9 +53,11 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	if exist( 'passBand', 'var' ) ~= 1 || isempty( passBand )
 		passBand = [ 0.1, Inf ];
 	end
-	if exist( 'forceWrite', 'var' ) ~= 1 %|| isempty( forceWrite )
-% 		forceWrite = false;
-		forceWrite = [];
+	if exist( 'writeFlag', 'var' ) ~= 1
+% 		writeFlag = false;
+		writeFlag = [];
+	elseif ~isempty( writeFlag ) && ~( islogical( writeFlag ) && isscalar( writeFlag ) )
+		error( 'writeFlag must be empty or logical scalar' )
 	end
 	if iscell( epochName )
 		% they get checked later, but might as well know about errors up front
@@ -63,7 +65,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 			error( 'Invalid epochName input' )
 		end
 		for iEpoch = 1:numel( epochName )
-			AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName{iEpoch}, passBand, forceWrite )
+			AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName{iEpoch}, passBand, writeFlag )
 		end
 		return
 	end
@@ -260,20 +262,21 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 	outName = sprintf( '%s_%s_%s_[%g,%g]', subjTag(5:end), sessTag(5:end), epochName, passBand(1), passBand(2) );
 	logFile  = fullfile( matDir, [ outName, '.log' ] );
 	matFile  = fullfile( matDir, [ outName, '.mat' ] );
-	writeFlag = exist( matFile, 'file' ) ~= 2;
-	if ~writeFlag
-		if isempty( forceWrite )
-			writeFlag(:) = strcmp( questdlg( 'Replace?', 'mat-file', 'No', 'Yes', 'No' ), 'Yes' );
-			if ~writeFlag
+	if isempty( writeFlag )
+		writeMat = exist( matFile, 'file' ) ~= 2;
+		if writeMat
+			writeMat(:) = strcmp( questdlg( [ 'Replace ', outName, '.mat?' ], 'mat-file', 'No', 'Yes', 'No' ), 'Yes' );
+			if ~writeMat
 				return
 			end
-		elseif forceWrite
-			warning( '%s will be overwritten', matFile )		% logFile too
-			writeFlag(:) = true;
-		else
-			fprintf( '%s exists\n', matFile )
-			return
 		end
+	elseif writeFlag
+		warning( '%s will be overwritten', matFile )		% logFile too
+		writeMat = true;
+	else
+		fprintf( '%s exists\n', matFile )
+% 		writeMat = false;
+		return
 	end
 
 	nRun      = taskList{iTask,2};
@@ -492,17 +495,17 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, forceW
 
 	end
 
-	if isempty( forceWrite )
+	if isempty( writeFlag )
 		replaceLog = false;		% append
 	else
-		replaceLog = forceWrite;
+		replaceLog = writeFlag;
 	end
 	[ EEG, chanProp, ccaStats, icaData ] = bieegl_FASTER( EEG, epochEventCodes, epochWin, baselineWin, icaWin,...
 											    Ieeg, filterFcn, passBand, Ifilter, refType, IcomputeRef, IremoveRef, IcomputeInterp, IexcludeInterp, zThreshInterp, compMethod, Iocular,...
 											    logFile, '', replaceLog );
 
 	fprintf( 'Finished analyzing %s %s. \n', subjTag(5:end), epochName )
-	if writeFlag		% there's no reason to run bieegl_FASTER & not save anything other than debugging.  writeFlag=false already forces return above, so this if is moot
+	if writeMat		% there's no reason to run bieegl_FASTER & not save anything other than debugging.  writeMat=false already forces return above, so this if is moot
 		fprintf( 'writing %s\n', matFile )
 		save( matFile, 'EEG', 'epochName', 'epochInfo', 'chanProp', 'ccaStats', 'icaData', 'epochWin', 'baselineWin', 'icaWin',...
 			'filterFcn', 'passBand', 'Ifilter', 'refType', 'IcomputeRef', 'IremoveRef', 'IcomputeInterp', 'IexcludeInterp', 'zThreshInterp', 'compMethod', 'Iocular',...
