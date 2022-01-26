@@ -264,7 +264,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	matFile  = fullfile( matDir, [ outName, '.mat' ] );
 	if isempty( writeFlag )
 		writeMat = exist( matFile, 'file' ) ~= 2;
-		if writeMat
+		if ~writeMat
 			writeMat(:) = strcmp( questdlg( [ 'Replace ', outName, '.mat?' ], 'mat-file', 'No', 'Yes', 'No' ), 'Yes' );
 			if ~writeMat
 				return

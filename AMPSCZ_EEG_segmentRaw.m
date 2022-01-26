@@ -237,7 +237,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 						end
 						% for any status other than complete '2', need to start at the beginning?
 						% e.g. to get baseName & subDir from unzip step.  don't worry, won't do un-needed overwrites.
-						char1(:) = abs( '0' );
+						char1 = abs( '0' );
 					else
 						[ fidStatus, errMsg ] = fopen( statusFile, 'w' );
 						if fidStatus == -1

@@ -97,6 +97,76 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 % 		end
 	end
 	
+	return
+	
+	%% find zips that haven't been extracted yet
+	
+	% SD00059_eeg_20211217.zip content name doesn't match zip file name, SD00037 inside
+	
+	zip = AMPSCZ_EEG_findZips;
+	seg = AMPSCZ_EEG_findProcSessions;
+	% can't do ismember(...,'rows') on cell arrays, concatenate 2nd dimension
+	zip = strcat( zip(:,1), '_', zip(:,2), '_', zip(:,3) );
+	seg = strcat( seg(:,1), '_', seg(:,2), '_', seg(:,3) );
+	ok = true;
+	fprintf( '\n' )
+	k = ismember( seg, zip );
+	if ~all( k )
+		fprintf( 'segmented sessions w/o zip files:\n' )
+		disp( seg(~k) )
+		ok(:) = false;
+	end
+	k = ismember( zip, seg );
+	if ~all( k )
+		fprintf( 'unsegmented zip files:\n' )
+		disp( zip(~k) )
+		ok(:) = false;
+	end
+	if ok
+		fprintf( 'all zip-files extracted\n' )
+	end
+	
+	%% check for QC images
+	seg = AMPSCZ_EEG_findProcSessions;
+	nSeg = size( seg, 1 );
+	AMPSCZdir = AMPSCZ_EEG_paths;
+	ok = true;
+	fprintf( '\n' )
+	for iSeg = 1:nSeg
+		QCfigs = dir( fullfile( AMPSCZdir, seg{iSeg,1}(1:end-2), 'PHOENIX', 'PROTECTED', seg{iSeg,1}, 'processed', seg{iSeg,2}, 'eeg', [ 'ses-', seg{iSeg,3} ], 'Figures', '*QC.png' ) );
+		if isempty( QCfigs )
+			fprintf( 'No QC figs for %s %s\n', seg{iSeg,2:3} )
+			ok(:) = false;
+		elseif numel( QCfigs ) ~= 1
+			disp( { QCfigs.name }' )
+			ok(:) = false;
+		end
+	end
+	if ok
+		fprintf( 'all sessions have QC png\n' )
+	end
+
+	%% check for ERP mat files
+	seg = AMPSCZ_EEG_findProcSessions;
+	nSeg = size( seg, 1 );
+	AMPSCZdir = AMPSCZ_EEG_paths;
+	ok = true;
+	fprintf( '\n' )
+	for iSeg = 1:nSeg
+		matFiles = dir( fullfile( AMPSCZdir, seg{iSeg,1}(1:end-2), 'PHOENIX', 'PROTECTED', seg{iSeg,1}, 'processed', seg{iSeg,2}, 'eeg', [ 'ses-', seg{iSeg,3} ], 'mat', '*_[0.1,Inf].mat' ) );
+		if isempty( matFiles )
+			fprintf( 'No ERP mat-files for %s %s %s\n', seg{iSeg,1}(1:end-2), seg{iSeg,2:3} )
+			ok(:) = false;
+		elseif numel( matFiles ) ~= 111
+			disp( { matFiles.name }' )
+			ok(:) = false;
+		end
+	end
+	if ok
+		fprintf( 'all sessions have ERP mat files\n' )
+	end
+	%% check for ERP png & mp4
+
 end
 
 
