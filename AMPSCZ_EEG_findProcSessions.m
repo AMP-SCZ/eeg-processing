@@ -1,5 +1,5 @@
 function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
-% Reads AMPSCZ PHOENIX directory trees to find locally available data for analysis.
+% Reads AMPSCZ PHOENIX directory trees to find available data for analysis.
 % This function searches for BIDS/dataset_description.json to determine if a 
 % session has been processed
 %
@@ -13,7 +13,8 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 % selectionMode = 'single' (default) or 'multiple', only relevent when asking for listdlg output
 %
 % Output:
-% sessionList = #x2 cell array of char where 1st column is subject identifier, 2nd column is date
+% sessionList = #x3 cell array of char where 1st column is site identifier, 
+%               2nd column is subject identifier, & 3rd column is date
 % iSession    = (optional) index in list, [] if dialog closed or cancelled
 %
 % Written by: Spero Nicholas, NCIRE

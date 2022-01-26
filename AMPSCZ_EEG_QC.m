@@ -1,4 +1,4 @@
-function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
+function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 % Usage:
 % >> AMPSCZ_EEG_QC( [sessionName], [writeFlag], [legacyPaths] )
 %
@@ -263,6 +263,10 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	okColor   = '\color[rgb]{0.75,0.75,0}';
 	badColor  = '\color{red}';
 	respData  = [];
+	nEventMissing = 0;
+	nEventExtra   = 0;
+	nVisMissing   = 0;
+	nVisExtra     = 0;
 	for iSeq = 1:nSeq
 
 		taskName = taskInfo{taskSeq(iSeq),1};
@@ -314,6 +318,11 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 				QCstatus(iSeq,kVar) = 2;
 			else
 				warning( '%s experiment, %s events: %d expected %d found', taskName, codeInfo{iCode,2}, nExpected, nFound )
+				if nExpected > nFound
+					nEventMissing(:) = nEventMissing + nExpected - nFound;
+				else
+					nEventExtra(:) = nEventExtra + nFound - nExpected;
+				end
 % 				continue
 			end
 		end
@@ -374,6 +383,11 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 			else
 				% write out message instead of error
 				warning( 'expecting %d photosensor onsets, found %d', nMrk, nVis )
+				if nMrk > Vis
+					nVisMissing(:) = nVisMissing + nMrk - nVis;
+				else
+					nVisExtra(:) = nVisExtra + nVis - nMrk;
+				end
 			end
 		end
 		
@@ -573,6 +587,10 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	
 	
 	%% Resting state data
+	restChan = 'Mean';
+% 	restChan = 'Oz';
+% 	restChan = 'POz';
+% 	restChan = 'Pz';
 	doRestSpectra = all( QCstatus(11:12,[1,2,11]) ~= 0, 1:2 );
 	if doRestSpectra
 
@@ -639,7 +657,6 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 					eegEC(:) = medfilt1( eegEC, nFilt, [], 2 );
 				end
 		end
-		
 	end
 	
 	%%
@@ -720,105 +737,119 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	zThresh = 25;		% impedance threshold
 	pLimit  = 10;		% line power limit/threshold
 
-	if nargout ~= 0
-		% see https://sites.google.com/g.harvard.edu/dpdash/documentation/user_doc?authuser=0
-		% in particular pages 12-14 for making dpdash compatible outputs
-		% "For runs, you can populate 1,2,3,...,12 under day column. 
-		%  Mandatory fields that do not make sense to you e.g. reftime, 
-		%  timeofday, weekday can be left empty in the CSV file" - Tashrif
-		
-		output = {
-			'reftime'        , '%0.0f'       , []
-			'day'            , '%d'          , []		% use for runs?
-			'timeofday'      , '%d:%02d:%02d', []
-			'weekday'        , '%d'          , []
-			'Technician'     , '%s'          , ''
-			'TrialsVODMMN'   , '%d'          , []
-			'TrialsAOD'      , '%d'          , []
-			'TrialsASSR'     , '%d'          , []
-			'TrialsRestEO'   , '%d'          , []
-			'TrialsRestEC'   , '%d'          , []
-			'MissingTriggers', '%d'          , []
-			'ExtraTriggers'  , '%d'          , []
-			'MissingFlashes' , '%d'          , []
-			'ExtraFlashes'   , '%d'          , []
-			'ImpRangeLo'     , '%g'          , zRange(1)
-			'ImpRangeHi'     , '%g'          , zRange(2)
-			'HighImpChans'   , '%d'          , sum( Zdata(:,iZ) > zThresh )
-			'HighNoiseChans' , '%d'          , sum( pLineMax > pLimit )
-			'HitRateVis'     , '%0.2f'       , hitRate(1) * 100		% (%)
-			'HitRateAud'     , '%0.2f'       , hitRate(2) * 100
-			'FARateNovelVis' , '%0.2f'       , FARate(1)  * 100
-			'FARateNovelAud' , '%0.2f'       , FARate(2)  * 100
-			'FARateStdVis'   , '%0.2f'       , FARate0(1) * 100
-			'FARateStdAud'   , '%0.2f'       , FARate0(2) * 100
-			'RTmedianVis'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kVis, 2 ) ) * 1e3		% (ms)
-			'RTmedianAud'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kAud, 2 ) ) * 1e3
-			'AlphaRatioEC'   , '%0.2f'       , []
-		};
-			% file sequence flag?
-				
-% 		output
-		% fileanme = <StudyName>-<SubjectID>-<Assessment>-day<D1>to<D2>.csv
-		% StudyName, SujectID, Assessment [A-Za-z0-9]
-		% D1, D2 [0-9]
-		% delmiter = comma
-		% 1st row contains variables names
-		% 1st 4 variable names must be reftime, day, timeofday, and weekday
-		% reftime = milliseconds since 6:00:00 AM on day of consent
-		% day = days since consent day, consent day = 1
-		% timeofday = time in 24 hr notation hh:mm:ss (leading zeros not required)
-		% weekday = integer day of week, 1=saturday
-% 		keyboard
-% 		return
+	% see https://sites.google.com/g.harvard.edu/dpdash/documentation/user_doc?authuser=0
+	% in particular pages 12-14 for making dpdash compatible outputs
+	% "For runs, you can populate 1,2,3,...,12 under day column. 
+	%  Mandatory fields that do not make sense to you e.g. reftime, 
+	%  timeofday, weekday can be left empty in the CSV file" - Tashrif
 
-		% where should dpdash files go?
-		% need to figure out where to find consent date?
-		% need to put technician intials in here, where are they coming from? should already be there in file tree?
-		% does variable name need to be lower case?
-		% line termination convention? line terminator after last line?
-		% how do we look @ it?
-		csvDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg' );
-% 		csvDir = sessDir;
-% 		csvDir = fullfile( sessDir, '?' );				% keep everything organized by site/subject/session for BWH
-		csvName = sprintf( '%s-%s-%s-day%dto%d.csv', 'AMPSCZ', subjId, 'EEGqc', 1, 1 );
-		csvFile = fullfile( csvDir, csvName );
-		if isempty( writeFlag )
-			writeCSV = exist( csvFile, 'file' ) ~= 2;
-			if ~writeCSV
-				writeCSV(:) = strcmp( questdlg( [ 'Replace ', csvName, ' ?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
-			end
+	if doRestSpectra
+		kf = f >= 8 & f <= 12;		% alpha band
+		if strcmp( restChan, 'Mean' )
+% 			alphaRatio = mean( mean( eegEC(:,kf), 1 )   ./       mean( eegEO(:,kf), 1 ) );		% mean ratio
+			alphaRatio = mean( mean( eegEC(:,kf), 1 ) )  / mean( mean( eegEO(:,kf), 1 ) );		% ratio of means
+% 			alphaRatio =       mean( eegEO(:,kf), 1 )'   \       mean( eegEC(:,kf), 1 )';		% scaling coefficient
 		else
-			writeCSV = writeFlag;
+			iRest = find( strcmp( {chanLocs.labels}, restChan ) );
+% 			alphaRatio = mean( eegEC(iRest,kf)   ./       eegEO(iRest,kf) );
+			alphaRatio = mean( eegEC(iRest,kf) )  / mean( eegEO(iRest,kf) );
+% 			alphaRatio =       eegEO(iRest,kf)'   \       eegEC(iRest,kf)';
 		end
-		if writeCSV
-			[ fid, msg ] = fopen( csvFile, 'w' );
-			if fid == -1
-				error( msg )
-			end
-			nOut = size( output, 1 );
-			fprintf( fid, '%s', output{1,1} );
-			if nOut > 1
-				fprintf( fid, ',%s', output{2:nOut,1} );
-			end
-% 			fprintf( fid, '\r\n' );		% windowsy
-			fprintf( fid, '\n' );		% linuxy
-			if ~isempty( output{1,3} )
-				fprintf( fid, output{1,2}, output{1,3} );
-			end
-			for iOut = 2:nOut
-				if isempty( output{iOut,3} )
-					fprintf( fid, ',' );
-				else
-					fprintf( fid, [ ',', output{iOut,2} ], output{iOut,3} );
-				end
-			end
-% 			fprintf( '\n' );			% add another line ending?
-			if fclose( fid ) == -1
-				warning( 'MATLAB:fcloseError', 'fclose error' )
-			end
-			fprintf( 'wrote %s\n', csvFile )
+	else
+		alphaRatio = [];
+	end
+	dpdashData = {
+		'reftime'        , '%0.0f'       , []
+		'day'            , '%d'          , []		% use for runs?
+		'timeofday'      , '%d:%02d:%02d', []
+		'weekday'        , '%d'          , []
+		'Technician'     , '%s'          , ''
+		'dTrialsVODMMN'  , '%d'          , sum( taskSeqFound == 1 ) - sum( taskSeq == 1 )
+		'dTrialsAOD'     , '%d'          , sum( taskSeqFound == 2 ) - sum( taskSeq == 2 )
+		'dTrialsASSR'    , '%d'          , sum( taskSeqFound == 3 ) - sum( taskSeq == 3 )
+		'dTrialsRestEO'  , '%d'          , sum( taskSeqFound == 4 ) - sum( taskSeq == 4 )
+		'dTrialsRestEC'  , '%d'          , sum( taskSeqFound == 5 ) - sum( taskSeq == 5 )
+		'MissingTriggers', '%d'          , nEventMissing
+		'ExtraTriggers'  , '%d'          , nEventExtra
+		'MissingFlashes' , '%d'          , nVisMissing
+		'ExtraFlashes'   , '%d'          , nVisExtra
+		'ImpRangeLo'     , '%g'          , zRange(1)
+		'ImpRangeHi'     , '%g'          , zRange(2)
+		'HighImpChans'   , '%d'          , sum( Zdata(:,iZ) > zThresh )
+		'HighNoiseChans' , '%d'          , sum( pLineMax > pLimit )
+		'HitRateVis'     , '%0.2f'       , hitRate(1) * 100		% (%)
+		'HitRateAud'     , '%0.2f'       , hitRate(2) * 100
+		'FARateNovelVis' , '%0.2f'       , FARate(1)  * 100
+		'FARateNovelAud' , '%0.2f'       , FARate(2)  * 100
+		'FARateStdVis'   , '%0.2f'       , FARate0(1) * 100
+		'FARateStdAud'   , '%0.2f'       , FARate0(2) * 100
+		'RTmedianVis'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kVis, 2 ) ) * 1e3		% (ms)
+		'RTmedianAud'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kAud, 2 ) ) * 1e3
+		'AlphaRatioEC'   , '%0.2f'       , alphaRatio
+	};
+		% file sequence flag?
+
+	% fileanme = <StudyName>-<SubjectID>-<Assessment>-day<D1>to<D2>.csv
+	% StudyName, SujectID, Assessment [A-Za-z0-9]
+	% D1, D2 [0-9]
+	% delmiter = comma
+	% 1st row contains variables names
+	% 1st 4 variable names must be reftime, day, timeofday, and weekday
+	% reftime = milliseconds since 6:00:00 AM on day of consent
+	% day = days since consent day, consent day = 1
+	% timeofday = time in 24 hr notation hh:mm:ss (leading zeros not required)
+	% weekday = integer day of week, 1=saturday
+
+	% run sheet files: .../Pronet/PHOENIX/PROTECTED/PronetCA/raw/CA00007/eeg/CA00007.Pronet.Run_sheet_eeg.csv
+	% way down @ bottom
+	% 0,0,chreeg_primaryperson,
+
+		
+	% need to figure out where to find consent date?
+	% need to put technician intials in here, where are they coming from? should already be there in file tree?
+	% line termination convention? line terminator after last line?
+	% how do we look @ it?
+	csvDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg' );
+% 	csvDir = sessDir;
+% 	csvDir = fullfile( sessDir, '?' );				% keep everything organized by site/subject/session for BWH
+% 	csvName = sprintf( '%s-%s-%s-day%dto%d.csv', 'AMPSCZ', subjId, 'EEGqc', 1, 1 );
+	csvName = sprintf( '%s-%s-%s-day%dto%d.csv', 'AMPSCZ', subjId, [ 'EEGqc', sessDate ], 1, 1 );
+	csvFile = fullfile( csvDir, csvName );
+	if isempty( writeFlag )
+		writeCSV = exist( csvFile, 'file' ) ~= 2;
+		if ~writeCSV
+			writeCSV(:) = strcmp( questdlg( [ 'Replace ', csvName, ' ?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
 		end
+	else
+		writeCSV = writeFlag;
+	end
+	if writeCSV
+		[ fid, msg ] = fopen( csvFile, 'w' );
+		if fid == -1
+			error( msg )
+		end
+		nDash = size( dpdashData, 1 );
+		fprintf( fid, '%s', dpdashData{1,1} );
+		if nDash > 1
+			fprintf( fid, ',%s', dpdashData{2:nDash,1} );
+		end
+% 		fprintf( fid, '\r\n' );		% windowsy
+		fprintf( fid, '\n' );		% linuxy
+		if ~isempty( dpdashData{1,3} )
+			fprintf( fid, dpdashData{1,2}, dpdashData{1,3} );
+		end
+		for iDash = 2:nDash
+			if isempty( dpdashData{iDash,3} )
+				fprintf( fid, ',' );
+			else
+				fprintf( fid, [ ',', dpdashData{iDash,2} ], dpdashData{iDash,3} );
+			end
+		end
+% 		fprintf( '\n' );			% add another line ending?
+		if fclose( fid ) == -1
+			warning( 'MATLAB:fcloseError', 'fclose error' )
+		end
+		fprintf( 'wrote %s\n', csvFile )
 	end
 
 	%% some topoplot options
@@ -845,6 +876,7 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	elseif numel( hFig ) > 1
 		hFig = hFig(1);
 	end
+	% nomachine desktop e.g. 1812x1048
 % 	set( hFig, 'Position', [ -2500, -300, 1800, 1000 ] )		% SCN laptop w/ VA disiplay attached
 	set( hFig, 'Position', [    50,   50, 1400, 1000 ], 'MenuBar', 'none' )		% SCN laptop native display @ 200%, i've since switched to 225% it still saves OK figure even if they're partially off screen
 	clf
@@ -968,10 +1000,6 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 
 	% Resting State relative amplitude EC/EO looking for gamma bump
 	hAx(5) = subplot( 3, 3, 6 );
-	restChan = 'Mean';
-% 	restChan = 'Oz';
-% 	restChan = 'POz';
-% 	restChan = 'Pz';
 	if doRestSpectra
 		% [0,30]Hz linear, [1,100]Hz log?
 		switch 1	% 1 = EO & EC spectra, 2 = ratio, 3 = both
@@ -1075,7 +1103,7 @@ function output = AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		end
 		set( hAx(6), 'Visible', 'off' )
 
-	set([
+		set([
 			title(  hAx(1), sprintf( '%s\n\\fontsize{12}%s', subjId, sessDate ), 'Visible', 'on' )
 			ylabel( hAx(1), sprintf( 'Recording %d / %d', iZ, nZ ), 'Visible', 'on' )
 			xlabel( hAx(1), 'Impedance (k\Omega)', 'Visible', 'on' )
