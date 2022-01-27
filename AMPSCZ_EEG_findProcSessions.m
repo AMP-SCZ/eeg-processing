@@ -165,7 +165,28 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 	if ok
 		fprintf( 'all sessions have ERP mat files\n' )
 	end
+
 	%% check for ERP png & mp4
+	seg = AMPSCZ_EEG_findProcSessions;
+	nSeg = size( seg, 1 );
+	AMPSCZdir = AMPSCZ_EEG_paths;
+	ok = true;
+	imgExt = '.png';
+% 	imgExt = '.mp4';
+	fprintf( '\n' )
+	for iSeg = 1:nSeg
+		imgFiles = dir( fullfile( AMPSCZdir, seg{iSeg,1}(1:end-2), 'PHOENIX', 'PROTECTED', seg{iSeg,1}, 'processed', seg{iSeg,2}, 'eeg', [ 'ses-', seg{iSeg,3} ], 'Figures', [ '*', imgExt ] ) );
+		if isempty( imgFiles )
+			fprintf( 'No ERP image files for %s %s %s\n', seg{iSeg,1}(1:end-2), seg{iSeg,2:3} )
+			ok(:) = false;
+		elseif numel( imgFiles ) ~= 111
+			disp( { imgFiles.name }' )
+			ok(:) = false;
+		end
+	end
+	if ok
+		fprintf( 'all sessions have ERP image files\n' )
+	end
 
 end
 
