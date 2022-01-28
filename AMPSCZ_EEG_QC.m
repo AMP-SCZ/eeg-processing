@@ -1234,12 +1234,12 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 %			getframe( hFig )					% 1800x1000 figure window has     3600x2000 cdata
 			figPos = get( hFig, 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
 			img = getframe( hFig );
-			if size( img.cdata, 1 ) ~= figPos(4)
-				img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+			img = img.cdata;
+			if size( img, 1 ) ~= figPos(4)
+				img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
 			end
 %			size( img )
-% 			imwrite( img, pngOut, 'png' )
-			imwrite( img.cdata, pngOut, 'png' )		% you can feed a getframe structure to imwrite in 2020b on Windows but not Linux
+			imwrite( img, pngOut, 'png' )
 			fprintf( 'wrote %s\n', pngOut )
 		end
 		
@@ -1262,8 +1262,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			if writePng
 				figPos = get( hFig(iFig), 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
 				img = getframe( hFig(iFig) );
-				if size( img.cdata, 1 ) ~= figPos(4)
-					img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+				img = img.cdata;
+				if size( img, 1 ) ~= figPos(4)
+					img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
 				end
 				imwrite( img, pngOut, 'png' )
 				fprintf( 'wrote %s\n', pngOut )
