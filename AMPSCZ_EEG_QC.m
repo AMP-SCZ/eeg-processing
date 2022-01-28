@@ -1,4 +1,4 @@
-function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
+function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPaths )
 % Usage:
 % >> AMPSCZ_EEG_QC( [sessionName], [writeFlag], [legacyPaths] )
 %
@@ -19,21 +19,25 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 % to do:
 % add some verbosity flag for warnings?
 % re-ref by epoch in preprocessing
-% make sure hann is Matlab function not Fieldtrip! - DONE, but need better way of adding EEGLAB to path, save extra paths in mat-file
 
-	narginchk( 0, 3 )
-
-	[ AMPSCZdir, eegLabDir ] = AMPSCZ_EEG_paths;
-
-	if exist( 'legacyPaths', 'var' ) ~= 1 || isempty( legacyPaths )
-		legacyPaths = false;		% temporary hack to be able to process files in old folder heirarchy
-	end
+	narginchk( 0, 5 )
 
 	if exist( 'writeFlag', 'var' ) ~= 1
 		writeFlag = [];
 	elseif ~isempty( writeFlag ) && ~( islogical( writeFlag ) && isscalar( writeFlag ) )
 		error( 'writeFlag must be empty or logical scalar' )
 	end
+	if exist( 'figLayout', 'var' ) ~= 1 || isempty( figLayout )
+		figLayout = 2;	% 1 = multi-panel png, 2 = individual pngs, otherwise no pngs
+	end
+	if exist( 'writeDpdash', 'var' ) ~= 1 || isempty( writeDpdash )
+		writeDpdash = true;
+	end
+	if exist( 'legacyPaths', 'var' ) ~= 1 || isempty( legacyPaths )
+		legacyPaths = false;		% temporary hack to be able to process files in old folder heirarchy
+	end
+
+
 	if exist( 'sessionName', 'var' ) == 1 && ~isempty( sessionName )
 		if iscell( sessionName )
 			noPng = ~isempty( writeFlag ) && ~writeFlag;
@@ -93,7 +97,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 
 	AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
 	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref_noseX.ced' );
-	
+
+	[ AMPSCZdir, eegLabDir ] = AMPSCZ_EEG_paths;
+
 	% minimum & maximum reaction times (s), button presses out of this range not counted as responses
 	RTrange = AMPSCZ_EEG_RTrange;
 	
@@ -383,7 +389,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 			else
 				% write out message instead of error
 				warning( 'expecting %d photosensor onsets, found %d', nMrk, nVis )
-				if nMrk > Vis
+				if nMrk > nVis
 					nVisMissing(:) = nVisMissing + nMrk - nVis;
 				else
 					nVisExtra(:) = nVisExtra + nVis - nMrk;
@@ -789,69 +795,100 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	};
 		% file sequence flag?
 
-	% fileanme = <StudyName>-<SubjectID>-<Assessment>-day<D1>to<D2>.csv
-	% StudyName, SujectID, Assessment [A-Za-z0-9]
-	% D1, D2 [0-9]
-	% delmiter = comma
-	% 1st row contains variables names
-	% 1st 4 variable names must be reftime, day, timeofday, and weekday
-	% reftime = milliseconds since 6:00:00 AM on day of consent
-	% day = days since consent day, consent day = 1
-	% timeofday = time in 24 hr notation hh:mm:ss (leading zeros not required)
-	% weekday = integer day of week, 1=saturday
+	if writeDpdash
+		% fileanme = <StudyName>-<SubjectID>-<Assessment>-day<D1>to<D2>.csv
+		% StudyName, SujectID, Assessment [A-Za-z0-9]
+		% D1, D2 [0-9]
+		% delmiter = comma
+		% 1st row contains variables names
+		% 1st 4 variable names must be reftime, day, timeofday, and weekday
+		% reftime = milliseconds since 6:00:00 AM on day of consent
+		% day = days since consent day, consent day = 1
+		% timeofday = time in 24 hr notation hh:mm:ss (leading zeros not required)
+		% weekday = integer day of week, 1=saturday
 
-	% run sheet files: .../Pronet/PHOENIX/PROTECTED/PronetCA/raw/CA00007/eeg/CA00007.Pronet.Run_sheet_eeg.csv
-	% way down @ bottom
-	% 0,0,chreeg_primaryperson,
+		% run sheet files: .../Pronet/PHOENIX/PROTECTED/PronetCA/raw/CA00007/eeg/CA00007.Pronet.Run_sheet_eeg.csv
+		% way down @ bottom
+		% 0,0,chreeg_primaryperson,
 
-		
-	% need to figure out where to find consent date?
-	% need to put technician intials in here, where are they coming from? should already be there in file tree?
-	% line termination convention? line terminator after last line?
-	% how do we look @ it?
-	csvDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg' );
-% 	csvDir = sessDir;
-% 	csvDir = fullfile( sessDir, '?' );				% keep everything organized by site/subject/session for BWH
-% 	csvName = sprintf( '%s-%s-%s-day%dto%d.csv', 'AMPSCZ', subjId, 'EEGqc', 1, 1 );
-	csvName = sprintf( '%s-%s-%s-day%dto%d.csv', 'AMPSCZ', subjId, [ 'EEGqc', sessDate ], 1, 1 );
-	csvFile = fullfile( csvDir, csvName );
-	if isempty( writeFlag )
-		writeCSV = exist( csvFile, 'file' ) ~= 2;
-		if ~writeCSV
-			writeCSV(:) = strcmp( questdlg( [ 'Replace ', csvName, ' ?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
-		end
-	else
-		writeCSV = writeFlag;
-	end
-	if writeCSV
-		[ fid, msg ] = fopen( csvFile, 'w' );
-		if fid == -1
-			error( msg )
-		end
-		nDash = size( dpdashData, 1 );
-		fprintf( fid, '%s', dpdashData{1,1} );
-		if nDash > 1
-			fprintf( fid, ',%s', dpdashData{2:nDash,1} );
-		end
-% 		fprintf( fid, '\r\n' );		% windowsy
-		fprintf( fid, '\n' );		% linuxy
-		if ~isempty( dpdashData{1,3} )
-			fprintf( fid, dpdashData{1,2}, dpdashData{1,3} );
-		end
-		for iDash = 2:nDash
-			if isempty( dpdashData{iDash,3} )
-				fprintf( fid, ',' );
-			else
-				fprintf( fid, [ ',', dpdashData{iDash,2} ], dpdashData{iDash,3} );
+
+		% need to figure out where to find consent date?
+		% need to put technician intials in here, where are they coming from? should already be there in file tree?
+		% line termination convention? line terminator after last line?
+		% how do we look @ it?
+		csvDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg' );
+%		csvDir = sessDir;
+%		csvDir = fullfile( sessDir, '?' );				% keep everything organized by site/subject/session for BWH
+%		csvName = sprintf( '%s-%s-%s-day%dto%d.csv', 'AMPSCZ', subjId, 'EEGqc', 1, 1 );
+		csvName = sprintf( '%s-%s-%s-day%dto%d.csv', 'AMPSCZ', subjId, [ 'EEGqc', sessDate ], 1, 1 );
+		csvFile = fullfile( csvDir, csvName );
+		if isempty( writeFlag )
+			writeCSV = exist( csvFile, 'file' ) ~= 2;
+			if ~writeCSV
+				writeCSV(:) = strcmp( questdlg( [ 'Replace ', csvName, ' ?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
 			end
+		else
+			writeCSV = writeFlag;
 		end
-% 		fprintf( '\n' );			% add another line ending?
-		if fclose( fid ) == -1
-			warning( 'MATLAB:fcloseError', 'fclose error' )
+		if writeCSV
+			[ fid, msg ] = fopen( csvFile, 'w' );
+			if fid == -1
+				error( msg )
+			end
+			nDash = size( dpdashData, 1 );
+			fprintf( fid, '%s', dpdashData{1,1} );
+			if nDash > 1
+				fprintf( fid, ',%s', dpdashData{2:nDash,1} );
+			end
+%			fprintf( fid, '\r\n' );		% windowsy
+			fprintf( fid, '\n' );		% linuxy
+			if ~isempty( dpdashData{1,3} )
+				fprintf( fid, dpdashData{1,2}, dpdashData{1,3} );
+			end
+			for iDash = 2:nDash
+				if isempty( dpdashData{iDash,3} )
+					fprintf( fid, ',' );
+				else
+					fprintf( fid, [ ',', dpdashData{iDash,2} ], dpdashData{iDash,3} );
+				end
+			end
+%			fprintf( '\n' );			% add another line ending?
+			if fclose( fid ) == -1
+				warning( 'MATLAB:fcloseError', 'fclose error' )
+			end
+			fprintf( 'wrote %s\n', csvFile )
 		end
-		fprintf( 'wrote %s\n', csvFile )
 	end
 
+	hAx = gobjects( 1, 6 );
+	switch figLayout
+		case 1		% Single png, multiple panels
+			hFig = findobj( 'Type', 'figure', 'Tag', mfilename );
+			if isempty( hFig )
+				hFig = figure( 'Tag', mfilename );
+			elseif numel( hFig ) > 1
+				hFig = hFig(1);
+				clf( hFig )
+			end
+			% nomachine desktop e.g. 1812x1048
+%			set( hFig, 'Position', [ -2500, -300, 1800, 1000 ] )		% SCN laptop w/ VA disiplay attached
+			set( hFig, 'Position', [    50,   50, 1400, 1000 ], 'MenuBar', 'none' )		% SCN laptop native display @ 200%, i've since switched to 225% it still saves OK figure even if they're partially off screen
+		case 2		% Multiple single-panel pngs for dashboard
+			nFig = 6;
+			hFig = gobjects( 1, nFig );
+			for iFig = 1:2
+				hFig(iFig) = figure( 'Position', [ 475+25*iFig, 325-25*iFig, 525, 250 ] );
+				hAx(iFig)  =  axes( 'Units', 'normalized', 'Position', [ 0, 0.18, 0.55, 0.97-0.18 ] );
+			end
+			for iFig = 3:nFig
+				hFig(iFig) = figure( 'Position', [ 475+25*iFig, 325-25*iFig, 350, 250 ] );
+				hAx(iFig)  =  axes( 'Units', 'normalized', 'Position', [ 0.2, 0.2, 0.75, 0.75 ] );
+			end
+			set( hFig, 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' );
+		otherwise
+			return
+	end
+	
 	%% some topoplot options
 	%   electrodes [on], off, labels, numbers, ptslabels, ptsnumbers
 	%   style: map, contour, [both], fill, blank
@@ -869,20 +906,12 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 
 	badChanColor = [ 0.875, 1, 1 ];
 	
-	hAx = gobjects( 1, 6 );
-	hFig = findobj( 'Type', 'figure', 'Tag', mfilename );
-	if isempty( hFig )
-		hFig = figure( 'Tag', mfilename );
-	elseif numel( hFig ) > 1
-		hFig = hFig(1);
-	end
-	% nomachine desktop e.g. 1812x1048
-% 	set( hFig, 'Position', [ -2500, -300, 1800, 1000 ] )		% SCN laptop w/ VA disiplay attached
-	set( hFig, 'Position', [    50,   50, 1400, 1000 ], 'MenuBar', 'none' )		% SCN laptop native display @ 200%, i've since switched to 225% it still saves OK figure even if they're partially off screen
-	clf
-	
 	% 1. Impedance
-	hAx(1) = subplot( 3, 2, 1 );
+	figure( hFig(1) )
+	if figLayout == 1
+		hAx(1) = subplot( 3, 2, 1 );
+	end
+		topoOpts = [ topoOpts, { 'whitebk', 'on' } ];
 		if isempty( Z ) || all( isnan( [ Z{kZ,2,iZ} ] ) )
 			text( 'Units', 'normalized', 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Position', [ 0.5, 0.5, 0 ],...
 				'String', [ badColor, zMsg ], 'FontSize', fontSize, 'FontWeight', fontWeight )
@@ -925,7 +954,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		
 	% 2. Line noise
 	topoOpts{10} = [ 0, pLimit ];
-	hAx(2) = subplot( 3, 2, 2 );
+	if figLayout == 1
+		hAx(2) = subplot( 3, 2, 2 );
+	else
+		figure( hFig(2) )
+	end
 		topoplot( pLineMax, chanLocs(1:63), topoOpts{:} );
 	
 		topoRadius = [ chanLocs(1:63).radius ];
@@ -945,7 +978,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 				min(pLineMax), max(pLineMax), median(pLineMax), pLimit, sum(pLineMax>pLimit), numel(pLineMax) ) )
 	
 	% 3. Response rates
-	hAx(3) = subplot( 3, 3, 4 );
+	if figLayout == 1
+		hAx(3) = subplot( 3, 3, 4 );
+	else
+		figure( hFig(3) )
+	end
 		bar( 1:3, [ hitRate(1:2), FARate(1:2), FARate0(1:2) ]' * 1e2, 1 )
 		set( hAx(3), 'XLim', [ 0.5, 3.5 ], 'XTick', 1:3, 'XTickLabel', { 'Target Hit', 'Novel FA', 'Stnd FA' }, 'YLim', [ 0, 100 ] )
 		set( [
@@ -957,7 +994,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		set( hAx(3), 'YLim', [ -10, 110 ] )
 
 	% 4. Reaction Time
-	hAx(4) = subplot( 3, 3, 5 );
+	if figLayout == 1
+		hAx(4) = subplot( 3, 3, 5 );
+	else
+		figure( hFig(4) )
+	end
 		RT   = respData(kResp,2) * 1e3;
 		kVis = kVis(kResp);
 		kAud = kAud(kResp);
@@ -999,7 +1040,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		end
 
 	% Resting State relative amplitude EC/EO looking for gamma bump
-	hAx(5) = subplot( 3, 3, 6 );
+	if figLayout == 1
+		hAx(5) = subplot( 3, 3, 6 );
+	else
+		figure( hFig(5) )
+	end
 	if doRestSpectra
 		% [0,30]Hz linear, [1,100]Hz log?
 		switch 1	% 1 = EO & EC spectra, 2 = ratio, 3 = both
@@ -1047,7 +1092,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	end
 
 	% Text table
-	hAx(6) = subplot( 3, 1, 3 );
+	if figLayout == 1
+		hAx(6) = subplot( 3, 1, 3 );
 		% Brain Products "Photo Sensor" is a photo diode
 		% QCvars = { 'Run', taskInfo{1,2}{[ 1:3, 5:6 ],2}, 'VIS', 'TrgHit', 'NovelFA', 'OtherFA', 'Misc' };
 % 		QCline1 = QCvars;
@@ -1102,23 +1148,35 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 				'FontSize', 12, 'FontWeight', 'bold', 'FontName', 'Courier' )
 		end
 		set( hAx(6), 'Visible', 'off' )
+	else
+		figure( hFig(6) )
+		bar( 1:7,  [ dpdashData{[6:10,12,14],3} ] )
+		hold on
+		bar( 6:7, -[ dpdashData{[     11,13],3} ] )
+		hold off
+		set( hAx(6), 'XTick', 1:7, 'XTickLabel', { 'VODMMN', 'AOD', 'ASSR', 'RestEO', 'RestEC', 'Event', 'Sensor' }, 'XTickLabelRotation', 45 )
+		deltaMax = max( abs( [ dpdashData{6:14,3} ] ) );
+		if deltaMax ~= 0
+			set( hAx(6), 'YLim', [ -1, 1 ] * deltaMax * 1.05 )
+		end
+	end
 
-		set([
-			title(  hAx(1), sprintf( '%s\n\\fontsize{12}%s', subjId, sessDate ), 'Visible', 'on' )
-			ylabel( hAx(1), sprintf( 'Recording %d / %d', iZ, nZ ), 'Visible', 'on' )
-			xlabel( hAx(1), 'Impedance (k\Omega)', 'Visible', 'on' )
+	set([
+		title(  hAx(1), sprintf( '%s\n\\fontsize{12}%s', subjId, sessDate ), 'Visible', 'on' )
+		ylabel( hAx(1), sprintf( 'Recording %d / %d', iZ, nZ ), 'Visible', 'on' )
+		xlabel( hAx(1), 'Impedance (k\Omega)', 'Visible', 'on' )
 
-			xlabel( hAx(2), sprintf( 'Power @ %g Hz (%%)', fLine ), 'Visible', 'on' )
+		xlabel( hAx(2), sprintf( 'Power @ %g Hz (%%)', fLine ), 'Visible', 'on' )
 
-			ylabel( hAx(3), 'Response Rate (%)' )
-			
-			xlabel( hAx(4), 'Target Reaction Time (ms)' )
-	
-% 			ylabel( hAx(5), [ restChan, ' Amplitude (\muV)' ] )
-			ylabel( hAx(5), [ restChan, ' Power (\muV^2)' ] )
-% 			ylabel( hAx(5), { 'EC / EO'; [ restChan, ' Amplitude' ] } )
-			xlabel( hAx(5), 'Frequency (Hz)' )
-		], 'FontSize', fontSize, 'FontWeight', fontWeight )
+		ylabel( hAx(3), 'Response Rate (%)' )
+
+		xlabel( hAx(4), 'Target Reaction Time (ms)' )
+
+% 		ylabel( hAx(5), [ restChan, ' Amplitude (\muV)' ] )
+		ylabel( hAx(5), [ restChan, ' Power (\muV^2)' ] )
+% 		ylabel( hAx(5), { 'EC / EO'; [ restChan, ' Amplitude' ] } )
+		xlabel( hAx(5), 'Frequency (Hz)' )
+	], 'FontSize', fontSize, 'FontWeight', fontWeight )
 	
 	if isempty( Z )
 		set( get( hAx(1), 'XLabel' ), 'Visible', 'off' )
@@ -1128,14 +1186,21 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 	end
 	set( hAx(1), 'CLim', [ 0, zLimit ] )
 	set( hAx(2), 'CLim', [ 0, pLimit ] )
-	set( hAx(3:5), 'FontSize', 12 )
+	set( hAx(3:5), 'FontSize', 12 )			% this is changing x & y labels too! not just tick labels
 	set( hAx([3 5]), 'YGrid', 'on' )
 	set( hAx(4), 'XGrid', 'on' )
+	
+	if figLayout == 2
+% 		ylabel( hAx(6), 'Unexpected Counts', 'FontSize', fontSize, 'FontWeight', fontWeight )
+		ylabel( hAx(6), '\Delta#', 'FontSize', fontSize, 'FontWeight', fontWeight )
+		set( hAx(6), 'Position', [ 0.2, 0.3, 0.75, 0.65 ], 'FontSize', 12 )			% this is changing x & y labels too! not just tick labels
+		set( get( hAx(1), 'Title' ), 'String', '' )
+		% topoplot changes some things
+		set( hFig(1:2), 'Color', 'w' )
+		set(  hAx(1:2), 'Position', [ 0, 0.18, 0.55, 0.97-0.18 ] )
+% 		disp( QCtable )
+	end
 
-	figure( hFig )
-% 	drawnow
-	pause( 0.010 )		% figure renders OK 1 at a time, but png had text in wrong place?
-% 	return
 
 	pngDir = fullfile( sessDir, 'Figures' );				% keep everything organized by site/subject/session for BWH
 % 	pngDir = fullfile( AMPSCZdir, 'Figures', 'QC' );		% write all sessions in 1 common directory for ease of local analysis
@@ -1146,38 +1211,129 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, legacyPaths )
 		mkdir( pngDir )
 		fprintf( 'created %s\n', pngDir )
 	end
-	pngOut = fullfile( pngDir, [ subjId, '_', sessDate, '_QC.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QC.png' ]
-	if isempty( writeFlag )
-		writePng = exist( pngOut, 'file' ) ~= 2;
-		if ~writePng
-			writePng(:) = strcmp( questdlg( [ 'Replace ', subjId, ' ', sessDate, ' QC png?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
+
+	if figLayout == 1
+
+		figure( hFig )
+%		drawnow
+		pause( 0.010 )		% figure renders OK 1 at a time, but png had text in wrong place?
+%		return
+
+		pngOut = fullfile( pngDir, [ subjId, '_', sessDate, '_QC.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QC.png' ]
+		if isempty( writeFlag )
+			writePng = exist( pngOut, 'file' ) ~= 2;
+			if ~writePng
+				writePng(:) = strcmp( questdlg( [ 'Replace ', subjId, ' ', sessDate, ' QC png?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
+			end
+		else
+			writePng = writeFlag;
 		end
+		if writePng
+%			print( hFig, pngOut, '-dpng' )		% 1800x1000 figure window becomes 2813x1563
+%			saveas( hFig, pngOut, 'png' )		% 1800x1000 figure window becomes 2813x1563
+%			getframe( hFig )					% 1800x1000 figure window has     3600x2000 cdata
+			figPos = get( hFig, 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
+			img = getframe( hFig );
+			if size( img.cdata, 1 ) ~= figPos(4)
+				img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+			end
+%			size( img )
+			imwrite( img, pngOut, 'png' )
+			fprintf( 'wrote %s\n', pngOut )
+		end
+		
 	else
-		writePng = writeFlag;
-	end
-	if writePng
-%		print( hFig, pngOut, '-dpng' )		% 1800x1000 figure window becomes 2813x1563
-%		saveas( hFig, pngOut, 'png' )		% 1800x1000 figure window becomes 2813x1563
-%		getframe( hFig )					% 1800x1000 figure window has     3600x2000 cdata
-		figPos = get( hFig, 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
-		img = getframe( hFig );
-		if size( img.cdata, 1 ) ~= figPos(4)
-			img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+		
+		%              1            2            3                   4               5            6
+		figSuffix = { 'impedance', 'lineNoise', 'responseAccuracy', 'responseTime', 'restAlpha', 'counts' };
+		htmlFile  = fullfile( pngDir, [ subjId, '_', sessDate, '_QC.html' ] );
+		writeHtml = exist( htmlFile, 'file' ) ~= 2;
+		for iFig = 1:nFig
+			pngOut = fullfile( pngDir, [ subjId, '_', sessDate, '_QC', figSuffix{iFig}, '.png' ] );		% [ subjTag(5:end), '_', sessTag(5:end), '_QC.png' ]
+			if isempty( writeFlag )
+				writePng = exist( pngOut, 'file' ) ~= 2;
+				if ~writePng
+					writePng(:) = strcmp( questdlg( [ 'Replace ', subjId, ' ', sessDate, ' QC png?' ], mfilename, 'no', 'yes', 'no' ), 'yes' );
+				end
+			else
+				writePng = writeFlag;
+			end
+			if writePng
+				figPos = get( hFig(iFig), 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
+				img = getframe( hFig(iFig) );
+				if size( img.cdata, 1 ) ~= figPos(4)
+					img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
+				end
+				imwrite( img, pngOut, 'png' )
+				fprintf( 'wrote %s\n', pngOut )
+				writeHtml(:) = true;
+			end
 		end
-%		size( img )
-		imwrite( img, pngOut, 'png' )
-		fprintf( 'wrote %s\n', pngOut )
+		% write html file
+		if writeHtml
+			[ fid, msg ] = fopen( htmlFile, 'w' );
+			if fid == -1
+				error( msg )
+			end
+			fprintf( fid, '<!DOCTYPE html>\n' );
+			fprintf( fid, '<html lang="en">\n' );
+			fprintf( fid, '<head>\n' );
+			fprintf( fid, '\t<meta charset="UTF-8">\n' );
+			fprintf( fid, '\t<title>%s %s QC</title>\n', subjId, sessDate );
+			fprintf( fid, '\t<style>\n' );
+			fprintf( fid, '\t\tdiv { min-width: 1200px; margin-bottom: 40px; }\n' );
+			fprintf( fid, '\t</style>\n' );
+			fprintf( fid, '</head>\n' );
+			fprintf( fid, '<body>\n' );
+			fprintf( fid, '\t<div style="padding-left: 50px; font-size: 2.5em;">\n' );
+			fprintf( fid, '\t\t%s<br>%s\n', subjId, sessDate );
+			fprintf( fid, '\t</div>\n' );
+			fprintf( fid, '\t<div>\n' );
+			fprintf( fid, '\t\t<img src="%s_%s_QCimpedance.png" alt="impedance"  width="525" height="250">\n', subjId, sessDate );
+			fprintf( fid, '\t\t<img src="%s_%s_QClineNoise.png" alt="line noise" width="525" height="250">\n', subjId, sessDate );
+			fprintf( fid, '\t</div>\n' );
+			fprintf( fid, '\t<div>\n' );
+			fprintf( fid, '\t\t<img src="%s_%s_QCresponseAccuracy.png" alt="accuracy"      width="350" height="250">\n', subjId, sessDate );
+			fprintf( fid, '\t\t<img src="%s_%s_QCresponseTime.png"     alt="reaction time" width="350" height="250">\n', subjId, sessDate );
+			fprintf( fid, '\t\t<img src="%s_%s_QCrestAlpha.png"        alt="spectra"       width="350" height="250">\n', subjId, sessDate );
+			fprintf( fid, '\t</div>\n' );
+			fprintf( fid, '\t<div>\n' );
+			fprintf( fid, '\t\t<img src="%s_%s_QCcounts.png"           alt="counts"        width="350" height="250">\n', subjId, sessDate );
+			fprintf( fid, '\t</div>\n' );
+			fprintf( fid, '</body>\n' );
+			fprintf( fid, '</html>\n' );
+			if fclose( fid ) == -1
+				warning( 'MATLAB:fcloseError', 'fclose error' )
+			end
+			fprintf( 'wrote %s\n', htmlFile )
+		end
+
 	end
 	
 	return
 	
-%%
-%{
-		% e.g.
-		proc = AMPSCZ_EEG_findProcSessions;
-		AMPSCZ_EEG_QC( strcat( proc(:,2), '_', proc(:,3) ), true )
+%%	update QC figures
+%
 
-%}
+		% e.g.
+		clear
+
+		writeFlag   = [];
+		figLayout   = 2;	% 1 = 1 png, multi-panel; 2 = 5 pngs, single-panel
+		writeDpdash = [];
+		legacyPaths = false;
+
+		seg = AMPSCZ_EEG_findProcSessions;
+		if figLayout == 2
+			for iSeg = 1:size( seg, 1 )
+				close all
+				AMPSCZ_EEG_QC( [ seg{iSeg,2}, '_', seg{iSeg,3} ], writeFlag, figLayout, writeDpdash, legacyPaths )
+			end
+		else
+			AMPSCZ_EEG_QC( strcat( seg(:,2), '_', seg(:,3) ), writeFlag, figLayout, writeDpdash, legacyPaths )
+		end
+
+%
 %%
 
 end

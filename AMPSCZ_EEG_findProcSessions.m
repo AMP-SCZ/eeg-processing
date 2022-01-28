@@ -1,7 +1,7 @@
 function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 % Reads AMPSCZ PHOENIX directory trees to find available data for analysis.
 % This function searches for BIDS/dataset_description.json to determine if a 
-% session has been processed
+% session has been processed with AMPSCZ_EEG_segmentRaw.m
 %
 % Usage:
 % >> sessionList = AMPSCZ_EEG_findProcSessions;
