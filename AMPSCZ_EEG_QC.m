@@ -764,6 +764,12 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 	else
 		alphaRatio = [];
 	end
+	
+	if isempty( zRange )
+		zRangeDash = { [], [] };
+	else
+		zRangeDash = { zRange(iZr,1), zRange(iZr,2) };
+	end
 	dpdashData = {
 		'reftime'        , '%0.0f'       , []
 		'day'            , '%d'          , []		% use for runs?
@@ -779,8 +785,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		'ExtraTriggers'  , '%d'          , nEventExtra
 		'MissingFlashes' , '%d'          , nVisMissing
 		'ExtraFlashes'   , '%d'          , nVisExtra
-		'ImpRangeLo'     , '%g'          , zRange(1)
-		'ImpRangeHi'     , '%g'          , zRange(2)
+		'ImpRangeLo'     , '%g'          , zRangeDash{1}
+		'ImpRangeHi'     , '%g'          , zRangeDash{2}
 		'HighImpChans'   , '%d'          , sum( Zdata(:,iZ) > zThresh )
 		'HighNoiseChans' , '%d'          , sum( pLineMax > pLimit )
 		'HitRateVis'     , '%0.2f'       , hitRate(1) * 100		% (%)
@@ -933,7 +939,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		if ~isempty( Z )
 			zStr = '';
 			for i = 1:size( zRange, 1 )
-				if all( zRange(iZr,:) == [ 25, 75 ] )
+				if all( zRange(i,:) == [ 25, 75 ] )
 					zStr = [ zStr, goodColor ];
 				else
 					zStr = [ zStr, badColor ];
