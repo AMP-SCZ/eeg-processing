@@ -1238,7 +1238,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				img = imresize( img.cdata, figPos(4) / size( img.cdata, 1 ), 'bicubic' );		% scale by height
 			end
 %			size( img )
-			imwrite( img, pngOut, 'png' )
+% 			imwrite( img, pngOut, 'png' )
+			imwrite( img.cdata, pngOut, 'png' )		% you can feed a getframe structure to imwrite in 2020b on Windows but not Linux
 			fprintf( 'wrote %s\n', pngOut )
 		end
 		
