@@ -770,6 +770,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 	else
 		zRangeDash = { zRange(iZr,1), zRange(iZr,2) };
 	end
+	if isempty( Z )
+		nHighZChans = [];
+	else
+		nHighZChans = sum( Zdata(:,iZ) > zThresh );		% Zdata doesn't exist when Z is empty
+	end
 	dpdashData = {
 		'reftime'        , '%0.0f'       , []
 		'day'            , '%d'          , []		% use for runs?
@@ -787,7 +792,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		'ExtraFlashes'   , '%d'          , nVisExtra
 		'ImpRangeLo'     , '%g'          , zRangeDash{1}
 		'ImpRangeHi'     , '%g'          , zRangeDash{2}
-		'HighImpChans'   , '%d'          , sum( Zdata(:,iZ) > zThresh )
+		'HighImpChans'   , '%d'          , nHighZChans
 		'HighNoiseChans' , '%d'          , sum( pLineMax > pLimit )
 		'HitRateVis'     , '%0.2f'       , hitRate(1) * 100		% (%)
 		'HitRateAud'     , '%0.2f'       , hitRate(2) * 100
@@ -796,7 +801,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		'FARateStdVis'   , '%0.2f'       , FARate0(1) * 100
 		'FARateStdAud'   , '%0.2f'       , FARate0(2) * 100
 		'RTmedianVis'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kVis, 2 ) ) * 1e3		% (ms)
-		'RTmedianAud'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kAud, 2 ) ) * 1e3
+		'RTmedianAud'    , '%0.0f'       , median( respData( respData(:,1) == 1 & kResp & kAud, 2 ) ) * 1e3		% note: median([]) = NaN
 		'AlphaRatioEC'   , '%0.2f'       , alphaRatio
 	};
 		% file sequence flag?
