@@ -1,6 +1,6 @@
 function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPaths )
 % Usage:
-% >> AMPSCZ_EEG_QC( [sessionName], [writeFlag], [legacyPaths] )
+% >> AMPSCZ_EEG_QC( [sessionName], [writeFlag], [figLayout], [writeDpdash], [legacyPaths] )
 %
 % Optional Inputs:
 % sessionName = 16-character [ subjId, '_', date ] vector, e.g. 'BI00001_20220101'
@@ -37,7 +37,6 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		legacyPaths = false;		% temporary hack to be able to process files in old folder heirarchy
 	end
 
-
 	if exist( 'sessionName', 'var' ) == 1 && ~isempty( sessionName )
 		if iscell( sessionName )
 			noPng = ~isempty( writeFlag ) && ~writeFlag;
@@ -47,7 +46,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			end
 			for iSession = 1:nSession
 				try
-					AMPSCZ_EEG_QC( sessionName{iSession}, writeFlag )
+					AMPSCZ_EEG_QC( sessionName{iSession}, writeFlag, figLayout, writeDpdash, legacyPaths )
 				catch ME
 					fprintf( '\n\n%s\n%s\n%s\n\n', repmat( '*', [ 1, 80 ] ), ME.message, repmat( '*', [ 1, 80 ] ) )
 					continue
@@ -78,7 +77,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		end
 		for iMulti = 1:nSession
 			try
-				AMPSCZ_EEG_QC( sprintf( '%s_%s', sessionList{iSession(iMulti),2:3} ), writeFlag )
+				AMPSCZ_EEG_QC( sprintf( '%s_%s', sessionList{iSession(iMulti),2:3} ), writeFlag, figLayout, writeDpdash, legacyPaths )
 			catch ME
 % 				disp( ME )
 % 				for ii = numel( ME.stack ):-1:1
@@ -1332,20 +1331,44 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		clear
 
 		writeFlag   = [];
-		figLayout   = 2;	% 1 = 1 png, multi-panel; 2 = 5 pngs, single-panel
+		figLayout   = 1;	% 1 = 1 png, multi-panel; 2 = 5 pngs, single-panel
 		writeDpdash = [];
 		legacyPaths = false;
 
-		seg = AMPSCZ_EEG_findProcSessions;
+		seg  = AMPSCZ_EEG_findProcSessions;
+		nSeg = size( seg, 1 );
+		
+		AMPSCZdir = AMPSCZ_EEG_paths;
 		if figLayout == 2
-			for iSeg = 1:size( seg, 1 )
+			figSuffix = { 'impedance', 'lineNoise', 'responseAccuracy', 'responseTime', 'restAlpha', 'counts' };
+		else
+			figSuffix = { '' };
+		end
+		nFig = numel( figSuffix );
+		kSeg = true( 1, nSeg );
+		for iSeg = 1:nSeg
+			for iFig = 1:nFig
+				QCfigs = dir( fullfile( AMPSCZdir, seg{iSeg,1}(1:end-2), 'PHOENIX', 'PROTECTED', seg{iSeg,1},...
+					'processed', seg{iSeg,2}, 'eeg', [ 'ses-', seg{iSeg,3} ], 'Figures', [ '*_QC', figSuffix{iFig}, '.png' ] ) );
+				if isempty( QCfigs )
+					kSeg(iSeg) = false;
+					break
+				end
+			end
+		end
+		seg  = seg(~kSeg,:);
+		nSeg = size( seg, 1 );
+
+		if figLayout == 2
+			for iSeg = 1:nSeg
 				close all
 				AMPSCZ_EEG_QC( [ seg{iSeg,2}, '_', seg{iSeg,3} ], writeFlag, figLayout, writeDpdash, legacyPaths )
 			end
 		else
 			AMPSCZ_EEG_QC( strcat( seg(:,2), '_', seg(:,3) ), writeFlag, figLayout, writeDpdash, legacyPaths )
 		end
-
+		
+		fprintf( 'done\n' )
 %
 %%
 
