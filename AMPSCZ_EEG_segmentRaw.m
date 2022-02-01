@@ -467,6 +467,13 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 									ImarkerEnd{iBV}(iSegment) = ImarkerSeg{iBV}(iSegment+1) - 1;		% one before the next segment starts
 								end
 								ImarkerRange = ImarkerSeg{iBV}(iSegment):ImarkerEnd{iBV}(iSegment);		% include new segment marker?
+								if numel( ImarkerRange ) == 1
+									iSkip(:) = iSkip + 1;
+									skipLog{iSkip,1} = sprintf( '%s segment #%d - no event markers', H(iBV).Common.MarkerFile, iSegment );
+									skipLog{iSkip,2} = true;
+									writeToLog( verbose, '%s\n', skipLog{iSkip,1} )
+									continue
+								end
 								kLostSamples = strncmp( { M(iBV).Marker.Mk(ImarkerRange).description }, 'LostSamples:', 12 );
 								if any( kLostSamples )
 									iSkip(:) = iSkip + 1;

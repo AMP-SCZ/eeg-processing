@@ -262,8 +262,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	outName = sprintf( '%s_%s_%s_[%g,%g]', subjTag(5:end), sessTag(5:end), epochName, passBand(1), passBand(2) );
 	logFile  = fullfile( matDir, [ outName, '.log' ] );
 	matFile  = fullfile( matDir, [ outName, '.mat' ] );
+	writeMat = exist( matFile, 'file' ) ~= 2;
 	if isempty( writeFlag )
-		writeMat = exist( matFile, 'file' ) ~= 2;
 		if ~writeMat
 			writeMat(:) = strcmp( questdlg( [ 'Replace ', outName, '.mat?' ], 'mat-file', 'No', 'Yes', 'No' ), 'Yes' );
 			if ~writeMat
@@ -271,11 +271,13 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 			end
 		end
 	elseif writeFlag
-		warning( '%s will be overwritten', matFile )		% logFile too
-		writeMat = true;
-	else
+		if ~writeMat
+			warning( '%s will be overwritten', matFile )		% logFile too
+			writeMat = true;
+		end
+	elseif ~writeMat
 		fprintf( '%s exists\n', matFile )
-% 		writeMat = false;
+% 		writeMat(:) = false;
 		return
 	end
 

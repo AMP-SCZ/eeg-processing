@@ -879,6 +879,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			elseif numel( hFig ) > 1
 				hFig = hFig(1);
 				clf( hFig )
+			else
+				clf( hFig )
 			end
 			% nomachine desktop e.g. 1812x1048
 %			set( hFig, 'Position', [ -2500, -300, 1800, 1000 ] )		% SCN laptop w/ VA disiplay attached
@@ -1331,7 +1333,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		clear
 
 		writeFlag   = [];
-		figLayout   = 1;	% 1 = 1 png, multi-panel; 2 = 5 pngs, single-panel
+		figLayout   = 2;	% 1 = 1 png, multi-panel; 2 = 5 pngs, single-panel
 		writeDpdash = [];
 		legacyPaths = false;
 
