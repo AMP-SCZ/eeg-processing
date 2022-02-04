@@ -1,9 +1,9 @@
-function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeFlag )
+function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeFlag, IRun )
 % Pre-process segmented AMP SCZ Brain Vision files for MMN, VOD, or AOD ERP analysis.
 % Saves output in mat-file format
 %
 % Usage:
-% >> AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, [passBand], [writeFlag] )
+% >> AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, [passBand], [writeFlag], [IRun] )
 %
 % Where:
 %   subjectID   = 7-character subject identifier, 2-char site code + 5-digit subject #
@@ -12,6 +12,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 %   passBand    = option input [ lowFreq, highFreq ] (Hz), default = [ 0.1, Inf ]
 %   writeFlag   = how to handle mat-files that already exist, default = []
 %                 true = overwrite, false = don't overwrite, [] = prompt if needed
+%   IRun        = run number vector, only used for skipping bad runs
 %
 % Dependencies: EEGLAB
 
@@ -45,7 +46,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 % this mainly gets set up to run it, and does some minor checks & input reconfigurng/gathering to run it
 % it also only does VODMMN & AOD runs!
 
-	narginchk( 3, 5 )
+	narginchk( 3, 6 )
 	
 	% EEGLAB (pop_eegfiltnew.m) recommends HPF > 1, no LPF?
 	% if doing bandpass, do it in 2 parts? to avoid low-pass having steeper slope than highpass? not relevant for ERPLAB pop_basicfilter.m
@@ -59,13 +60,19 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	elseif ~isempty( writeFlag ) && ~( islogical( writeFlag ) && isscalar( writeFlag ) )
 		error( 'writeFlag must be empty or logical scalar' )
 	end
+	if exist( 'IRun', 'var' ) ~= 1
+		IRun = [];
+	end
 	if iscell( epochName )
+		if ~isempty( IRun )
+			error( 'don''t use IRun input w/ cell epochName' )
+		end
 		% they get checked later, but might as well know about errors up front
 		if ~all( cellfun( @ischar, epochName ) ) || ~all( ismember( epochName, { 'MMN', 'VOD', 'AOD' } ) )
 			error( 'Invalid epochName input' )
 		end
 		for iEpoch = 1:numel( epochName )
-			AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName{iEpoch}, passBand, writeFlag )
+			AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName{iEpoch}, passBand, writeFlag )%, IRun )
 		end
 		return
 	end
@@ -281,7 +288,14 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		return
 	end
 
-	nRun      = taskList{iTask,2};
+	if isempty( IRun )
+		nRun = taskList{iTask,2};
+		IRun = 1:nRun;
+	else
+		nRun = numel( IRun );
+	end
+	
+	
 	EEG       = repmat( eeg_checkset( eeg_emptyset ), [ 1, nRun ] );
 % 	epochInfo = struct( 'latency', cell( 1, nRun ), 'kStandard', [], 'kTarget', [], 'kNovel', [], 'kCorrect', [], 'Nstandard', [], 'respLat', [] );		% latency is event latency, respLat is response latency
 	epochInfo = struct( 'latency', cell( 1, nRun ), 'kStandard', [], 'kTarget', [], 'kNovel', [], 'kCorrect', [], 'respLat', [] );		% latency is event latency, respLat is response latency
@@ -292,7 +306,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		% pop_loadbv requires bva-io
 		% note:	EEG(iRun).ref = 'common';
 		%       EEG(iRun).chaninfo.nosedir = '+X'
-		runTag = sprintf( 'run-%02d', iRun );
+		runTag = sprintf( 'run-%02d', IRun(iRun) );
 		bvFile = sprintf( '%s_%s_%s_%s_eeg.vhdr', subjTag, sessTag, taskTag, runTag );
 		EEG(iRun) = pop_loadbv( bvDir, bvFile );
 		

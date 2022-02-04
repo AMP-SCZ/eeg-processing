@@ -542,6 +542,12 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				if any( kGood )
 					Ireref = Ireref( kGood );
 					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ireref,:), 1 ) );
+% 					if ~all( kGood )
+% 						eegStruct = ...
+% 						eegStruct = h_eeg_interp_spl( eegStruct, Ireref(~kGood), [] );			% note: help says 3rd input is interpolation method, but really its channels to ignore!
+% 						eeg(Ieeg,:) = eegStruct.data;
+% 					end
+% 					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ieeg,:), 1 ) );
 				end
 			case 3
 				% PREP robust reference - can I do this w/o full EEGLAB structures?  needs chanlocs for sure
@@ -1284,7 +1290,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			end
 		end
 		% write html file
-		if writeHtml
+		if writeHtml && ( isempty( writeFlag ) || writeFlag )
 			[ fid, msg ] = fopen( htmlFile, 'w' );
 			if fid == -1
 				error( msg )

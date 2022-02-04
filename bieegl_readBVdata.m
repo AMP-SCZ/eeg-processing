@@ -18,6 +18,7 @@ function D = bieegl_readBVdata( H, parentDir )
 
 % To do:
 % variable input options? e.g. a header file string, a data file string + format & #channels
+% convert units inside this function?
 
 	try
 		

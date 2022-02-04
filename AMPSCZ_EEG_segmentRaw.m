@@ -573,7 +573,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 								% add task and run info to output file name
 								iTask = Itask{iBV}(iSegment);
 								if iTask == 0
-									break
+									continue
 								end
 								nRunFound(iTask) = nRunFound(iTask) + 1;
 								outputSegment = sprintf( '%s_%s_task-%s_run-%02d_eeg', subjCode, sessionCode, taskInfo{iTask,1}, nRunFound(iTask) );
@@ -867,6 +867,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 
 		end		% site loop
 
+		fprintf( '\ndone\n\n' )
 		return
 
 	catch ME
