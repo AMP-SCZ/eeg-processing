@@ -944,7 +944,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			topoX      =  topoRadius .* cosd( topoTheta ) * fXY;
 			topoY      = -topoRadius .* sind( topoTheta ) * fXY;
 			kThresh    = [ Z{kZ,2,iZ} ] > zThresh;
-			line( topoX(kThresh), topoY(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
+			% this was w/ nose @ +Y
+% 			line(  topoX(kThresh), topoY(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
+			line( -topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
 
 			colorbar%( 'southoutside' );
 		end
@@ -985,7 +987,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		topoX      =  topoRadius .* cosd( topoTheta ) * fXY;
 		topoY      = -topoRadius .* sind( topoTheta ) * fXY;
 		kThresh    = pLineMax > pLimit;
-		line( topoX(kThresh), topoY(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
+% 		line(  topoX(kThresh), topoY(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
+		line( -topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
 	
 		colorbar%( 'southoutside' );
 			text( 'Units', 'normalized', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', 'Position', [ 1.35, 0.95, 0 ],...

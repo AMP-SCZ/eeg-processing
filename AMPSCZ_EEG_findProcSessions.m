@@ -28,7 +28,7 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 	AMPSCZdir = AMPSCZ_EEG_paths;
 
 	NSess = 0;
-	Sess  = cell( 0, 3 );
+	Sess  = cell( 0, 4 );
 	
 	for networkName = { 'Pronet', 'Prescient' }
 	
@@ -47,6 +47,7 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 		% don't really need to store this info & not that network loop was added, it's incomplete anyhow!
 		subjList =  cell( 1, nSite );
 		sessList =  cell( 1, nSite );
+		fileDate =  cell( 1, nSite );
 		nSubj    = zeros( 1, nSite );
 		nSess    =  cell( 1, nSite );
 		for iSite = 1:nSite
@@ -59,13 +60,24 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 			nSubj(iSite)    = numel( subjList{iSite} );
 
 			sessList{iSite} =  cell( 1, nSubj(iSite) );
+			fileDate{iSite} =  cell( 1, nSubj(iSite) );
 			nSess{iSite}    = zeros( 1, nSubj(iSite) );
 			for iSubj = 1:nSubj(iSite)
 				% search for valid sesion directories that have a dataset_description.json file indicating segmenting was complete
 				sessList{iSite}{iSubj} = dir( fullfile( ampsczSubjDir, siteList{iSite}, 'processed', subjList{iSite}{iSubj}, 'eeg', 'ses-*' ) );
 				sessList{iSite}{iSubj}(~[sessList{iSite}{iSubj}.isdir]) = [];
 				sessList{iSite}{iSubj}(cellfun( @isempty, regexp( { sessList{iSite}{iSubj}.name }, '^ses-\d{8}$', 'start', 'once' ) )) = [];
-				sessList{iSite}{iSubj}(cellfun( @(u)exist(u,'file')~=2, fullfile( { sessList{iSite}{iSubj}.folder }, { sessList{iSite}{iSubj}.name }, 'BIDS', 'dataset_description.json' ) )) = [];
+				jsonFiles = fullfile( { sessList{iSite}{iSubj}.folder }, { sessList{iSite}{iSubj}.name }, 'BIDS', 'dataset_description.json' );
+				jsonExist = cellfun( @(u)exist(u,'file')==2, jsonFiles );
+				sessList{iSite}{iSubj}(~jsonExist) = [];
+				jsonFiles(~jsonExist) = [];
+				nJson = numel( jsonFiles );
+				fileDate{iSite}{iSubj} = nan( 1, nJson );
+				for iJson = 1:nJson
+					tmp = dir( jsonFiles{iJson} );
+					fileDate{iSite}{iSubj}(iJson) = tmp.datenum;		% which type of date is this? created or modified?
+				end
+% 				clear tmp
 				% convert to cell
 				sessList{iSite}{iSubj} = { sessList{iSite}{iSubj}.name };
 				nSess{iSite}(iSubj)    = numel( sessList{iSite}{iSubj} );
@@ -73,7 +85,7 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 				% concatenate found sessions
 				for iSess = 1:nSess{iSite}(iSubj)
 					NSess(:) = NSess + 1;
-					Sess(NSess,:) = { siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess}(5:end) };
+					Sess(NSess,:) = { siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess}(5:end), datestr( fileDate{iSite}{iSubj}(iSess), 'yyyymmdd' ) };
 	% 				fprintf( '\t%s\t%s\t%s\n', siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess} )
 				end
 			end

@@ -222,6 +222,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 
 			Kstandard = epochInfo.kStandard;
 			Kdeviant  = epochInfo.kNovel;
+			Nstandard = nnz( Kstandard );
+			Ndeviant  = nnz( Kdeviant );
 			% only analyze correct responses?		don't worry about button presses in MMN task.  DM 12/13/21
 % 			Kstandard(Kstandard) = epochInfo.kCorrect(Kstandard);
 % 			Kdeviant(Kdeviant)   = epochInfo.kCorrect(Kdeviant);
@@ -346,9 +348,9 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 % 			title( hAx(1), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\nStandard (%d)', fontSize+2,...
 % 				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), sum( Kstandard ) ), 'FontSize', fontSize )
 % 			title( hAx(2), sprintf( '\\color{red}Deviant (%d)', sum( Kdeviant ) ), 'FontSize', fontSize )
-			title( hAx(1), sprintf( 'Standard (%d)', sum( Kstandard ) ), 'FontSize', fontSize )
-			title( hAx(2), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{red}Deviant (%d)', fontSize+2,...
-				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), sum( Kdeviant ) ), 'FontSize', fontSize )
+			title( hAx(1), sprintf( 'Standard (%d/%d)', sum( Kstandard ), Nstandard ), 'FontSize', fontSize )
+			title( hAx(2), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{red}Deviant (%d/%d)', fontSize+2,...
+				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), sum( Kdeviant ), Ndeviant ), 'FontSize', fontSize )
 			title( hAx(3), '\color{red}Deviant - Standard', 'FontSize', fontSize )
 			ylabel( hAx(1), '(\muV)', 'FontSize', fontSize, 'FontWeight', 'bold' )
 			for iSet = 1:nSet
@@ -398,7 +400,10 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 
 			Kstandard = epochInfo.kStandard;
 			Ktarget   = epochInfo.kTarget;
-			Knovel     = epochInfo.kNovel;
+			Knovel    = epochInfo.kNovel;
+			Nstandard = nnz( Kstandard );
+			Ntarget   = nnz( Ktarget );
+			Nnovel    = nnz( Knovel );
 			% only analyze correct responses?		don't worry about button presses in MMN task.  DM 12/13/21
 			Kstandard(Kstandard) = epochInfo.kCorrect(Kstandard);
 			Ktarget(Ktarget)     = epochInfo.kCorrect(Ktarget);
@@ -581,11 +586,11 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 % 			set( hAx(iSet), 'UserData', iSet )
 			set( hAx(5+nSet*4+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ] )
 
-			title( hAx(1), sprintf( 'Standard (%d)', sum( Kstandard ) ), 'FontSize', fontSize )
-			title( hAx(2), sprintf( '\\color{blue}Target (%d)', sum( Ktarget ) ), 'FontSize', fontSize )
+			title( hAx(1), sprintf( 'Standard (%d/%d)', sum( Kstandard ), Nstandard ), 'FontSize', fontSize )
+			title( hAx(2), sprintf( '\\color{blue}Target (%d/%d)', sum( Ktarget ), Ntarget ), 'FontSize', fontSize )
 			title( hAx(3), sprintf( '{\\fontsize{%g}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{blue}Target - Standard', fontSize+2,...
 				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8) ), 'FontSize', fontSize )
-			title( hAx(4), sprintf( '\\color{red}Novel (%d)', sum( Knovel ) ), 'FontSize', fontSize )
+			title( hAx(4), sprintf( '\\color{red}Novel (%d/%d)', sum( Knovel ), Nnovel ), 'FontSize', fontSize )
 			title( hAx(5), '\color{red}Novel - Standard', 'FontSize', fontSize )
 			ylabel( hAx(1), '(\muV)', 'FontSize', fontSize, 'FontWeight', 'bold' )
 			for iSet = 1:nSet

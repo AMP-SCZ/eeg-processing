@@ -19,7 +19,7 @@ function Sess = AMPSCZ_EEG_findZips
 	AMPSCZdir = AMPSCZ_EEG_paths;
 
 	NSess = 0;
-	Sess  = cell( 0, 3 );
+	Sess  = cell( 0, 4 );
 	
 	for networkName = { 'Pronet', 'Prescient' }
 	
@@ -38,6 +38,7 @@ function Sess = AMPSCZ_EEG_findZips
 		% don't really need to store this info & not that network loop was added, it's incomplete anyhow!
 		subjList =  cell( 1, nSite );
 		sessList =  cell( 1, nSite );
+		fileDate =  cell( 1, nSite );
 		nSubj    = zeros( 1, nSite );
 		nSess    =  cell( 1, nSite );
 		for iSite = 1:nSite
@@ -50,6 +51,7 @@ function Sess = AMPSCZ_EEG_findZips
 			nSubj(iSite)    = numel( subjList{iSite} );
 
 			sessList{iSite} =  cell( 1, nSubj(iSite) );
+			fileDate{iSite} =  cell( 1, nSubj(iSite) );
 			nSess{iSite}    = zeros( 1, nSubj(iSite) );
 			for iSubj = 1:nSubj(iSite)
 
@@ -72,21 +74,27 @@ function Sess = AMPSCZ_EEG_findZips
 				sessList{iSite}{iSubj} = dir( fullfile( ampsczSubjDir, siteList{iSite}, 'raw', subjList{iSite}{iSubj}, 'eeg', '*.zip' ) );
 				% no, we at least need to be able to identify date
 				sessList{iSite}{iSubj}(cellfun( @isempty, regexp( { sessList{iSite}{iSubj}.name }, '^.*\d{8}_?\d*.zip$', 'start', 'once' ) )) = [];
+				fileDate{iSite}{iSubj} = sort( [ sessList{iSite}{iSubj}.datenum ] );		% which type of date is this? created or modified?
 				sessList{iSite}{iSubj} = regexp( { sessList{iSite}{iSubj}.name }, '^.*(\d{8})_?\d*.zip$', 'tokens', 'once' );
 				sessList{iSite}{iSubj} = [ sessList{iSite}{iSubj}{:} ];		% cell array of 8-digit dates (char)
 
 				% check for multiple zip-files per session, i.e. ignore any trailing _# in the file names
-				% unique session names
+				% unique session names, Iu is index of 1st match, use 'legacy' for last
+				% have to do something more complicated to pick out 1st or last zip file chronologically
 % 				sessList{iSite}{iSubj} = unique( cellfun( @(u)[upper(u(1:2)),u(3:20)], sessList{iSite}{iSubj}, 'UniformOutput', false ) );
-				sessList{iSite}{iSubj} = unique( sessList{iSite}{iSubj} );
+				listPre = sessList{iSite}{iSubj};
+				[ sessList{iSite}{iSubj}, Iu ] = unique( sessList{iSite}{iSubj} );
 
-				nSess{iSite}(iSubj)    = numel( sessList{iSite}{iSubj} );
+				nSess{iSite}(iSubj) = numel( sessList{iSite}{iSubj} );
 
 				% concatenate found sessions
 				for iSess = 1:nSess{iSite}(iSubj)
 					NSess(:) = NSess + 1;
-% 					Sess(NSess,:) = { siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess}(13:end) };
-					Sess(NSess,:) = { siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess} };
+% 					Sess(NSess,:) = { siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess}(13:end), fileDate{iSite}{iSubj}(Iu(iSess)) };
+% 					Sess(NSess,:) = { siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess}, datestr( fileDate{iSite}{iSubj}(Iu(iSess)), 'yyyymmdd' ) };
+					dateSort = sort( fileDate{iSite}{iSubj}( strcmp( listPre, sessList{iSite}{iSubj}{iSess} ) ) );
+					% 1st or last?
+					Sess(NSess,:) = { siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess}, datestr( dateSort(end), 'yyyymmdd' ) };
 	% 				fprintf( '\t%s\t%s\t%s\n', siteList{iSite}, subjList{iSite}{iSubj}, sessList{iSite}{iSubj}{iSess} )
 				end
 			end
