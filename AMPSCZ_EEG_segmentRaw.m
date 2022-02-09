@@ -274,6 +274,9 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 							% e.g. 'Vision/Raw Files/XX#####_eeg_YYYYYMMDD.eeg' ...
 							zipFile    = fullfile( zipFiles(IZip(iZip)).folder, zipFiles(IZip(iZip)).name );
 							zipContent = listZipContents( zipFile );		% #x1 cell array, relative to zip file parent directory
+								% ignore folders that appear in content list - for site that mess with their zip files by hand
+								[ ~, zipName ] = fileparts( zipContent );
+								zipContent(cellfun( @isempty, zipName )) = [];
 							% -- check for existence of unzipped files
 							unzipCheck = cellfun( @(u)exist(u,'file')==2, fullfile( outputDir, zipContent ) );
 							[ zipContentPath, zipContentFile, zipContentExt ] = fileparts( zipContent );	% extensions include initial '.'
