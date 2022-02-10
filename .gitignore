@@ -9,3 +9,5 @@ debugInterpThresh.m
 tempMakeFigs.m
 exampleRunSheet.txt
 updateCertSheet.m
+debugChanLocs.m
+icaRejTest.m

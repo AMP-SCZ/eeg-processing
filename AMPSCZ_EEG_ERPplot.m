@@ -89,6 +89,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 		if ~isfield( EEG, 'EEG' )
 			error( 'invalid mat-file' )
 		end
+		% get filter band string from filename or mat-file structure
 		epochInfo = EEG.epochInfo;
 		EEG       = EEG.EEG;
 	else
@@ -673,6 +674,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, writeFlag )
 	end
 
 	pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );
+% 	pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );		% figure out how to put filter cutoffs in here, identifying mat-file it came from!
 
 	if isempty( writeFlag )
 		writeFlag = exist( pngOut, 'file' ) ~= 2;		

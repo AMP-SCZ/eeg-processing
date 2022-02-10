@@ -52,7 +52,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	% if doing bandpass, do it in 2 parts? to avoid low-pass having steeper slope than highpass? not relevant for ERPLAB pop_basicfilter.m
 	% https://eeglab.org/tutorials/05_Preprocess/Filtering.html
 	if exist( 'passBand', 'var' ) ~= 1 || isempty( passBand )
-		passBand = [ 0.1, Inf ];
+% 		passBand = [ 0.1, Inf ];
+		passBand = [ 0.3, Inf ];
 	end
 	if exist( 'writeFlag', 'var' ) ~= 1
 % 		writeFlag = false;
@@ -241,7 +242,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		InotEEG(:) = nEEG+1:nLoc;
 		chanLocsOrdered(:) = chanLocsOrdered(Ireorder);
 	end
-	filterFcn       = 'removeTrend';
+% 	filterFcn       = 'removeTrend';
+	filterFcn       = 'pop_eegfiltnew';
 	Ifilter         = Ieeg;
 % 	refType         = 'average';
 % 	IcomputeRef     = { 'TP9', 'TP10' };
@@ -254,7 +256,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	IcomputeInterp  = Ieeg;
 	IexcludeInterp  = InotEEG;
 % 	zThreshInterp   = [ 4, 10, 4 ];		% [ correlation, variance, hurst exponent ]
-	zThreshInterp   = [ 3.5, 10, 3.5 ];		% [ correlation, variance, hurst exponent ]
+% 	zThreshInterp   = [ 3.5, 10, 3.5 ];		% [ correlation, variance, hurst exponent ]
+	zThreshInterp   = [ norminv( (1+0.999)/2 ), 8, 3.5 ];		% [ correlation, variance, hurst exponent ]
 	compMethod      = 'ADJUST';
 	Iocular         = [];
 

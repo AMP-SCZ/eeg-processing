@@ -266,6 +266,15 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			writeToLog( '\n' )
 		end
 
+		% Trim
+		for iRun = 1:nRun
+			kEvent = ismember( { eeg(iRun).event.type }, epochEventCodes );
+			i1 = max( eeg(iRun).event(find(kEvent,1,'first')).latency +  ceil( eeg(iRun).srate * epochWinSec(1) ),              1 );
+			i2 = min( eeg(iRun).event(find(kEvent,1, 'last')).latency + floor( eeg(iRun).srate * epochWinSec(2) ), eeg(iRun).pnts );
+			eeg(iRun) = pop_select( eeg(iRun), 'point', [ i1, i2 ] );
+		end
+% 		clear kEvent i1 i2
+	
 		% 0.1: Re-reference
 		%      FASTER paper uses Fz reference here, BIEEGL does not
 		%      erpinfo.org suggesting filtering before re-referencing
@@ -281,12 +290,16 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 				writeToLog( '\n\tremove ref channels:' )
 				writeToLog( ' %s', eeg(1).chanlocs(IremoveRef).labels )
 				% see http://vislab.github.io/EEG-Clean-Tools/
+				% option on online help might be misnamed, not really 'rereference' try 'rereferencedChannels' instead
 				rerefOpts = struct(...
 					'referenceChannels'          , IcomputeRef,...		% channel indices for rereferencing, eeg only, not eog or mastoids
 					'evaluationChannels'         , IcomputeRef,...		% channel indices for evaluating noisy channels, not extraneous channels, often same as referenceChannels
-					'rereference'                , IremoveRef,...		% channel indices from which to subtract computed reference
+					'rereferencedChannels'       , IremoveRef,...		% channel indices from which to subtract computed reference
 					'robustDeviationThreshold'   , 5,...
 					'referenceType'              , 'robust' );
+
+% 					'rereference'                , IremoveRef,...		% channel indices from which to subtract computed reference
+
 % 					'interpolationOrder'         , 'post-reference',...
 % 					'meanEstimationType'         , 'median',...
 % 					'highFrequencyNoiseThreshold', 5,...

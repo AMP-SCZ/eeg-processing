@@ -551,7 +551,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				end
 			case 3
 				% PREP robust reference - can I do this w/o full EEGLAB structures?  needs chanlocs for sure
-% 				error( 'under construction' )
+				% see http://vislab.github.io/EEG-Clean-Tools/
+				% option on online help might be misnamed, not really 'rereference' try 'rereferencedChannels' instead
 % 				eegStruct = struct( 'data', eeg(Ieeg,:), 'srate', fs, 'chanlocs', chanLocs(Ieeg) );
 				eegStruct = eeg_checkset( eeg_emptyset );
 				[ eegStruct.nbchan, eegStruct.pnts, eegStruct.trials ] = size( eeg(Ieeg,:) );
@@ -562,7 +563,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				eegStruct.xmin     = 0;
 				eegStruct.xmax     = ( eegStruct.pnts - 1 ) / eegStruct.srate + eegStruct.xmin;
 
-				rerefOpts = struct( 'referenceChannels', Ireref, 'evaluationChannels', Ireref, 'rereference', Ieeg, 'referenceType', 'robust' );
+% 				rerefOpts = struct( 'referenceChannels', Ireref, 'evaluationChannels', Ireref, 'rereference'         , Ieeg, 'referenceType', 'robust' );
+				rerefOpts = struct( 'referenceChannels', Ireref, 'evaluationChannels', Ireref, 'rereferencedChannels', Ieeg, 'referenceType', 'robust' );
 				doInterp = false;
 				if doInterp
 					[ eegStruct, rerefOpts ] = performReference( eegStruct, rerefOpts );
