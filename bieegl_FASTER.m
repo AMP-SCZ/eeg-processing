@@ -109,8 +109,8 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		end
 		% -- reference type
 		if exist( 'refType', 'var' ) ~= 1
-			refType = 'robust';
-		elseif ~ischar( refType ) || ~ismember( refType, { 'robust', 'average', 'mean', 'none' } )
+			refType = 'robustinterp';
+		elseif ~ischar( refType ) || ~ismember( refType, { 'robust', 'robustinterp', 'average', 'mean', 'none' } )
 			error( 'invalid reference type' )
 		end
 		% -- channel(s) used to compute reference
@@ -284,7 +284,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		switch refType
 			case 'none'
 				writeToLog( 'No Re-Referencing' )
-			case 'robust'
+			case { 'robust', 'robustinterp' }
 				writeToLog( 'Robust Re-Referencing\n\tcompute ref channels:' )
 				writeToLog( ' %s', eeg(1).chanlocs(IcomputeRef).labels )
 				writeToLog( '\n\tremove ref channels:' )
@@ -314,12 +314,20 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 % 					'ransacWindowSeconds'        , 5,...
 % 					'maxReferenceIterations'     , 4,...
 % 					'reportingLevel'             , 'verbose',...
+
+				% this leads to "Subscripted assignment between dissimilar structures." error.
+				% PREP modifies this structure a good bit after initializing inside performReference.m
+				% just grow it in loop!
+% 				rerefOptsOut = repmat( getReferenceStructure, 1, nRun );
 				for iRun = 1:nRun
-%					[ eeg(iRun), rerefOptsOut ] = performReference( eeg(iRun), rerefOpts );
-					[ ~, rerefOptsOut ] = performReference( eeg(iRun), rerefOpts );
-					eeg(iRun).data(IremoveRef,:) = bsxfun( @minus, eeg(iRun).data(IremoveRef,:), rerefOptsOut.referenceSignal );
+					if strcmp( refType, 'robustinterp' )
+						[ eeg(iRun), rerefOptsOut(iRun) ] = performReference( eeg(iRun), rerefOpts );
+					else
+						[ ~, rerefOptsOut(iRun) ] = performReference( eeg(iRun), rerefOpts );
+						eeg(iRun).data(IremoveRef,:) = bsxfun( @minus, eeg(iRun).data(IremoveRef,:), rerefOptsOut(iRun).referenceSignal );
+					end
 				end
-			otherwise
+			otherwise	% 'mean' or 'average'
 				writeToLog( 'Average Re-Referencing\n\tcompute ref channel(s):' )
 				writeToLog( ' %s', eeg(1).chanlocs(IcomputeRef).labels )
 				writeToLog( '\n\tremove ref channels:' )
@@ -342,48 +350,59 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		end
 		writeToLog( '\n' )
 
-		% FASTER channel properties
-		% 1: mean correlation coeffiecient of each channel w/ all other channels
-		%    corrected for quadratic fit of correlation vs polar distance from ref electrode
-		%    if a single electrode is used for re-referencing
-		% 2: variance of each channel
-		%    corrected as above
-		% 3: Hurst exponent
-		% all 3 properties get NaNs replaced with the non-NaN mean, then subtract the median
-		chanPropName = { 'corr', 'var', 'hurst' };
-		ChanProp = nan( eeg(1).nbchan, 3, nRun );
-		interpOpts = struct( 'measure', true( 1, 3 ), 'z', zThreshInterp(:)' );
-		if writeLog
-			writeToLog( 'Outlier channel interpolation\n' )
+		IinterpAll = 1:eeg(1).nbchan;
+		if strcmp( refType, 'robustinterp' )
+			ChanProp = rerefOptsOut;
+			for iRun = 1:nRun
+				IinterpAll = intersect( IinterpAll, rerefOptsOut(iRun).interpolatedChannels.all );
+			end
+		else
+			% FASTER channel properties
+			% 1: mean correlation coeffiecient of each channel w/ all other channels
+			%    corrected for quadratic fit of correlation vs polar distance from ref electrode
+			%    if a single electrode is used for re-referencing
+			% 2: variance of each channel
+			%    corrected as above
+			% 3: Hurst exponent
+			% all 3 properties get NaNs replaced with the non-NaN mean, then subtract the median
+			chanPropName = { 'corr', 'var', 'hurst' };
+			ChanProp = nan( eeg(1).nbchan, 3, nRun );
+			interpOpts = struct( 'measure', true( 1, 3 ), 'z', zThreshInterp(:)' );
+			if writeLog
+				writeToLog( 'Outlier channel interpolation\n' )
+			end
 		end
 		for iRun = 1:nRun
-			% ======================================================================
-			% 1: Interpolate outlier channels, whole recording
-			%    FASTER's channel_properties.m had errors, replaced by edited version in "modifications" folder
-			if isscalar( IcomputeRef )		% refChan would be all zeros in this case
-				ChanProp(IcomputeInterp,:,iRun) = channel_properties( eeg(iRun), IcomputeInterp, IcomputeRef );		% note: I had to modify channel_properties to fix a bug!
-			else
-				ChanProp(IcomputeInterp,:,iRun) = channel_properties( eeg(iRun), IcomputeInterp, [] );				% 3rd input is refChan, removes corr vs distance fit if scalar
-			end
-			chanOutlier = min_z( ChanProp(IcomputeInterp,:,iRun), interpOpts );
-			IchanInterp = IcomputeInterp(chanOutlier);
-			nChanInterp = numel( IchanInterp );
-			if nChanInterp ~= 0
-				eeg(iRun) = h_eeg_interp_spl( eeg(iRun), IchanInterp, IexcludeInterp );			% note: help says 3rd input is interpolation method, but really its channels to ignore!
-			end
-			if writeLog
-				ChanProp(IcomputeInterp,:,iRun) = abs( zscore( ChanProp(IcomputeInterp,:,iRun), [], 1 ) );
-				writeToLog( '\tRun %d/%d Interpolated channel(s):', iRun, nRun )
-				if nChanInterp == 0
-					writeToLog( ' none' )
+			if ~strcmp( refType, 'robustinterp' )
+				% ======================================================================
+				% 1: Interpolate outlier channels, whole recording
+				%    FASTER's channel_properties.m had errors, replaced by edited version in "modifications" folder
+				if isscalar( IcomputeRef )		% refChan would be all zeros in this case
+					ChanProp(IcomputeInterp,:,iRun) = channel_properties( eeg(iRun), IcomputeInterp, IcomputeRef );		% note: I had to modify channel_properties to fix a bug!
 				else
-% 					writeToLog( ' %s', eeg(iRun).chanlocs(IchanInterp).labels )
-					for iChan = IchanInterp(:)'
-						[ ~, iProp ] = max( ChanProp(iChan,:,iRun) - interpOpts.z );
-						writeToLog( ' %s [%s]', eeg(iRun).chanlocs(iChan).labels, chanPropName{iProp} )
-					end
+					ChanProp(IcomputeInterp,:,iRun) = channel_properties( eeg(iRun), IcomputeInterp, [] );				% 3rd input is refChan, removes corr vs distance fit if scalar
 				end
-				writeToLog( ' (%d/%d)\n', nChanInterp, eeg(iRun).nbchan )
+				chanOutlier = min_z( ChanProp(IcomputeInterp,:,iRun), interpOpts );
+				IchanInterp = IcomputeInterp(chanOutlier);
+				nChanInterp = numel( IchanInterp );
+				if nChanInterp ~= 0
+					eeg(iRun) = h_eeg_interp_spl( eeg(iRun), IchanInterp, IexcludeInterp );			% note: help says 3rd input is interpolation method, but really its channels to ignore!
+				end
+				if writeLog
+					ChanProp(IcomputeInterp,:,iRun) = abs( zscore( ChanProp(IcomputeInterp,:,iRun), [], 1 ) );
+					writeToLog( '\tRun %d/%d Interpolated channel(s):', iRun, nRun )
+					if nChanInterp == 0
+						writeToLog( ' none' )
+					else
+% 						writeToLog( ' %s', eeg(iRun).chanlocs(IchanInterp).labels )
+						for iChan = IchanInterp(:)'
+							[ ~, iProp ] = max( ChanProp(iChan,:,iRun) - interpOpts.z );
+							writeToLog( ' %s [%s]', eeg(iRun).chanlocs(iChan).labels, chanPropName{iProp} )
+						end
+					end
+					writeToLog( ' (%d/%d)\n', nChanInterp, eeg(iRun).nbchan )
+				end
+				IinterpAll = intersect( IinterpAll, IchanInterp );
 			end
 
 			% ======================================================================	
@@ -451,7 +470,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		%		eeg.etc.icasphere_beforerms		[ nEEG  x nEEG  double ]
 		%   note
 		%		eeg.icaact is still empty
-		nComp = min( floor( sqrt( eeg.pnts * eeg.trials / 25 ) ), numel( Ieeg ) - nChanInterp - 1 );
+		nComp = min( floor( sqrt( eeg.pnts * eeg.trials / 25 ) ), numel( Ieeg ) - numel( IinterpAll ) - 1 );
 		icaOpts = { 'icatype', 'runica', 'verbose', 'off', 'chanind', Ieeg, 'options', { 'extended', 1, 'pca', nComp } };
 		if icaWinSec(1) > eeg.times(1) || icaWinSec(2) < eeg.times(eeg.pnts)
 			eegICA = pop_select( eeg, 'time', icaWinSec );		% eeg.times >= icaWinSec(1)*1e3 & eeg.times < icaWinSec(2)*1e3

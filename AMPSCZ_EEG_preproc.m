@@ -250,6 +250,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	[ ~, Ifrontal ] = ismember( { 'Fp1', 'Fp2' } , { chanLocsOrdered.labels } );		%  1, 33
 	[ ~, Imastoid ] = ismember( { 'TP9', 'TP10' }, { chanLocsOrdered.labels } );		% 23, 50
 	refType         = 'robust';
+% 	refType         = 'robustinterp';
 % 	IcomputeRef     = setdiff( Ieeg, Imastoid );
 	IcomputeRef     = setdiff( Ieeg, union( Imastoid, Ifrontal ) );
 	IremoveRef      = Ieeg;

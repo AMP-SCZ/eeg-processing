@@ -24,6 +24,7 @@ function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
 	end
 	if exist( 'filterStr', 'var' ) ~= 1 || isempty( filterStr )
 		filterStr = '[0.1,Inf]';
+% 		filterStr = '[0.3,Inf]';
 	end
 
 	siteInfo = AMPSCZ_EEG_siteInfo;
