@@ -345,7 +345,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 								baseName = zipContentFile{1}(1:20);
 								subDir   = zipContentPath{1};
 							else
-								if ~all( strncmp( zipContentFile(kValidExt), baseName, 20 ) )
+								if ~all( strncmpi( zipContentFile(kValidExt), baseName, 20 ) )		% allow case variation
 									zipStatus(iZip) = -1;
 									iSkip(:) = iSkip + 1;
 									skipLog{iSkip,1} = sprintf( '%s inconsistent file names across multiple zip files', zipFile );

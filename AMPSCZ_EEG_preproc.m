@@ -249,18 +249,19 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 % 	IcomputeRef     = { 'TP9', 'TP10' };
 	[ ~, Ifrontal ] = ismember( { 'Fp1', 'Fp2' } , { chanLocsOrdered.labels } );		%  1, 33
 	[ ~, Imastoid ] = ismember( { 'TP9', 'TP10' }, { chanLocsOrdered.labels } );		% 23, 50
-	refType         = 'robust';
-% 	refType         = 'robustinterp';
+% 	refType         = 'robust';
+	refType         = 'robustinterp';
 % 	IcomputeRef     = setdiff( Ieeg, Imastoid );
 	IcomputeRef     = setdiff( Ieeg, union( Imastoid, Ifrontal ) );
 	IremoveRef      = Ieeg;
 	IcomputeInterp  = Ieeg;
 	IexcludeInterp  = InotEEG;
 % 	zThreshInterp   = [ 4, 10, 4 ];		% [ correlation, variance, hurst exponent ]
-% 	zThreshInterp   = [ 3.5, 10, 3.5 ];		% [ correlation, variance, hurst exponent ]
-	zThreshInterp   = [ norminv( (1+0.999)/2 ), 8, 3.5 ];		% [ correlation, variance, hurst exponent ]
-	compMethod      = 'ADJUST';
-	Iocular         = [];
+	zThreshInterp   = [ 3.5, 10, 3.5 ];		% [ correlation, variance, hurst exponent ]
+% 	zThreshInterp   = [ norminv( (1+0.999)/2 ), 8, 3.5 ];		% [ correlation, variance, hurst exponent ], 3.2905, unused w/ 'robustinterp'
+% 	compMethod      = 'ADJUST';
+	compMethod      = 'ICLABEL';
+	Iocular         = [];				% faster ica cleaning only
 
 	sessDir = fullfile( AMPSCZdir, sessionList{iSession,1}(1:end-2), 'PHOENIX', 'PROTECTED', sessionList{iSession,1}, 'processed', sessionList{iSession,2}, 'eeg', sessTag );
 	bvDir   = fullfile( sessDir, 'BIDS' );

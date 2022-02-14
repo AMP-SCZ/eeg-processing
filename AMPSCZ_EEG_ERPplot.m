@@ -230,7 +230,12 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp' };		% electrodes: 'pts' or 'ptslabels'?
 
 	fontSize = 10;
-	subjSess = regexp( EEG.comments, '^Original file: sub-([A-Z]{2}\d{5})_ses-(\d{8})_task-\S+_run-\d+_eeg.eeg$', 'tokens', 'once' );
+% 	if size( EEG.comments, 1 ) == 1
+% 		iComment = 1;
+% 	else
+% 		iComment = 
+% 	end
+	subjSess = regexp( EEG.comments(end,:), '^Original file: sub-([A-Z]{2}\d{5})_ses-(\d{8})_task-\S+_run-\d+_eeg.eeg$', 'tokens', 'once' );
 			
 	% stop automatic datatips - they're super annoying!
 	set( groot , 'defaultAxesCreateFcn' , 'disableDefaultInteractivity(gca)' )

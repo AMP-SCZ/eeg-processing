@@ -137,15 +137,16 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			IexcludeInterp = getChanInd( IexcludeInterp, 'interp' );
 		end
 		% -- z-score thresholds for interpolating channels [ mean correlation, variance, hurst exponent ]
-		if exist( 'zThreshInterp', 'var' ) ~= 1
+		if exist( 'zThreshInterp', 'var' ) ~= 1 % || isempty( zThreshInterp )
 			zThreshInterp = [ 3, 3, 3 ];		% faster defaults are 3
+% 			zThreshInterp = [ 3, 8, 3 ];
 		elseif ~isnumeric( zThreshInterp ) || numel( zThreshInterp ) ~= 3 || any( zThreshInterp <= 0 )
 			error( 'invalid z threshold for channel interpolation' )
 		end
 		% -- ICA component rejection method
-		if exist( 'zThreshInterp', 'var' ) ~= 1
+		if exist( 'compMethod', 'var' ) ~= 1
 			compMethod = 'ADJUST';
-		elseif ~ischar( compMethod ) || ~ismember( compMethod, { 'FASTER', 'ADJUST' } )
+		elseif ~ischar( compMethod ) || ~ismember( compMethod, { 'FASTER', 'ADJUST', 'ICLABEL' } )
 			error( 'invalid ICA component rejection method' )
 		end
 		% -- EOG channel(s) used by FASTER ICA rejection method only
@@ -178,15 +179,36 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			writeToLog( '%s started @ %s\n', mfilename, datestr( now, 'yyyymmddTHHMMSS' ) )
 		end
 
-		
+
 		% ======================================================================
 
-% 		for iRun = 1:nRun
-% 			if ~isdouble( eeg(iRun).data )
-% 				eeg(iRun).data = double( eeg(iRun).data );
-% 			end
-% 		end
+		for iRun = 1:nRun
+			if ~isa( eeg(iRun).data, 'double' )
+				eeg(iRun).data = double( eeg(iRun).data );		% this is voodoo, test are fast but not this function is interminable
+			end
+		end
 		
+		% Resample to 250Hz
+		% trusting that anti-aliasing is done, not checking ***
+		% you get warnings if you resample after epoching.
+		if ~false
+			fResample = 250;
+			if ~all( [ eeg.srate ] == fResample )
+				writeToLog( 'Resampling to %g Hz\n', fResample )
+				for iRun = 1:nRun
+					if eeg(iRun).srate == fResample
+						writeToLog( '\tRun %d: already %g Hz\n', iRun, fResample )
+					elseif eeg(iRun).srate > fResample
+						writeToLog( '\tRun %d: %g to %g Hz\n', iRun, eeg(iRun).srate, fResample )
+						eeg(iRun) = pop_resample( eeg(iRun), fResample );		% , [ fc = 0.9 ], [ df = 0.2 ] );	% cutoff & transition width relative to nyquist
+						eeg(iRun).data = double( eeg(iRun).data );
+					else
+						writeToLog( '\tRun %d: sampling rate %g < %g, not resampling\n', iRun, eeg(iRun).srate, fResample )
+					end
+				end
+			end
+		end
+
 		% 0.2: Filter
 		%      add in input option for this switch?
 		if filterBand(1) <= 0 && isinf( filterBand(2) )
@@ -204,18 +226,34 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 					writeToLog( 'Modern EEGLAB filter (%s)', filterFcn )
 					if isinf( filterBand(2) )
 						for iRun = 1:nRun
-							eegOut = pop_eegfiltnew( eeg(iRun), filterBand(1), [] );
-							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+% 							eegOut = pop_eegfiltnew( eeg(iRun), filterBand(1), [] );
+% 							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+							% slightly better from removeTrend.m, don't bother filering channels you're going to throw away
+							eegOut           = eeg(iRun);
+							eegOut.data      = eeg(iRun).data(Ifilter,:);
+							eegOut.nbchan(:) = size( eegOut.data, 1 );
+							eegOut           = pop_eegfiltnew( eegOut, filterBand(1), [] );
+							eeg(iRun).data(Ifilter, :) = eegOut.data;
 						end
 					elseif filterBand(1) == 0
 						for iRun = 1:nRun
-							eegOut = pop_eegfiltnew( eeg(iRun), [], filterBand(2) );
-							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+% 							eegOut = pop_eegfiltnew( eeg(iRun), [], filterBand(2) );
+% 							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+							eegOut           = eeg(iRun);
+							eegOut.data      = eeg(iRun).data(Ifilter,:);
+							eegOut.nbchan(:) = size( eegOut.data, 1 );
+							eegOut           = pop_eegfiltnew( eegOut, [], filterBand(2) );
+							eeg(iRun).data(Ifilter, :) = eegOut.data;
 						end
 					else
 						for iRun = 1:nRun
-							eegOut = pop_eegfiltnew( eeg(iRun), filterBand(1), filterBand(2) );
-							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+% 							eegOut = pop_eegfiltnew( eeg(iRun), filterBand(1), filterBand(2) );
+% 							eeg(iRun).data(Ifilter,:) = eegOut.data(Ifilter,:);
+							eegOut           = eeg(iRun);
+							eegOut.data      = eeg(iRun).data(Ifilter,:);
+							eegOut.nbchan(:) = size( eegOut.data, 1 );
+							eegOut           = pop_eegfiltnew( eegOut, filterBand(1), filterBand(2) );
+							eeg(iRun).data(Ifilter, :) = eegOut.data;
 						end
 					end
 					clear eegOut
@@ -266,14 +304,21 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			writeToLog( '\n' )
 		end
 
-		% Trim
-		for iRun = 1:nRun
-			kEvent = ismember( { eeg(iRun).event.type }, epochEventCodes );
-			i1 = max( eeg(iRun).event(find(kEvent,1,'first')).latency +  ceil( eeg(iRun).srate * epochWinSec(1) ),              1 );
-			i2 = min( eeg(iRun).event(find(kEvent,1, 'last')).latency + floor( eeg(iRun).srate * epochWinSec(2) ), eeg(iRun).pnts );
-			eeg(iRun) = pop_select( eeg(iRun), 'point', [ i1, i2 ] );
+
+		% Trim?
+		if false
+			writeToLog( 'Trimming to event sequence\n' )
+			for iRun = 1:nRun
+				kEvent = ismember( { eeg(iRun).event.type }, epochEventCodes );
+				i1 = max( eeg(iRun).event(find(kEvent,1,'first')).latency +  ceil( eeg(iRun).srate * epochWinSec(1) ),              1 );
+				i2 = min( eeg(iRun).event(find(kEvent,1, 'last')).latency + floor( eeg(iRun).srate * epochWinSec(2) ), eeg(iRun).pnts );
+				eeg(iRun) = pop_select( eeg(iRun), 'point', [ i1, i2 ] );
+				eeg(iRun).data = double( eeg(iRun).data );
+				writeToLog( '\tRun %d: samples [ %d, %d ]/%d\n', iRun, i1, i2, eeg(iRun).pnts )
+			end
+% 			clear kEvent i1 i2
 		end
-% 		clear kEvent i1 i2
+
 	
 		% 0.1: Re-reference
 		%      FASTER paper uses Fz reference here, BIEEGL does not
@@ -297,9 +342,6 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 					'rereferencedChannels'       , IremoveRef,...		% channel indices from which to subtract computed reference
 					'robustDeviationThreshold'   , 5,...
 					'referenceType'              , 'robust' );
-
-% 					'rereference'                , IremoveRef,...		% channel indices from which to subtract computed reference
-
 % 					'interpolationOrder'         , 'post-reference',...
 % 					'meanEstimationType'         , 'median',...
 % 					'highFrequencyNoiseThreshold', 5,...
@@ -320,6 +362,8 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 				% just grow it in loop!
 % 				rerefOptsOut = repmat( getReferenceStructure, 1, nRun );
 				for iRun = 1:nRun
+					% ref channel will be labeled bad for no data, do an initial re-reference 1st
+					eeg(iRun).data(:) = bsxfun( @minus, eeg(iRun).data, median( eeg(iRun).data, 1 ) );
 					if strcmp( refType, 'robustinterp' )
 						[ eeg(iRun), rerefOptsOut(iRun) ] = performReference( eeg(iRun), rerefOpts );
 					else
@@ -327,6 +371,11 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 						eeg(iRun).data(IremoveRef,:) = bsxfun( @minus, eeg(iRun).data(IremoveRef,:), rerefOptsOut(iRun).referenceSignal );
 					end
 				end
+				% shut down parpool that performReference.m leaves running?
+% 				poolObj = gcp( 'nocreate' );
+% 				if ~isempty( poolObj )
+% 					delete( poolObj )
+% 				end
 			otherwise	% 'mean' or 'average'
 				writeToLog( 'Average Re-Referencing\n\tcompute ref channel(s):' )
 				writeToLog( ' %s', eeg(1).chanlocs(IcomputeRef).labels )
@@ -352,10 +401,37 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 
 		IinterpAll = 1:eeg(1).nbchan;
 		if strcmp( refType, 'robustinterp' )
-			ChanProp = rerefOptsOut;
+			if writeLog
+				writeToLog( 'Outlier channel interpolation (PREP)\n' )
+			end
 			for iRun = 1:nRun
+				if writeLog
+					writeToLog( '\tRun %d/%d Interpolated channel(s):', iRun, nRun )
+					nChanInterp = numel( rerefOptsOut(iRun).interpolatedChannels.all );
+					if nChanInterp == 0
+						writeToLog( ' none' )
+					else
+						for iChan = rerefOptsOut(iRun).interpolatedChannels.all(:)'
+							writeToLog( ' %s', eeg(iRun).chanlocs(iChan).labels )
+							% write more info about why a channel was interpolated
+							% from rerefOptsOut(iRun).interpolatedChannels
+							% or rerefOptsOut(iRun).noisyStatistics or rerefOptsOut(iRun).noisyStatisticsBeforeInterpolation?
+% 													   all: [3 34 35]
+% 									   badChannelsFromNaNs: [1×0 double]
+% 									 badChannelsFromNoData: [1×0 double]
+% 									 badChannelsFromLowSNR: [1×0 double]
+% 									badChannelsFromHFNoise: [1×0 double]
+% 								badChannelsFromCorrelation: [1×0 double]
+% 								  badChannelsFromDeviation: [3 34 35]
+% 									 badChannelsFromRansac: [1×0 double]
+% 								   badChannelsFromDropOuts: [1×0 double]
+						end
+					end
+					writeToLog( ' (%d/%d)\n', nChanInterp, eeg(iRun).nbchan )		% numel( IcomputeRef )
+				end
 				IinterpAll = intersect( IinterpAll, rerefOptsOut(iRun).interpolatedChannels.all );
 			end
+			ChanProp = rerefOptsOut;
 		else
 			% FASTER channel properties
 			% 1: mean correlation coeffiecient of each channel w/ all other channels
@@ -369,7 +445,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			ChanProp = nan( eeg(1).nbchan, 3, nRun );
 			interpOpts = struct( 'measure', true( 1, 3 ), 'z', zThreshInterp(:)' );
 			if writeLog
-				writeToLog( 'Outlier channel interpolation\n' )
+				writeToLog( 'Outlier channel interpolation (FASTER)\n' )
 			end
 		end
 		for iRun = 1:nRun
@@ -408,27 +484,54 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 			% ======================================================================	
 			% 2: Epoch data
 			eeg(iRun) = pop_epoch( eeg(iRun), epochEventCodes, epochWinSec );
+			eeg(iRun).data = double( eeg(iRun).data );
 			
 			if iRun ~= 1
 				eeg(1) = pop_mergeset( eeg(1), eeg(iRun), 0 );	% 3rd input is flag for preserving ICA activations
 				% free up some memory?
 				eeg(iRun).data = [];
 			end
-	
+
 		end
-		
+
 		if iRun ~= 1
 			eeg(2:nRun) = [];
 		end
-		
+
 		% BSS-CCA 
 		% don't need 2nd round of channel interpolation anymore w/ my changes
 		% consider doing this up front outside faster, before epoching?  
-		[ eeg, bssccaStats ]= bieegl_BSSCCA( eeg, Ieeg, [ 0, 125 ], 1e3, 0.95 );
+		if true
+			[ eeg, bssccaStats ]= bieegl_BSSCCA( eeg, Ieeg, [ 0, 125 ], 1e3, 0.95 );
+			% each epoch evaluated separately
+			% average # components removed = mean( sum( bssccaStats(:,8,:) >= -1, 3 ) )
+			writeToLog( 'CCA Cleaning\n' )
+% 			writeToLog( 'CCA Cleaning\n', bssccaStats(epochs,8,components) < -1 )	% #clean components, #components = numel(Ieeg)?
+		else
+			bssccaStats = [];
+		end
+		% alternative to CCA? makoto does before reref (wiki) after reref (script he sent us)
+		% can you do it on epoched data?
+		% EEG = clean_rawdata(EEG, arg_flatline, arg_highpass, arg_channel, arg_noisy, arg_burst, arg_window)
+		% EEG = pop_clean_rawdata(EEG, 'FlatlineCriterion','off','ChannelCriterion','off','LineNoiseCriterion','off','Highpass','off','BurstCriterion',20,'WindowCriterion',0.25,'BurstRejection','on','Distance','Euclidian','WindowCriterionTolerances',[-Inf 7] );
+		% both clean_rawdata & pop_clean_rawdata call clean_artifacts.m
+		% clean_rawdata is deprecated & only used for backward compatiblity, use clean_artifacts
+% 		arg_flatline = 'off';			% default = 5 (sec)
+% 		arg_highpass =[ 0.25, 0.75 ];	% default = [ 0.25, 0.75 ] (Hz)
+% 		arg_channel  = 0.85;			% default = 0.5 (correlation)
+% 		arg_noisy    = 4;				% default = 4 (standard deviations)
+% 		arg_burst    = 5;				% default = 5 (variance ratio?)
+% 		arg_window   = 0.25;			% default = 0.25 (fraction)
+% 		cleanEEG = clean_rawdata( EEG, arg_flatline, arg_highpass, arg_channel, arg_noisy, arg_burst, arg_window )
+		% removes channels from eeg structure!
+% 		[cleanEEG] = clean_artifacts( EEG, 'ChannelCriterion', 0.85, 'LineNoiseCriterion', 4, 'BurstCriterion', 3, 'WindowCriterion', 0.25, 'Highpass', [ 0.25, 0.75 ] );
 
 		%    Baseline correct
 		%    Dan found suggestion of not doing this before ICA?
-		eeg = pop_rmbase( eeg, baselineWinSec * 1e3 );
+		if true
+			eeg = pop_rmbase( eeg, baselineWinSec * 1e3 );
+			writeToLog( 'Epoch baseline removal [ %g, %g ]\n', baselineWinSec )
+		end
 
 		%    Store some stuff so you can restore dimensions of eeg.data later
 		%    filling rejected epochs with NaNs
@@ -442,6 +545,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		nEpochRej    = numel( IepochRej );
 %		eeg = pop_select( eeg, 'notrial', IepochRej );	% equivalent
 		eeg = pop_rejepoch( eeg, IepochRej, 0 );		% 3rd input is confirm query flag
+		eeg.data = double( eeg.data );
 		if writeLog
 			writeToLog( 'Outlier epoch removal\n\tRejected epoch(s):' )
 			if isempty( IepochRej )
@@ -472,8 +576,12 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		%		eeg.icaact is still empty
 		nComp = min( floor( sqrt( eeg.pnts * eeg.trials / 25 ) ), numel( Ieeg ) - numel( IinterpAll ) - 1 );
 		icaOpts = { 'icatype', 'runica', 'verbose', 'off', 'chanind', Ieeg, 'options', { 'extended', 1, 'pca', nComp } };
+		if writeLog
+			writeToLog( 'starting %d-component ICA %s\n', nComp, datestr( now ) )
+		end
 		if icaWinSec(1) > eeg.times(1) || icaWinSec(2) < eeg.times(eeg.pnts)
 			eegICA = pop_select( eeg, 'time', icaWinSec );		% eeg.times >= icaWinSec(1)*1e3 & eeg.times < icaWinSec(2)*1e3
+			eegICA.data = double( eegICA.data );
 			eegICA = pop_runica( eegICA, icaOpts{:} );
 			for fname = { 'icawinv', 'icasphere', 'icaweights', 'icachansind' }
 				eeg.(fname{1}) = eegICA.(fname{1});
@@ -492,6 +600,9 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		else
 			eeg = pop_runica( eeg, icaOpts{:} );
 % 			icaData = struct( 'Iremove', [] );
+		end
+		if writeLog
+			writeToLog( 'ICA finished %s\n', datestr( now ) )
 		end
 
 		% note: eeg_getdatact( eeg, 'component', Icomp ) is getting the ICA component waveforms for a chosen set of components
@@ -547,6 +658,22 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 				%   nuovaV     - MEV feature values
 
 				clear eegOnly
+
+			case 'ICLABEL'
+				
+				eeg = iclabel( eeg );
+				% classes = Brain, Muscle, Eye, Heart, Line Noise, Channel Noise, Other
+				kBrain = strcmp( eeg.etc.ic_classification.ICLabel.classes, 'Brain' );
+				kOther = strcmp( eeg.etc.ic_classification.ICLabel.classes, 'Other' );
+% 				classThresh = 2/3;
+				classThresh = 0.5;
+				icaData.Iremove = find( sum( eeg.etc.ic_classification.ICLabel.classifications(:,~(kBrain|kOther)), 2 ) > classThresh );
+% 				icaData.Iremove = find( eeg.etc.ic_classification.ICLabel.classifications(:,kBrain) < classThresh );
+				% eeg.etc.ic_classification.ICLabel
+% 								classes: {'Brain'  'Muscle'  'Eye'  'Heart'  'Line Noise'  'Channel Noise'  'Other'}
+% 						classifications: [55×7 single]
+% 								version: 'default'
+
 		end
 		
 		nCompRemove = numel( icaData.Iremove );
@@ -568,41 +695,44 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		% compvar() call has to be before components get removed by pop_subcomp, logging before doing in reverse of the normal order
 		eeg = pop_subcomp( eeg, icaData.Iremove, 0, 0 );		% icaact will get reset to []
 
-%{
-		% ======================================================================
-		% 4: Channels within non-rejected epochs
-		%    bad channels have already been interpolated, use them all here
-		%    this is currently overwriting chanOutlier, IchanInterp, nChanInterp & not storing individual trial parameters
-		IchanInterp = cell( 1, eeg.trials );
-% 		mu = mean( eeg.data(Ieeg,:), 2 );
-		for iEpoch = 1:eeg.trials
-			% the only difference of BJR's single_epoch_channel_propertiesMu.m is that it computes the mean over for each channel over dimensions 2&3 outside this loop to save time
-% 			chanProp    = single_epoch_channel_propertiesMu( eeg, iEpoch, Ieeg, mu );
-			chanProp    = single_epoch_channel_properties(   eeg, iEpoch, Ieeg );
-			chanOutlier = min_z( chanProp );
-			IchanInterp{iEpoch} = Ieeg(chanOutlier);
-		end
-		nChanInterp = cellfun( @numel, IchanInterp );
-
-		% interpolate channels w/i epochs
-		eeg = h_epoch_interp_spl( eeg, IchanInterp, IrefExclude );
-		if writeLog
-			writeToLog( 'Within-epoch channel interpolation\n' )
-			IepochKeep = setdiff( 1:eeg.trials+nEpochRej, IepochRej );
+		if false
+			% ======================================================================
+			% 4: Channels within non-rejected epochs
+			%    bad channels have already been interpolated, use them all here
+			%    this is currently overwriting chanOutlier, IchanInterp, nChanInterp & not storing individual trial parameters
+			IchanInterp = cell( 1, eeg.trials );
+%			mu = mean( eeg.data(Ieeg,:), 2 );
 			for iEpoch = 1:eeg.trials
-				writeToLog( 'Epoch %03d, Interpolated channel(s):', IepochKeep(iEpoch) )	% label epoch correctly with rejected epochs included in the indexing
-				if isempty( IchanInterp{iEpoch} )
-					writeToLog( ' none' )
-				else
-					writeToLog( ' %s', eeg.chanlocs(IchanInterp{iEpoch}).labels )
+				% the only difference of BJR's single_epoch_channel_propertiesMu.m is that it computes the mean over for each channel over dimensions 2&3 outside this loop to save time
+%				chanProp    = single_epoch_channel_propertiesMu( eeg, iEpoch, Ieeg, mu );
+				chanProp    = single_epoch_channel_properties(   eeg, iEpoch, Ieeg );
+				chanOutlier = min_z( chanProp );
+				IchanInterp{iEpoch} = Ieeg(chanOutlier);
+			end
+			nChanInterp = cellfun( @numel, IchanInterp );
+
+			% interpolate channels w/i epochs
+			eeg = h_epoch_interp_spl( eeg, IchanInterp, IrefExclude );
+			if writeLog
+				writeToLog( 'Within-epoch channel interpolation\n' )
+				IepochKeep = setdiff( 1:eeg.trials+nEpochRej, IepochRej );
+				for iEpoch = 1:eeg.trials
+					writeToLog( 'Epoch %03d, Interpolated channel(s):', IepochKeep(iEpoch) )	% label epoch correctly with rejected epochs included in the indexing
+					if isempty( IchanInterp{iEpoch} )
+						writeToLog( ' none' )
+					else
+						writeToLog( ' %s', eeg.chanlocs(IchanInterp{iEpoch}).labels )
+					end
+					writeToLog( ' (%d/%d)\n', nChanInterp(iEpoch), eeg.nbchan )
 				end
-				writeToLog( ' (%d/%d)\n', nChanInterp(iEpoch), eeg.nbchan )
 			end
 		end
-%}
 
 		% remove baseline
-		eeg = pop_rmbase( eeg, baselineWinSec * 1e3 );
+		if true
+			eeg = pop_rmbase( eeg, baselineWinSec * 1e3 );
+			writeToLog( 'Epoch baseline removal [ %g, %g ]\n', baselineWinSec )
+		end
 
 		% Return rejected trials to the data structure as NaN
 		eeg.trials = eeg.trials + nEpochRej;
@@ -631,6 +761,7 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		end
 		fclose( 'all' );		% close any open BV files
 		assignin( 'base', 'ME', ME )
+		fprintf( 'crashed at %s\n', datestr( now ) )
 % 		keyboard
 		rethrow( ME )
 

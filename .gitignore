@@ -6,8 +6,7 @@ ICArepeatability.mat
 tempDebugICA_ADJUST.txt
 AMPSCZ_EEG_montage.png
 debugInterpThresh.m
-tempMakeFigs.m
 exampleRunSheet.txt
-updateCertSheet.m
 debugChanLocs.m
 icaRejTest.m
+icaRejTest.mat
