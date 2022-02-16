@@ -41,7 +41,7 @@ function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
 		matFile = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED',...
 			[ networkName, subjId(1:2) ], 'processed', subjId, 'eeg', [ 'ses-', sessId ], 'mat',...
 			sprintf( [ nameFmt, '.mat' ], taskNames{iTask} ) );
-		
+
 		load( matFile, 'EEG', 'epochInfo' )
 
 		% time-locked event of each trial
@@ -77,6 +77,9 @@ function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
 		% channels to inclue
 		kChan = strcmp( { EEG.chanlocs.type }, 'EEG' );
 
+		if EEG.trials ~= numel( epochInfo.latency )
+			error( 'EEG.trials (%d) vs epochInfo (%d) size mismatch', EEG.trials, numel( epochInfo.latency ) )
+		end
 
 		%% initialize plot ----------------------------------------------------
 
@@ -162,12 +165,14 @@ function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
 			[ networkName, subjId(1:2) ], 'processed', subjId, 'eeg', [ 'ses-', sessId ], 'Figures' );
 
 		figure( gcf )
+		
+		nSkip = round( 0.005 * EEG.srate );
 
 		V = VideoWriter( fullfile( outputDir, sprintf( [ nameFmt, '.mp4' ], taskNames{iTask} ) ), 'MPEG-4' );
 		V.Quality   = 80;	% default = 75, [0,100].  call before open?
 		V.FrameRate = 20;	% call after open? help say yes, but it throws error
 		open( V );
-		for iTime = iTime0:5:EEG.pnts
+		for iTime = iTime0:nSkip:EEG.pnts
 			for iStim = 1:nStim
 %				set( hTopo(iStim), 'CData', Y(iTime,kChan,iStim) )
 				[ ~, cdata ] = topoplot( Y(iTime,kChan,iStim), EEG.chanlocs(kChan), topoOpts{:}, 'maplimits', yRange, 'noplot', 'on' );

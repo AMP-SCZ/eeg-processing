@@ -421,6 +421,9 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		
 		% Stimulus indices & type sequence -------------------------------------
 		Istim     = find( ismember( { EEG(iRun).event.type }, epochEventCodes ) );
+			% get rid of stimuli that are too close to bounds to epoch
+			Istim( [ EEG(iRun).event(Istim).latency ] <                  -epochWin(1) * EEG(iRun).srate ) = [];
+			Istim( [ EEG(iRun).event(Istim).latency ] >  EEG(iRun).pnts - epochWin(2) * EEG(iRun).srate ) = [];
 		stimSeq   = { EEG(iRun).event(Istim).type };
 		nStim     = numel( Istim );
 		kStandard = strcmp( stimSeq, standardCode );

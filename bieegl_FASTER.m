@@ -53,11 +53,12 @@ function [ eeg, ChanProp, bssccaStats, icaData ] = bieegl_FASTER( eeg, epochEven
 		elseif ~all( cellfun( @ischar, epochEventCodes ) )
 			error( 'unsupported epoch event codes class' )
 		else
-			for iRun = 1:nRun
-				if ~all( ismember( epochEventCodes, { eeg(iRun).event.type } ) )
-					error( 'invalid epoch event codes input' )
-				end
-			end
+			% disable this check!  for paused runs, you may not have all types of epochs in each segment
+% 			for iRun = 1:nRun
+% 				if ~all( ismember( epochEventCodes, { eeg(iRun).event.type } ) )
+% 					error( 'invalid epoch event codes input' )
+% 				end
+% 			end
 		end
 		% -- epochWinSec
 		if ~isnumeric( epochWinSec ) || numel( epochWinSec ) ~= 2 || diff( epochWinSec ) <= 0
