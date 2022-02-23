@@ -97,7 +97,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	elseif ischar( EEG ) && exist( EEG, 'file' ) == 2 && strncmp( flip( EEG, 2 ), 'tam.', 4 )
 		% get filter band string from filename or mat-file structure
 		if ~isempty( filterStr )
-			warning( 'filter band retrieved from mat-file name, use input ignored' )
+			warning( 'filter band retrieved from mat-file name, user input ignored' )
 		end
 		filterStr = regexp( EEG, '_(\[[\d\.]+,([\d\.]+|Inf)\]).mat$', 'tokens', 'once' );
 		if isempty( filterStr )
@@ -131,6 +131,9 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 % 	tWidthTopo = 0;
 	tWidthTopo = 25*2;
 	
+	% give each topo group to its own CLim or use same global limits as waveform plots?
+	globalCmap = false;
+
 	Ichan  = find( strcmp( { EEG.chanlocs.type }, 'EEG' ) );
 	nChan  = numel( Ichan );
 % 	nSamp  = EEG.pnts;
@@ -160,6 +163,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			tWinPlot  = [ -100, 600 ];	% (ms)
 			% { label, channel members }
 			chanSet = {
+% 				'Fz', { 'Fz' }		% add 100 pixels to figure height if you use this? useful for AOD novel heralds?
 				'Cz', { 'Cz' }
 				'Pz', { 'Pz' }
 			};
@@ -198,7 +202,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 
 	jTime = EEG.times >= tWinPlot(1) & EEG.times <= tWinPlot(2);
 	jT0   = find( jTime, 1, 'first' ) - 1;
-	nTime = sum( jTime );
+	nTime = nnz( jTime );
 
 	% convert cell arrays of channel names to numeric indices
 	nSet = size( chanSet, 1 );		% # waveform axes
@@ -227,7 +231,12 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	kEpoch = shiftdim( ~isnan( EEG.data(1,1,:) ), 1 );
 	nanFlag = 'includenan';		% shouldn't be any NaNs, include them as safety
 	
-	topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp' };		% electrodes: 'pts' or 'ptslabels'?
+% 	topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp' };		% electrodes: 'pts' or 'ptslabels'?
+	
+	% from QC code
+	topoOpts = { 'nosedir', '+X', 'style', 'map', 'colormap', jet(256), 'shading', 'flat', 'conv', 'on',...
+		'headrad', 0.5, 'electrodes', 'on', 'emarker', { '.', 'k', 8, 0.5 }, 'hcolor', repmat( 0.333, 1, 3 ),...
+		'gridscale', 200, 'circgrid', 360 };
 
 	fontSize = 10;
 % 	if size( EEG.comments, 1 ) == 1
@@ -295,7 +304,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			yRange0 = yRangeFcn( cat( 3, YmStandard, YmDeviant, YmDeviant - YmStandard ) );
 			yRange  = yRangeFcn( cat( 3, ymStandard, ymDeviant, ymDeviant - ymStandard ) );
 			kSet = strcmp( chanSet(:,1), 'Fz' );
-			if sum( kSet ) ~= 1
+			if nnz( kSet ) ~= 1
 				error( 'invalid channel set name' )
 			end
 			kPk = EEG.times(jTime) >= 80 & EEG.times(jTime) <= 250;
@@ -395,14 +404,23 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			set( hAx(4:3+nSet*2), 'YTick', yTickFcn( yRange(2) ) )
 			set( hAx(2:3+(nSet-1)*2), 'XTickLabel', '' )
 % 			set( hAx(iSet), 'UserData', iSet )
-			set( hAx(3+nSet*2+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ] )
+			set( hAx(3+nSet*2+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
+
+			if ~globalCmap
+				wColorbar = 0.3;
+				zMax = max( abs( [ tmDeviant(:); tmDeviant(:) - tmStandard(:) ] ) );
+				set( hAx(3+2*nSet+(1:4)), 'CLim', [ -1, 1 ] * zMax )
+				hColorbar = subplot( 'Position', [ axL+ axW+axGh   , axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
+				image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
+				set( hColorbar, 'YTick', [] )
+			end
 
 % 			title( hAx(1), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\nStandard (%d)', fontSize+2,...
-% 				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), sum( Kstandard ) ), 'FontSize', fontSize )
-% 			title( hAx(2), sprintf( '\\color{red}Deviant (%d)', sum( Kdeviant ) ), 'FontSize', fontSize )
-			title( hAx(1), sprintf( 'Standard (%d/%d)', sum( Kstandard ), Nstandard ), 'FontSize', fontSize )
+% 				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), nnz( Kstandard ) ), 'FontSize', fontSize )
+% 			title( hAx(2), sprintf( '\\color{red}Deviant (%d)', nnz( Kdeviant ) ), 'FontSize', fontSize )
+			title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
 			title( hAx(2), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{red}Deviant (%d/%d)', fontSize+2,...
-				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), sum( Kdeviant ), Ndeviant ), 'FontSize', fontSize )
+				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), nnz( Kdeviant ), Ndeviant ), 'FontSize', fontSize )
 			title( hAx(3), '\color{red}Deviant - Standard', 'FontSize', fontSize )
 			ylabel( hAx(1), '(\muV)', 'FontSize', fontSize, 'FontWeight', 'bold' )
 			for iSet = 1:nSet
@@ -438,8 +456,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 				ylim( [ -1, 1 ] * max( abs( YmDeviant - YmStandard ), [], 'all' ) * 1.05 )
 			set( hAx2, 'XGrid', 'on', 'YGrid', 'on', 'XLim', tWinPlot )
 			set([
-					title(  hAx2(1), sprintf( 'Standard (%d)', sum( Kstandard ) ) )
-					title(  hAx2(2), sprintf(  'Deviant (%d)', sum( Kdeviant  ) ) )
+					title(  hAx2(1), sprintf( 'Standard (%d)', nnz( Kstandard ) ) )
+					title(  hAx2(2), sprintf(  'Deviant (%d)', nnz( Kdeviant  ) ) )
 					title(  hAx2(3), 'Deviant - Standard' )
 					ylabel( hAx2(1), sprintf( '%s\n%s-%s-%s\nMean %s ERP (\\muV)', subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), epochName ) )
 					xlabel( hAx2(1), 'Time (ms)' )
@@ -450,14 +468,23 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 
 		case { 'VOD', 'AOD' }
 
-			plotHeralds = true;
-			Kstandard = epochInfo.kStandard;
-			Ktarget   = epochInfo.kTarget;
-			Knovel    = epochInfo.kNovel;
-			KpreNovel = [ Knovel(2:end), false ];
-			Nstandard = nnz( Kstandard );
-			Ntarget   = nnz( Ktarget );
-			Nnovel    = nnz( Knovel );
+			% what to do about standard sounds preceding novels in AOD paradigm
+			if strcmp( epochName, 'AOD' )
+				% 0 = ignore, don't plot
+				% 1 = plot but keep all standards in other analyses
+				% 2 = exclude heralds from other analyses
+				plotHeralds = 1;
+			else
+				plotHeralds = 0;
+			end
+			Kstandard  = epochInfo.kStandard;
+			Ktarget    = epochInfo.kTarget;
+			Knovel     = epochInfo.kNovel;
+			KpreNovel  = [ Knovel(2:end) , false ];
+			KpreTarget = [ Ktarget(2:end), false ];
+			Nstandard  = nnz( Kstandard );
+			Ntarget    = nnz( Ktarget );
+			Nnovel     = nnz( Knovel );
 			% only analyze correct responses?		don't worry about button presses in MMN task.  DM 12/13/21
 			Kstandard(Kstandard) = epochInfo.kCorrect(Kstandard);
 			Ktarget(Ktarget)     = epochInfo.kCorrect(Ktarget);
@@ -467,9 +494,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			Ktarget(Ktarget)     = kEpoch(Ktarget);
 			Knovel(Knovel)       = kEpoch(Knovel);
 			% average across epochs
-			if plotHeralds
-%				YmStandard = mean( EEG.data(Ichan,jTime,Kstandard & ~KpreNovel), 3, nanFlag );
-				YmStandard = mean( EEG.data(Ichan,jTime,Kstandard), 3, nanFlag );
+			if plotHeralds == 2
+				YmStandard = mean( EEG.data(Ichan,jTime,Kstandard & ~KpreNovel), 3, nanFlag );
 			else
 				YmStandard = mean( EEG.data(Ichan,jTime,Kstandard), 3, nanFlag );
 			end
@@ -486,11 +512,11 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			yRange0 = yRangeFcn( cat( 3, YmStandard, YmTarget, YmNovel, YmTarget - YmStandard, YmNovel - YmStandard ) );
 			yRange  = yRangeFcn( cat( 3, ymStandard, ymTarget, ymNovel, ymTarget - ymStandard, ymNovel - ymStandard ) );
 			kSetT = strcmp( chanSet(:,1), 'Pz' );
-			if sum( kSetT ) ~= 1
+			if nnz( kSetT ) ~= 1
 				error( 'invalid channel set name' )
 			end
 			kSetN = strcmp( chanSet(:,1), 'Cz' );
-			if sum( kSetN ) ~= 1
+			if nnz( kSetN ) ~= 1
 				error( 'invalid channel set name' )
 			end
 			kPk = EEG.times(jTime) >= 200 & EEG.times(jTime) <= 500;
@@ -643,18 +669,33 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			set( hAx(6:5+nSet*4), 'YTick', yTickFcn( yRange(2) ) )
 			set( hAx(2:5+(nSet-1)*4), 'XTickLabel', '' )
 % 			set( hAx(iSet), 'UserData', iSet )
-			set( hAx(5+nSet*4+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ] )
+			set( hAx(5+nSet*4+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
+			
+			if ~globalCmap
+				wColorbar = 0.3;
 
-			if plotHeralds
-% 				title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard & ~KpreNovel ), Nstandard - Nnovel ), 'FontSize', fontSize )
-				title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
+				zMax = max( abs( [ tmTarget(:); tmTarget(:) - tmStandardT(:) ] ) );
+				set( hAx(5+4*nSet+[1 2 5 6]), 'CLim', [ -1, 1 ] * zMax )
+				hColorbar = subplot( 'Position', [ axL+ axW+axGh   , axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
+				image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
+				set( hColorbar, 'YTick', [] )
+
+				zMax(:) = max( abs( [ tmNovel(:); tmNovel(:) - tmStandardN(:) ] ) );
+				set( hAx(5+4*nSet+[3 4 7 8]), 'CLim', [ -1, 1 ] * zMax )
+				hColorbar = subplot( 'Position', [ axL+(axW+axGh)*3, axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
+				image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
+				set( hColorbar, 'YTick', [] )
+			end
+
+			if plotHeralds == 2
+				title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard & ~KpreNovel ), Nstandard - Nnovel ), 'FontSize', fontSize )
 			else
 				title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
 			end
-			title( hAx(2), sprintf( '\\color{blue}Target (%d/%d)', sum( Ktarget ), Ntarget ), 'FontSize', fontSize )
+			title( hAx(2), sprintf( '\\color{blue}Target (%d/%d)', nnz( Ktarget ), Ntarget ), 'FontSize', fontSize )
 			title( hAx(3), sprintf( '{\\fontsize{%g}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{blue}Target - Standard', fontSize+2,...
 				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8) ), 'FontSize', fontSize )
-			title( hAx(4), sprintf( '\\color{red}Novel (%d/%d)', sum( Knovel ), Nnovel ), 'FontSize', fontSize )
+			title( hAx(4), sprintf( '\\color{red}Novel (%d/%d)', nnz( Knovel ), Nnovel ), 'FontSize', fontSize )
 			title( hAx(5), '\color{red}Novel - Standard', 'FontSize', fontSize )
 			ylabel( hAx(1), '(\muV)', 'FontSize', fontSize, 'FontWeight', 'bold' )
 			for iSet = 1:nSet
@@ -703,32 +744,35 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 				ylim( [ -1, 1 ] * max( abs( YmNovel ), [], 'all' ) * 1.05 )
 			set( hAx2, 'XGrid', 'on', 'YGrid', 'on', 'XLim', tWinPlot )
 			set([
-					title(  hAx2(1), sprintf( 'Standard (%d)', sum( Kstandard ) ) )
-					title(  hAx2(2), sprintf(   'Target (%d)', sum( Ktarget   ) ) )
-					title(  hAx2(3), sprintf(    'Novel (%d)', sum( Knovel    ) ) )
+					title(  hAx2(1), sprintf( 'Standard (%d)', nnz( Kstandard ) ) )
+					title(  hAx2(2), sprintf(   'Target (%d)', nnz( Ktarget   ) ) )
+					title(  hAx2(3), sprintf(    'Novel (%d)', nnz( Knovel    ) ) )
 					ylabel( hAx2(1), sprintf( '%s\n%s-%s-%s\nMean %s ERP (\\muV)', subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), epochName ) )
 					xlabel( hAx2(1), 'Time (ms)' )
 					xlabel( hAx2(2), 'Time (ms)' )
 					xlabel( hAx2(3), 'Time (ms)' )
 				], 'FontSize', 12 )
 %}
-			if strcmp( epochName, 'AOD' ) && plotHeralds
-				hAxA  = gobjects( nSet, 1 );
+			if plotHeralds ~= 0
+				hAxA  = gobjects( nSet + 2, 1 );
 				nStd  = nnz( Kstandard & ~KpreNovel );
 				nPre  = nnz( Kstandard &  KpreNovel );
 				nBoth = nStd + nPre;
 				IPerm = [ find( Kstandard & ~KpreNovel ), find( Kstandard &  KpreNovel ) ];
-				nPerm = 5e3;
-				rgbPre = [ 0, 0.75, 0 ];
+				nPerm = 0;	%5e3;
+				rgbPre  = [ 0, 0.75, 0 ];
+				rgbPreT = [ 2/3, 0, 1 ];
 				
 				yMax = 0;
 				for iSet = 1:nSet
-					yPre = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard &  KpreNovel), 3, nanFlag ), 1, nanFlag );
-					yStd = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard & ~KpreNovel), 3, nanFlag ), 1, nanFlag );
-					yMax(:) = max( [ yMax, abs( [ yPre, yStd ] ) ] );
+					yStd  = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard & ~KpreNovel ), 3, nanFlag ), 1, nanFlag );
+					yPre  = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard &  KpreNovel ), 3, nanFlag ), 1, nanFlag );
+					yPreT = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard &  KpreTarget), 3, nanFlag ), 1, nanFlag );
+					yMax(:) = max( [ yMax, abs( [ yStd, yPre, yPre-yStd, yPreT, yPreT-yStd  ] ) ] );
 					hAxA(iSet) = subplot( 'Position', [ axL, 1 - axT  - axH*(iSet+1) - axGv(1)*iSet, axW, axH ] );
-					hLineA = plot( EEG.times(jTime), yStd, 'k', EEG.times(jTime), yPre, '--k' );
+					hLineA = plot( EEG.times(jTime), yStd, 'k', EEG.times(jTime), yPre, '--k', EEG.times(jTime), yPreT, ':k' );
 					set( hLineA(2), 'LineStyle', '-', 'Color', rgbPre )
+					set( hLineA(3), 'LineStyle', '-', 'Color', rgbPreT )
 					if nPerm ~= 0
 						dY    = yPre - yStd;
 						sigma = zeros( 1, nTime );
@@ -756,24 +800,74 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 					ylabel( hAxA(iSet), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
 					ylabel( hAx(5+4*iSet-3), '' )
 				end
-				% yRange  = yRangeFcn( cat( 3, ymStandard, ymTarget, ymNovel, ymTarget - ymStandard, ymNovel - ymStandard ) );
 				yRangeA = yRangeFcn( yMax );
-				set( hAxA, 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on',...
+
+				% topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp', 'maplimits', yRange };
+				% topoOpts = { 'nosedir', '+X', 'style', 'map', 'colormap', jet(256), 'shading', 'flat', 'conv', 'on',...
+				% 	'headrad', 0.5, 'electrodes', 'on', 'emarker', { '.', 'k', 8, 0.5 }, 'hcolor', repmat( 0.333, 1, 3 ),...
+				% 	'gridscale', 200, 'circgrid', 360, 'maplimits', yRange };
+% 				topoOpts{ find( strcmp( topoOpts(1:2:end), 'colormap'  ) ) * 2 } = parula( 256 );		% changes existing topos too
+				topoOpts{ find( strcmp( topoOpts(1:2:end), 'maplimits' ) ) * 2 } = yRangeA;
+
+				tFix = 128;
+				tAvg = tFix + [ -1, 1 ]*wFix/2;
+				jAvg = EEG.times >= tAvg(1) & EEG.times <= tAvg(2);
+				tPre = mean( mean( EEG.data(Ichan,jAvg,Kstandard &  KpreNovel), 3, nanFlag ), 2, nanFlag );
+				tStd = mean( mean( EEG.data(Ichan,jAvg,Kstandard & ~KpreNovel), 3, nanFlag ), 2, nanFlag );
+				zMax = max( abs( tPre - tStd ) );
+				hAxA(nSet+1) = subplot( 'Position', [ axL, 1 - axT  - axH*(1+nSet+1) - axGv(1)*nSet - axGv(2)          , axW, axH ] );
+					topoplot( tPre-tStd, EEG.chanlocs(Ichan), topoOpts{:} );
+					ylabel( hAxA(nSet+1), sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 ), 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				tFix = 325;
+				tAvg = tFix + [ -1, 1 ]*wFix/2;
+				jAvg = EEG.times >= tAvg(1) & EEG.times <= tAvg(2);
+				tPre = mean( mean( EEG.data(Ichan,jAvg,Kstandard &  KpreNovel), 3, nanFlag ), 2, nanFlag );
+				tStd = mean( mean( EEG.data(Ichan,jAvg,Kstandard & ~KpreNovel), 3, nanFlag ), 2, nanFlag );
+				zMax(:) = max( [ zMax; abs( tPre - tStd ) ] );
+				hAxA(nSet+2) = subplot( 'Position', [ axL, 1 - axT  - axH*(1+nSet+2) - axGv(1)*nSet - axGv(2) - axGv(3), axW, axH ] );
+					topoplot( tPre-tStd, EEG.chanlocs(Ichan), topoOpts{:} );
+					ylabel( hAxA(nSet+2), sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 ), 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
+
+				set( hAxA(1:nSet), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on',...
 					'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100, 'Box', 'on', 'YLim', yRangeA )
+				set( hAx(1)        , 'XTickLabel', '' )
 				set( hAxA(1:nSet-1), 'XTickLabel', '' )
-				set( hAx(1), 'XTickLabel', '' )
-				xlabel( hAxA(nSet), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				set( hAxA(nSet+1:nSet+2), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRangeA )
 				xlabel( hAx(1), '' )
-				title( hAxA(1), sprintf( '\\color[rgb]{%g,%g,%g}Novel Herald', rgbPre ), 'FontSize', fontSize, 'FontWeight', 'bold' )
+				xlabel( hAxA(nSet), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+% 				xlabel( hAxA(nSet+2), 'Herald - Non', 'FontSize', fontSize, 'FontWeight', 'bold', 'Visible', 'on' )
+				title( hAxA(nSet+1), 'Herald - Non', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				title(  hAxA(1), sprintf( '\\color[rgb]{%g,%g,%g}Novel Herald', rgbPre  ), 'FontSize', fontSize, 'FontWeight', 'bold' )
+				title(  hAxA(2), sprintf( '\\color[rgb]{%g,%g,%g}Pre-Target Standard', rgbPreT ), 'FontSize', fontSize, 'FontWeight', 'bold' )
+				
+				if globalCmap
+					% AOD novel herald topo colorbar
+					% iSet = ?;		leave colorbar on lowest axis?
+					wColorbar = 0.3;		% width relative to gap between axes
+					hColorbar = subplot( 'Position', [ axL+axW+axGh*(1-wColorbar)/2, 1-axT+axGv(1)-(axGv(1)+axH)*(1+iSet), axGh*wColorbar, axH ], 'Parent', hFig(1) );
+					image( hColorbar, (256:-1:1)' )
+					set( hColorbar, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )				
+				else
+					set( hAxA(nSet+1:nSet+2), 'CLim', [ -1, 1 ] * zMax )
+					hColorbar = subplot( 'Position', [ axL, axB*(1-wColorbar)*0.7, axW, axB*wColorbar ], 'Parent', hFig(1) );
+					image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
+					set( hColorbar, 'YTick', [] )
+				end
+				
 			end
 
 		otherwise
 	end
 
-	% iSet = ?;		leave colorbar on lowest axis?
-	hColorbar = subplot( 'Position', [ 1-axR*0.75, 1-axT+axGv(1)-(axGv(1)+axH)*(1+iSet), axR*0.5, axH ], 'Parent', hFig(1) );
-	image( hColorbar, (256:-1:1)' )
-	set( hColorbar, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )
+	% main topo colorbar
+	if globalCmap
+		% iSet = ?;		leave colorbar on lowest axis?
+		wColorbar = 0.3;		% width relative to border @ right
+		hColorbar = subplot( 'Position', [ 1-axR*(1+wColorbar)/2, 1-axT+axGv(1)-(axGv(1)+axH)*(1+iSet), axR*wColorbar, axH ], 'Parent', hFig(1) );
+		image( hColorbar, (256:-1:1)' )
+		set( hColorbar, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )
+	else
+	end
 	
 
 	figure( hFig(1) )
@@ -781,8 +875,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	siteId   = subjSess{1}(1:2);
 	siteInfo = AMPSCZ_EEG_siteInfo;
 	kSite    = strcmp( siteInfo(:,1), siteId );
-	if sum( kSite ) ~= 1
-		error( 'side id bug' )
+	if nnz( kSite ) ~= 1
+		error( 'site id bug' )
 	end
 	networkName = siteInfo{kSite,2};
 	
