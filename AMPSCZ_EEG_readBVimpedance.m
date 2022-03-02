@@ -15,7 +15,8 @@ function Ztable = AMPSCZ_EEG_readBVimpedance( vhdr )
 % hdr      is a structure returned by bieegl_readBVtxt( vhdrFile )
 %
 % OUTPUT:
-% impedanceTable is a #channels by 2 cell array, where the 1st column is the channel names, 
+% impedanceTable is a #channels by 2 x #recordings cell array, 
+%                where the 1st column is the channel names, 
 %                and the 2nd column are the integer impedance values in kOhm
 %
 % For AMPSCZ ProNET the output will be 65x2.  The 1st 63 channels are the same as in the .vhdr Channel

@@ -157,7 +157,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		sessDir = fullfile( fileparts( AMPSCZdir ), 'ProNET' );
 		bvDir   = fullfile( sessDir, siteId, 'BIDS', subjTag, sessTag, 'eeg' );
 	end
-	
+
 	% e.g. pop_chanedit( struct( 'labels', Z(:,1) ) )...
 	chanLocs = readlocs( locsFile, 'importmode', 'native', 'filetype', 'chanedit' );
 
@@ -332,7 +332,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			end
 		end
 
-		eeg   = bieegl_readBVdata( H );
+		eeg   = bieegl_readBVdata( H );		% 64x#
 		kStim = strcmp( { M.Marker.Mk.type }, 'Stimulus' );
 		i1    = M.Marker.Mk(find(kStim,1,'first')).position;
 		i2    = M.Marker.Mk(find(kStim,1,'last' )).position;
@@ -540,28 +540,44 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 % 				chanOutlier = min_z( chanProp );										% #x1
 				kGood = ~min_z( channel_properties( eeg(Ireref,:), 1:numel(Ireref), [] ) );
 				if any( kGood )
-					Ireref = Ireref( kGood );
-					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ireref,:), 1 ) );
-% 					if ~all( kGood )
-% 						eegStruct = ...
-% 						eegStruct = h_eeg_interp_spl( eegStruct, Ireref(~kGood), [] );			% note: help says 3rd input is interpolation method, but really its channels to ignore!
-% 						eeg(Ieeg,:) = eegStruct.data;
-% 					end
-% 					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ieeg,:), 1 ) );
+% 					Ireref = Ireref( kGood );
+% 					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ireref,:), 1 ) );
+					if all( kGood )
+						eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ireref,:), 1 ) );
+					else
+						if true			% do interpolations in computation of reference signal
+							eegStruct          = eeg_emptyset;
+							eegStruct.data     = eeg(Ireref,:);
+							eegStruct.srate    = fs;
+							eegStruct.chanlocs = chanLocs(Ireref);
+							[ eegStruct.nbchan, eegStruct.pnts, eegStruct.trials ] = size( eegStruct.data );
+							eegStruct.xmin     = 0;
+							eegStruct.xmax     = ( eegStruct.pnts - 1 ) / eegStruct.srate + eegStruct.xmin;
+							eegStruct.times    = (0:eegStruct.pnts-1) / eegStruct.srate;
+							eegStruct = eeg_checkset( eegStruct );
+							eegStruct = h_eeg_interp_spl( eegStruct, find(~kGood), [] );			% note: help says 3rd input is interpolation method, but really its channels to ignore!
+							eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eegStruct.data, 1 ) );
+							clear eegStruct
+						else
+							eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), mean( eeg(Ireref(kGood),:), 1 ) );
+						end
+%						Ireref = Ireref( kGood );
+					end
 				end
 			case 3
 				% PREP robust reference - can I do this w/o full EEGLAB structures?  needs chanlocs for sure
 				% see http://vislab.github.io/EEG-Clean-Tools/
 				% option on online help might be misnamed, not really 'rereference' try 'rereferencedChannels' instead
 % 				eegStruct = struct( 'data', eeg(Ieeg,:), 'srate', fs, 'chanlocs', chanLocs(Ieeg) );
-				eegStruct = eeg_checkset( eeg_emptyset );
-				[ eegStruct.nbchan, eegStruct.pnts, eegStruct.trials ] = size( eeg(Ieeg,:) );
-				eegStruct.times    = (0:eegStruct.pnts-1) / fs;
+				eegStruct          = eeg_emptyset;
 				eegStruct.data     = eeg(Ieeg,:);
 				eegStruct.srate    = fs;
 				eegStruct.chanlocs = chanLocs(Ieeg);
+				[ eegStruct.nbchan, eegStruct.pnts, eegStruct.trials ] = size( eegStruct.data );
 				eegStruct.xmin     = 0;
 				eegStruct.xmax     = ( eegStruct.pnts - 1 ) / eegStruct.srate + eegStruct.xmin;
+				eegStruct.times    = (0:eegStruct.pnts-1) / eegStruct.srate;
+				eegStruct = eeg_checkset( eegStruct );
 
 % 				rerefOpts = struct( 'referenceChannels', Ireref, 'evaluationChannels', Ireref, 'rereference'         , Ieeg, 'referenceType', 'robust' );
 				rerefOpts = struct( 'referenceChannels', Ireref, 'evaluationChannels', Ireref, 'rereferencedChannels', Ieeg, 'referenceType', 'robust' );
@@ -575,6 +591,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 					[ ~, rerefOpts ] = performReference( eegStruct, rerefOpts );
 					eeg(Ieeg,:) = bsxfun( @minus, eeg(Ieeg,:), rerefOpts.referenceSignal );
 				end
+				clear eegStruct
+% 				Ireref = rerefOpts.???
 		end
 		
 		EEG    = fft( bsxfun( @times, eeg(1:63,:), shiftdim( hann( nfft, 'periodic' ), -1 ) ), nfft, 2 );		% exclude VIS channel, re-reference
@@ -881,7 +899,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 	hAx = gobjects( 1, 6 );
 	switch figLayout
 		case 1		% Single png, multiple panels
-			hFig = findobj( 'Type', 'figure', 'Tag', mfilename );
+% 			hFig = findobj( 'Type', 'figure', 'Tag', mfilename );
+			hFig = gobjects( 0 );
 			if isempty( hFig )
 				hFig = figure( 'Tag', mfilename );
 			elseif numel( hFig ) > 1
