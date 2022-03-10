@@ -697,38 +697,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 % % 	cmap = parula( nmap );
 % 	g = 0.75;
 % 	cmap = [ linspace(0,g,nmap/2), linspace(g,1,nmap/2); repmat(g,1,nmap/2), linspace(g,0,nmap/2); zeros(1,nmap) ]';
-	
-	% [ R, G, B, transition value ]
-	mapSpec = [
-		0    , 0.625, 0, nan	% green (starts from zero)
-		1    , 1    , 0, 3/6	% yellow
-		1    , 0.5  , 0, 4/6	% orange
-		1    , 0    , 0, 5/6	% bright red
-		0.625, 0    , 0, nan	% dark red (ends at one)
-	];
-	nmap = 256;
-	F    = linspace( 0, 1, nmap )';
-	cmap = zeros( nmap, 1 );
-	iRow = 1;
-		kF = F < mapSpec(iRow+1,4);
-		nF = sum( kF );
-		for iCol = 1:3
-			cmap(kF,iCol) = linspace( mapSpec(iRow,iCol), mapSpec(iRow+1,iCol), nF );
-		end
-	for iRow = 2:size( mapSpec, 1 )-2
-		kF(:) = F >= mapSpec(iRow,4) & F < mapSpec(iRow+1,4);
-		nF(:) = sum( kF );
-		for iCol = 1:3
-			cmap(kF,iCol) = linspace( mapSpec(iRow,iCol), mapSpec(iRow+1,iCol), nF );
-		end
-	end
-	iRow(:) = iRow + 1;
-		kF(:) = F >= mapSpec(iRow,4);
-		nF(:) = sum( kF );
-		for iCol = 1:3
-			cmap(kF,iCol) = linspace( mapSpec(iRow,iCol), mapSpec(iRow+1,iCol), nF );
-		end
-
+	[ cmap, badChanColor ] = AMPSCZ_EEG_GYRcmap( 256 );
 
 	% add it d' or A'
 	% d' = norminv(hitRate) - norminv(faRate)
@@ -932,46 +901,41 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 	%   electrodes [on], off, labels, numbers, ptslabels, ptsnumbers
 	%   style: map, contour, [both], fill, blank
 	%   shading: [flat] interp
-	zLimit  = zThresh * 2;
-	topoOpts = { 'nosedir', '+X', 'style', 'map', 'colormap', cmap, 'shading', 'flat', 'maplimits', [ 0, zLimit ], 'conv', 'on',...
-		'headrad', 0.5, 'electrodes', 'on', 'emarker', { '.', 'k', 8, 0.5 }, 'hcolor', repmat( 0.333, 1, 3 ),...
-		'gridscale', 200, 'circgrid', 360 };
+	zLimit   = zThresh * 2;
+	topoOpts = AMPSCZ_EEG_topoOptions( cmap, [ 0, zLimit ] );
 % 	'intrad', max( [ chanLocs(ILocs(kZ)).radius ] )
 % 	'plotrad', max( [ chanLocs(ILocs(kZ)).radius ] )*1.1
 
 	cOrder = get( 0, 'defaultaxescolororder' );
 	fontSize   = 14;
 	fontWeight = 'normal';
-
-	badChanColor = [ 0.875, 1, 1 ];
 	
 	% 1. Impedance
 	figure( hFig(1) )
 	if figLayout == 1
 		hAx(1) = subplot( 3, 2, 1 );
 	end
-		topoOpts = [ topoOpts, { 'whitebk', 'on' } ];
-		if isempty( Z ) || all( isnan( [ Z{kZ,2,iZ} ] ) )
+		if isempty( Z ) || all( isnan( Zdata(kZ,iZ) ) )
 			text( 'Units', 'normalized', 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'Position', [ 0.5, 0.5, 0 ],...
 				'String', [ badColor, zMsg ], 'FontSize', fontSize, 'FontWeight', fontWeight )
 			set( hAx(1), 'Visible', 'off', 'DataAspectRatio', [ 1, 1, 1 ] )		% why can I title invisible topo axis, but this hides title!!!
 		else
 			% [ hTopo, cdata ] = topoplot...
-			topoplot( min( [ Z{kZ,2,iZ} ], zLimit*2 ), chanLocs(ILocs(kZ)), topoOpts{:} );		% Infs don't get interpolated
+			topoplot( min( Zdata(kZ,iZ), zLimit*2 ), chanLocs(ILocs(kZ)), topoOpts{:} );		% Infs don't get interpolated
 
 			topoRadius = [ chanLocs(ILocs(kZ)).radius ];
 			topoTheta  = [ chanLocs(ILocs(kZ)).theta  ];
 			fXY        = 0.5 / max( min( 1, max( topoRadius ) * 1.02 ), 0.5 );		% topoplot.m squeeze factor
 			topoX      =  topoRadius .* cosd( topoTheta ) * fXY;
 			topoY      = -topoRadius .* sind( topoTheta ) * fXY;
-			kThresh    = [ Z{kZ,2,iZ} ] > zThresh;
+			kThresh    = Zdata(kZ,iZ) > zThresh;
 			% this was w/ nose @ +Y
 % 			line(  topoX(kThresh), topoY(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
 			line( -topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
 
 			colorbar%( 'southoutside' );
 		end
-		if ~isempty( Z )
+		if ~isempty( Z )		% could be all NaN
 			zStr = '';
 			for i = 1:size( zRange, 1 )
 				if all( zRange(i,:) == [ 25, 75 ] )
@@ -984,17 +948,18 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 
 			% use kZ or all impedance channels? i.e. include ground?
 			text( 'Units', 'normalized', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', 'Position', [ 1.35, 0.95, 0 ],...
-				'FontSize', 12, 'String', sprintf( [	'%d Impedance Recording(s)\n',...
+				'FontSize', 12, 'String', sprintf( [	'%d Recording(s)\n',...
 														'Min. = %g'     , repmat( ', %g'   , 1, nZ-1 ), '\n',...
 														'Max. = %g'     , repmat( ', %g'   , 1, nZ-1 ), '\n',...
-														'Median = %0.1f', repmat( ', %0.1f', 1, nZ-1 ), '\n',...
+														'Med. = %0.1f'  , repmat( ', %0.1f', 1, nZ-1 ), '\n',...
 														'# > %g k\\Omega = %d', repmat( ', %d', 1, nZ-1 ), ' / %d\n',...
 														'Range:\n%s' ],...
 				nZ, min(Zdata,[],1), max(Zdata,[],1), median(Zdata,1), zThresh, sum(Zdata>zThresh,1), size(Zdata,1), zStr ) )
 		end
 		
 	% 2. Line noise
-	topoOpts{10} = [ 0, pLimit ];
+% 	topoOpts{find( strcmp( topoOpts, 'maplimits' ) ) + 1} = [ 0, pLimit ];
+	topoOpts{find( strcmp( topoOpts(1:2:end), 'maplimits' ) ) * 2} = [ 0, pLimit ];
 	if figLayout == 1
 		hAx(2) = subplot( 3, 2, 2 );
 	else
@@ -1015,7 +980,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			text( 'Units', 'normalized', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', 'Position', [ 1.35, 0.95, 0 ],...
 				'FontSize', 12, 'String', sprintf( [	'Min. = %0.1f\n',...
 														'Max. = %0.1f\n',...
-														'Median = %0.1f\n',...
+														'Med. = %0.1f\n',...
 														'# > %g %% = %d / %d' ],...
 				min(pLineMax), max(pLineMax), median(pLineMax), pLimit, sum(pLineMax>pLimit), numel(pLineMax) ) )
 	

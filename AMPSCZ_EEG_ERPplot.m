@@ -232,11 +232,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	nanFlag = 'includenan';		% shouldn't be any NaNs, include them as safety
 	
 % 	topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp' };		% electrodes: 'pts' or 'ptslabels'?
-	
-	% from QC code
-	topoOpts = { 'nosedir', '+X', 'style', 'map', 'colormap', jet(256), 'shading', 'flat', 'conv', 'on',...
-		'headrad', 0.5, 'electrodes', 'on', 'emarker', { '.', 'k', 8, 0.5 }, 'hcolor', repmat( 0.333, 1, 3 ),...
-		'gridscale', 200, 'circgrid', 360 };
+	topoOpts = AMPSCZ_EEG_topoOptions( jet( 256 ) );
 
 	fontSize = 10;
 % 	if size( EEG.comments, 1 ) == 1
@@ -248,7 +244,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			
 	% stop automatic datatips - they're super annoying!
 	set( groot , 'defaultAxesCreateFcn' , 'disableDefaultInteractivity(gca)' )
-	
+
 	hFig = gobjects;%( 1, 2 );
 	
 			% trying to salvage partial runs where events went out of epoch bounds
@@ -869,7 +865,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	else
 	end
 	
-
+	set( hFig(1), 'Color', 'w' )
 	figure( hFig(1) )
 	
 	siteId   = subjSess{1}(1:2);

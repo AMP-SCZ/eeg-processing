@@ -83,8 +83,9 @@ function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
 
 		%% initialize plot ----------------------------------------------------
 
-		topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp',...
-			'colormap', jet(256), 'whitebk', 'on' };		% electrodes: 'pts' or 'ptslabels'?
+% 		topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp', 'colormap', jet(256), 'whitebk', 'on' };		% electrodes: 'pts' or 'ptslabels'?
+		topoOpts = AMPSCZ_EEG_topoOptions( jet( 256 ) );
+		topoOpts{find( strcmp( topoOpts(1:2:end), 'shading' ) ) * 2} = 'interp';
 
 		set( gcf, 'Units', 'pixels', 'Position', [ 100, 100, figPos ] )
 		clf
