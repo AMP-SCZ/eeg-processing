@@ -170,6 +170,50 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 	if isempty( bvFile )
 		error( 'no .vhdr files in %s', bvDir )
 	end
+	
+		Z      = cell( 65, 2, 0 );
+		zRange = zeros( 0, 2 );
+		zTime  = zeros( 0, 3 );
+		for iFile = 1:numel( bvFile )
+			H = bieegl_readBVtxt( fullfile( bvFile(iFile).folder, bvFile(iFile).name ) );
+			Z = cat( 3, Z, AMPSCZ_EEG_readBVimpedance( H ) );
+			zRangeText = regexp( H.Comment, '^Data/Gnd Electrodes Selected Impedance Measurement Range: (\S+) - (\S+) kOhm$', 'tokens', 'once' );
+			zRangeText = zRangeText( ~cellfun( @isempty, zRangeText ) );
+			if ~isempty( zRangeText )
+				zRange = cat( 1, zRange, str2double( cat( 1, zRangeText{:} ) ) );
+			end
+			% Impedance [kOhm] at 16:24:13 :
+			zTimeText = regexp( H.Comment, '^Impedance \[kOhm\] at (\d{2}):(\d{2}):(\d{2}) :$', 'tokens', 'once' );
+			zTimeText = zTimeText( ~cellfun( @isempty, zTimeText ) );
+			if ~isempty( zTimeText )
+				zTime = cat( 1, zTime, str2double( cat( 1, zTimeText{:} ) ) );
+			end
+		end
+		nZ = size( Z, 3 );
+		if size( zRange, 1 ) ~= nZ || size( zTime, 1 ) ~= nZ
+			error( 'impedance range vs data size mismatch' )		% is this possible?
+		end
+		
+		if isempty( Z )
+			zMsg = 'No Impedance Runs';
+			iZ = NaN;		% gets used in ylabel, although invisible
+		else
+			[ ~, iZ ] = unique( zTime*[ 3600; 60; 1 ], 'sorted' );
+			Z      = Z(:,:,iZ);
+			zRange = zRange(iZ,:);
+			zTime  =  zTime(iZ,:);
+			nZ(:) = numel( iZ );
+			Zdata  = cell2mat( permute( Z(:,2,:), [ 1, 3, 2 ] ) );		% include Ground too
+			iZ  = find( ~all( isnan( Zdata ), 1 ), 1, 'last' );		% first or last?
+			if isempty( iZ )
+				iZ   = nZ;
+				zMsg = 'Not Connected';
+			end
+			[ kZ, ILocs ] = ismember( Z(:,1,iZ), { chanLocs.labels } );
+			iZr = iZ;		% don't need this anymore w/ error above
+		end
+	
+%{
 	bvFile = bvFile(1).name;
 	H      = bieegl_readBVtxt( fullfile( bvDir, bvFile ) );
 	if isempty( H.Comment )
@@ -218,11 +262,12 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				zRange = str2double( cat( 1, zRange{:} ) );
 		end
 	end
-
+%}
 	
 	% Task sequence and cumulative run #s
 	% first check what's actually there
-	vmrkFiles = dir( fullfile( bvDir, '*.vmrk' ) );
+% 	vmrkFiles = dir( fullfile( bvDir, '*.vmrk' ) );
+	vmrkFiles = dir( fullfile( bvDir, [ subjTag, '_', sessTag, '_task-*', '_run-*_eeg.vmrk' ] ) );
 	nSeqFound = numel( vmrkFiles );
 	dateint   = nan( 1, nSeqFound );
 	for iSeq = 1:nSeqFound
@@ -923,15 +968,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			% [ hTopo, cdata ] = topoplot...
 			topoplot( min( Zdata(kZ,iZ), zLimit*2 ), chanLocs(ILocs(kZ)), topoOpts{:} );		% Infs don't get interpolated
 
-			topoRadius = [ chanLocs(ILocs(kZ)).radius ];
-			topoTheta  = [ chanLocs(ILocs(kZ)).theta  ];
-			fXY        = 0.5 / max( min( 1, max( topoRadius ) * 1.02 ), 0.5 );		% topoplot.m squeeze factor
-			topoX      =  topoRadius .* cosd( topoTheta ) * fXY;
-			topoY      = -topoRadius .* sind( topoTheta ) * fXY;
+			[ topoX, topoY ] = bieegl_topoCoords( chanLocs(ILocs(kZ)) );			% remember nose @ +X
 			kThresh    = Zdata(kZ,iZ) > zThresh;
-			% this was w/ nose @ +Y
-% 			line(  topoX(kThresh), topoY(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
-			line( -topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
+			line( topoY(kThresh),  topoX(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
 
 			colorbar%( 'southoutside' );
 		end
@@ -967,14 +1006,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 	end
 		topoplot( pLineMax, chanLocs(1:63), topoOpts{:} );
 	
-		topoRadius = [ chanLocs(1:63).radius ];
-		topoTheta  = [ chanLocs(1:63).theta  ];
-		fXY        = 0.5 / max( min( 1, max( topoRadius ) * 1.02 ), 0.5 );		% topoplot.m squeeze factor
-		topoX      =  topoRadius .* cosd( topoTheta ) * fXY;
-		topoY      = -topoRadius .* sind( topoTheta ) * fXY;
+		[ topoX, topoY ] = bieegl_topoCoords( chanLocs(1:63) );
 		kThresh    = pLineMax > pLimit;
-% 		line(  topoX(kThresh), topoY(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
-		line( -topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
+		line( topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
 	
 		colorbar%( 'southoutside' );
 			text( 'Units', 'normalized', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', 'Position', [ 1.35, 0.95, 0 ],...

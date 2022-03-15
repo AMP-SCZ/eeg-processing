@@ -36,13 +36,9 @@ function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThr
 
 		topoplot( min( Zdata(kZ,iRec), zLimit*2 ), chanlocs(ILocs(kZ)), topoOpts{:} );		% Infs don't get interpolated
 
-		topoRadius = [ chanlocs(ILocs(kZ)).radius ];
-		topoTheta  = [ chanlocs(ILocs(kZ)).theta  ];
-		fXY        = 0.5 / max( min( 1, max( topoRadius ) * 1.02 ), 0.5 );		% topoplot.m squeeze factor
-		topoX      =  topoRadius .* cosd( topoTheta ) * fXY;
-		topoY      = -topoRadius .* sind( topoTheta ) * fXY;
+		[ topoX, topoY ] = bieegl_topoCoords( chanlocs(ILocs(kZ)) );
 		kThresh    = Zdata(kZ,iRec) > zThresh;
-		line( -topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, nnz(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
+		line( topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, nnz(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
 
 		colorbar%( 'southoutside' );
 
