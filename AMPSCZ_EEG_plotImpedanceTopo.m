@@ -34,6 +34,7 @@ function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThr
 
 		topoOpts = AMPSCZ_EEG_topoOptions( cmap, [ 0, zLimit ] );
 
+		axes( hAx )
 		topoplot( min( Zdata(kZ,iRec), zLimit*2 ), chanlocs(ILocs(kZ)), topoOpts{:} );		% Infs don't get interpolated
 
 		[ topoX, topoY ] = bieegl_topoCoords( chanlocs(ILocs(kZ)) );
@@ -84,7 +85,7 @@ function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThr
 % 	title(  hAx, sprintf( '%s\n\\fontsize{12}%s', subjId, sessDate ), 'Visible', 'on' )
 	xlabel( hAx, 'Impedance (k\Omega)', 'Visible', 'on', 'FontSize', fontSize, 'FontWeight', fontWeight )
 	set( hAx, 'CLim', [ 0, zLimit ] )
-	set( hAx, 'Position', [ 0, 0.18, 0.55, 0.97-0.18 ] )
+% 	set( hAx, 'Position', [ 0, 0.18, 0.55, 0.97-0.18 ] )
 
 	return
 

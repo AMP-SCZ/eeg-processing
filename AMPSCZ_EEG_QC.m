@@ -201,8 +201,13 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			[ ~, iZ ] = unique( zTime*[ 3600; 60; 1 ], 'sorted' );
 			Z      = Z(:,:,iZ);
 			zRange = zRange(iZ,:);
-			zTime  =  zTime(iZ,:);
+			zTime  =  zTime(iZ,:);		% never used again
 			nZ(:) = numel( iZ );
+			for iZ = 2:nZ
+				if ~all( strcmp( Z(:,1,1), Z(:,1,iZ) ) )
+					error( 'inconsistent impedance channels' )
+				end
+			end
 			Zdata  = cell2mat( permute( Z(:,2,:), [ 1, 3, 2 ] ) );		% include Ground too
 			iZ  = find( ~all( isnan( Zdata ), 1 ), 1, 'last' );		% first or last?
 			if isempty( iZ )
@@ -965,6 +970,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				'String', [ badColor, zMsg ], 'FontSize', fontSize, 'FontWeight', fontWeight )
 			set( hAx(1), 'Visible', 'off', 'DataAspectRatio', [ 1, 1, 1 ] )		% why can I title invisible topo axis, but this hides title!!!
 		else
+			AMPSCZ_EEG_plotImpedanceTopo( hAx(1), Z(:,1,1), Zdata, chanLocs, zRange, zThresh, zLimit )
+%{
 			% [ hTopo, cdata ] = topoplot...
 			topoplot( min( Zdata(kZ,iZ), zLimit*2 ), chanLocs(ILocs(kZ)), topoOpts{:} );		% Infs don't get interpolated
 
@@ -973,7 +980,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			line( topoY(kThresh),  topoX(kThresh), repmat( 10.5, 1, sum(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
 
 			colorbar%( 'southoutside' );
+%}
 		end
+%{
 		if ~isempty( Z )		% could be all NaN
 			zStr = '';
 			for i = 1:size( zRange, 1 )
@@ -995,7 +1004,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 														'Range:\n%s' ],...
 				nZ, min(Zdata,[],1), max(Zdata,[],1), median(Zdata,1), zThresh, sum(Zdata>zThresh,1), size(Zdata,1), zStr ) )
 		end
-		
+%}
+
 	% 2. Line noise
 % 	topoOpts{find( strcmp( topoOpts, 'maplimits' ) ) + 1} = [ 0, pLimit ];
 	topoOpts{find( strcmp( topoOpts(1:2:end), 'maplimits' ) ) * 2} = [ 0, pLimit ];
