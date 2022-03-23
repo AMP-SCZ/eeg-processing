@@ -120,6 +120,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 	if ~contains( which( 'topoplot.m' ), 'modifications' )
 		addpath( fullfile( AMPSCZtools, 'modifications', 'eeglab' ), '-begin' )
 	end
+% 	load( 'C:\Users\donqu\Documents\GitHub\AMP-SCZ\eeg-processing\AMPSCZ_EEG_matlabPaths.mat', 'pathFull' )
+% 	path( pathFull )
+% 	clear( pathFull )
 	
 	siteInfo = AMPSCZ_EEG_siteInfo;
 	[ taskInfo, taskSeq ] = AMPSCZ_EEG_taskSeq;

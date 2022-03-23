@@ -1,11 +1,11 @@
-function Ztable = AMPSCZ_EEG_readBVimpedance( vhdr )
+function [ Ztable, Zrange, Ztime ] = AMPSCZ_EEG_readBVimpedance( vhdr )
 % Get impedance table from either .vhdr structure returned by bieegl_readBVtxt.m
 % or from .vhdr file itself.  This is a AMPSCZ*.m function because it makes some 
 % assumptions about the comments in .vhdr file that are consistent with AMPSCZ 
 % actiCHamp data files.
 %
 % USAGE:
-% >> impedanceTable = AMPSCZ_EEG_readBVimpedance( vhdrFile );
+% >> [ impedanceTable, impedanceRange, impedanceTime ] = AMPSCZ_EEG_readBVimpedance( vhdrFile );
 % or
 % >> impedanceTable = AMPSCZ_EEG_readBVimpedance( hdr );
 %
@@ -15,9 +15,11 @@ function Ztable = AMPSCZ_EEG_readBVimpedance( vhdr )
 % hdr      is a structure returned by bieegl_readBVtxt( vhdrFile )
 %
 % OUTPUT:
-% impedanceTable is a #channels by 2 x #recordings cell array, 
-%                where the 1st column is the channel names, 
-%                and the 2nd column are the integer impedance values in kOhm
+% impedanceTable = #channels x 2 x #recordings cell array, 
+%                  where the 1st column is the channel names, 
+%                  and the 2nd column are the integer impedance values in kOhm
+% impedanceRange = #recordings x 2 array where each row contains [ low, high ] settings
+% impedanceTie   = #recordings x 3 array where each row contains [ hour, minute, second ]
 %
 % For AMPSCZ ProNET the output will be 65x2.  The 1st 63 channels are the same as in the .vhdr Channel
 % section with the exception of the 64th 'VIS' photosensor channel.  The 64th impedance is the 
@@ -42,12 +44,27 @@ function Ztable = AMPSCZ_EEG_readBVimpedance( vhdr )
 	% Find impedance section header line
 	iImp = ~cellfun( @isempty, regexp( vhdr.Comment, '^Impedance \[kOhm\] at \d{2}:\d{2|:\d{2} :$', 'once', 'start' ) );
 	if sum( iImp ) == 0
-		Ztable = cell( 0, 2, 1 );
+		Ztable =  cell( 0, 2, 1 );
+		Zrange = zeros( 0, 2 );
+		Ztime  = zeros( 0, 3 );
 		warning( 'Can''t find Impedance section of %s', vhdr.inputFile )
 		return
 	end
 	iImp = find( iImp );
+	nZ   = numel( iImp );
 
+	Zrange = regexp( vhdr.Comment, '^Data/Gnd Electrodes Selected Impedance Measurement Range: (\S+) - (\S+) kOhm$', 'tokens', 'once' );
+	Zrange = Zrange( ~cellfun( @isempty, Zrange ) );
+	if numel( Zrange ) ~= nZ
+		warning( 'impedance: #data sets doesn''t match #ranges' )
+	end
+	if ~isempty( Zrange )
+		Zrange =  str2double( cat( 1, Zrange{:} ) );
+	end
+
+	Ztime = regexp( vhdr.Comment(iImp), '^Impedance \[kOhm\] at (\d{2}):(\d{2}):(\d{2}) :$', 'tokens', 'once' );
+	Ztime = str2double( cat( 1, Ztime{:} ) );
+	
 	% Check dimensions
 	% note:
 	% .Common.NumberOfChannels = 64.  Fp1,...,POz,VIS
@@ -65,7 +82,6 @@ function Ztable = AMPSCZ_EEG_readBVimpedance( vhdr )
 
 	% Read the table
 	% there can be 'not connected' or 'Out of Range!' in the # column!
-	nZ = numel( iImp );
 	Ztable = cell( nChanEEG+2, 2, nZ );
 	for iZ = 1:nZ
 		Ztable(:,1,iZ) = regexp( vhdr.Comment(iImp(iZ)+1:iLast(iZ)), '^(\w+):\s*(\S.*)$', 'once', 'tokens' );
@@ -89,6 +105,7 @@ function Ztable = AMPSCZ_EEG_readBVimpedance( vhdr )
 	% iLow = ~cellfun( @isempty, regexp( vhdr.Comment, '^Good Level [kOhms]\s+=', 'once', 'start' ) );
 	% iLow = contains( vhdr.Comment, 'Good Level [kOhms]' );
 	% iRange = contains( vhdr.Comment, Data/Gnd Electrodes Selected Impedance Measurement Range: ' );
+
 
 
 end
