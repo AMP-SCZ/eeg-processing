@@ -1,4 +1,4 @@
-function AMPSCZ_EEG_findPngs( varargin )
+function pngFile = AMPSCZ_EEG_findPngs( varargin )
 % for now find sessions that have a _QClineNoise.png file
 % and dump list to command window
 
@@ -8,6 +8,9 @@ function AMPSCZ_EEG_findPngs( varargin )
 % 	taskName  = 'AOD';
 % 	taskName  = 'VOD';
 % 	taskName  = 'MMN';
+
+	pngFile = cell( 0, 1 );
+	iPng    = 0;
 
 	fprintf( repmat( '\n', [ 1, 3 ] ) )
 	tic
@@ -48,6 +51,8 @@ function AMPSCZ_EEG_findPngs( varargin )
 						try
 
 							fprintf( '\t\t%s\n', fullfile( figs(iFig).folder, figs(iFig).name ) )
+							iPng(:) = iPng + 1;
+							pngFile{iPng} = fullfile( figs(iFig).folder, figs(iFig).name );
 
 						catch ME
 % 							fprintf( '\t\tFAIL  %s\n', fullfile( figs(iFig).folder, figs(iFig).name ) )
