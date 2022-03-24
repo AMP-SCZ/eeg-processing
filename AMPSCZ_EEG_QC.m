@@ -179,7 +179,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		zTime  = zeros( 0, 3 );
 		for iFile = 1:numel( bvFile )
 			H = bieegl_readBVtxt( fullfile( bvFile(iFile).folder, bvFile(iFile).name ) );
-			Z = cat( 3, Z, AMPSCZ_EEG_readBVimpedance( H ) );
+			z = AMPSCZ_EEG_readBVimpedance( H );
+			if isempty( z )
+				continue
+			end
+			Z = cat( 3, Z, z );
 			zRangeText = regexp( H.Comment, '^Data/Gnd Electrodes Selected Impedance Measurement Range: (\S+) - (\S+) kOhm$', 'tokens', 'once' );
 			zRangeText = zRangeText( ~cellfun( @isempty, zRangeText ) );
 			if ~isempty( zRangeText )
@@ -192,6 +196,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				zTime = cat( 1, zTime, str2double( cat( 1, zTimeText{:} ) ) );
 			end
 		end
+		clear z
 		nZ = size( Z, 3 );
 		if size( zRange, 1 ) ~= nZ || size( zTime, 1 ) ~= nZ
 			error( 'impedance range vs data size mismatch' )		% is this possible?
