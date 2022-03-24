@@ -1091,6 +1091,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 					'Positions', [ ones(1,any(kVis)), repmat(2,1,any(kAud)) ] )
  				set( hAx(4), 'PositionConstraint', 'innerposition' )
 				set( hAx(4), 'YDir', 'reverse', 'XLim', [ 0, max( RT( kVis | kAud ) )*1.1 ] )
+				set( hAx(4), 'YTickLabelRotation', 90 )
 		end
 
 	% Resting State relative amplitude EC/EO looking for gamma bump
@@ -1217,7 +1218,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 
 	set([
 		title(  hAx(1), sprintf( '%s\n\\fontsize{12}%s', subjId, sessDate ), 'Visible', 'on' )
-		ylabel( hAx(1), sprintf( 'Recording %d / %d', iZ, nZ ), 'Visible', 'on' )
+		ylabel( hAx(1), sprintf( 'Recording %d / %d', iZ, nZ ), 'Visible', 'on', 'Units', 'normalized', 'HorizontalAlignment', 'Center', 'VerticalAlignment', 'bottom', 'Position', [ -0.05, 0.5, 0 ] )
 		xlabel( hAx(1), 'Impedance (k\Omega)', 'Visible', 'on' )
 
 		xlabel( hAx(2), sprintf( 'Power @ %g Hz (%%)', fLine ), 'Visible', 'on' )
@@ -1227,7 +1228,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		xlabel( hAx(4), 'Target Reaction Time (ms)' )
 
 % 		ylabel( hAx(5), [ restChan, ' Amplitude (\muV)' ] )
-		ylabel( hAx(5), [ restChan, ' Power (\muV^2)' ] )
+		ylabel( hAx(5), [ restChan, ' Power (\muV^2)' ], 'Units', 'normalized', 'HorizontalAlignment', 'Center', 'VerticalAlignment', 'bottom', 'Position', [ -0.125, 0.5, 0 ] )
 % 		ylabel( hAx(5), { 'EC / EO'; [ restChan, ' Amplitude' ] } )
 		xlabel( hAx(5), 'Frequency (Hz)' )
 	], 'FontSize', fontSize, 'FontWeight', fontWeight )
@@ -1283,6 +1284,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			writePng = writeFlag;
 		end
 		if writePng
+			% look at print( hFig, '-r0', 'name.png', '-dpng' )?  r0 forces screen resolution?  windows screen, not matlab, coming out doubled like getframe
 %			print( hFig, pngOut, '-dpng' )		% 1800x1000 figure window becomes 2813x1563
 %			saveas( hFig, pngOut, 'png' )		% 1800x1000 figure window becomes 2813x1563
 %			getframe( hFig )					% 1800x1000 figure window has     3600x2000 cdata
