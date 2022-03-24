@@ -1228,7 +1228,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		xlabel( hAx(4), 'Target Reaction Time (ms)' )
 
 % 		ylabel( hAx(5), [ restChan, ' Amplitude (\muV)' ] )
-		ylabel( hAx(5), [ restChan, ' Power (\muV^2)' ], 'Units', 'normalized', 'HorizontalAlignment', 'Center', 'VerticalAlignment', 'bottom', 'Position', [ 0.85, 0.5, 0 ] )
+		ylabel( hAx(5), [ restChan, ' Power (\muV^2)' ], 'Units', 'normalized', 'HorizontalAlignment', 'Center', 'VerticalAlignment', 'bottom', 'Position', [ -0.15, 0.5, 0 ] )
 % 		ylabel( hAx(5), { 'EC / EO'; [ restChan, ' Amplitude' ] } )
 		xlabel( hAx(5), 'Frequency (Hz)' )
 	], 'FontSize', fontSize, 'FontWeight', fontWeight )
