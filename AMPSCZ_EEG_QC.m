@@ -205,9 +205,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		if isempty( Z )
 			zMsg = 'No Impedance Runs';
 			iZ = NaN;		% gets used in ylabel, although invisible
-		elseif all( isnan( cell2mat( Z(:,2,:) ) ), 'all' )
-			zMsg = 'No Impedance Data';
-			iZ = 1;
+% 		elseif all( isnan( cell2mat( Z(:,2,:) ) ), 'all' )
+% 			zMsg = 'No Impedance Data';
+% 			iZ = 1;
 		else
 			[ ~, iZ ] = unique( zTime*[ 3600; 60; 1 ], 'sorted' );
 			Z      = Z(:,:,iZ);
@@ -220,12 +220,16 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				end
 			end
 			Zdata  = cell2mat( permute( Z(:,2,:), [ 1, 3, 2 ] ) );		% include Ground too
-			iZ  = find( ~all( isnan( Zdata ), 1 ), 1, 'last' );		% first or last?
+% 			iZ  = find( ~all( isnan( Zdata ), 1 ), 1, 'last' );		% first or last?
+			[ kZ, ILocs ] = ismember( Z(:,1,1), { chanLocs.labels } );
+			iZ  = find( ~all( isnan( Zdata(kZ,:) ), 1 ), 1, 'last' );		% first or last?
 			if isempty( iZ )
 				iZ   = nZ;
 				zMsg = 'Not Connected';
+			else
+				zMsg = '';
 			end
-			[ kZ, ILocs ] = ismember( Z(:,1,iZ), { chanLocs.labels } );
+% 			[ kZ, ILocs ] = ismember( Z(:,1,iZ), { chanLocs.labels } );
 			iZr = iZ;		% don't need this anymore w/ error above
 		end
 	
