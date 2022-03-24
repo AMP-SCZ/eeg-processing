@@ -205,6 +205,9 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		if isempty( Z )
 			zMsg = 'No Impedance Runs';
 			iZ = NaN;		% gets used in ylabel, although invisible
+		elseif all( isnan( cell2mat( Z(:,2,:) ) ), 'all' )
+			zMsg = 'No Impedance Data';
+			iZ = 1;
 		else
 			[ ~, iZ ] = unique( zTime*[ 3600; 60; 1 ], 'sorted' );
 			Z      = Z(:,:,iZ);
