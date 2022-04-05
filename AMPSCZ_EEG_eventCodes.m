@@ -45,7 +45,8 @@ function [ standardCode, targetCode, novelCode, respCode ] = AMPSCZ_EEG_eventCod
 			respCode     = 'S  5';
 		case 'ASSR'
 			% 200 standard
-			% Half a second of ~1 ms (44 samples @ 44100 Hz) pulses every ~25 ms (1102 samples).  ~40 Hz
+			% Half a second of ~1 ms (44 samples @ 44100 Hz) pulses every ~25 ms (1102 audio samples).  ~40 Hz
+			% repeated every 1101 (occasionally 1102) 1000 Hz EEG samples.
 			standardCode = 'S  8';
 			targetCode   =     [];
 			novelCode    =     [];

@@ -8,7 +8,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 % Where:
 %   subjectID   = 7-character subject identifier, 2-char site code + 5-digit subject #
 %   sessionDate = 8-character date 'YYYYMMDD'
-%   epochName   = 'AOD', 'MMN', or 'VOD'
+%   epochName   = 'MMN', 'VOD', 'AOD', or 'ASSR'
 %   passBand    = option input [ lowFreq, highFreq ] (Hz), default = [ 0.1, Inf ]
 %   writeFlag   = how to handle mat-files that already exist, default = []
 %                 true = overwrite, false = don't overwrite, [] = prompt if needed
@@ -69,7 +69,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 			error( 'don''t use IRun input w/ cell epochName' )
 		end
 		% they get checked later, but might as well know about errors up front
-		if ~all( cellfun( @ischar, epochName ) ) || ~all( ismember( epochName, { 'MMN', 'VOD', 'AOD' } ) )
+		if ~all( cellfun( @ischar, epochName ) ) || ~all( ismember( epochName, { 'MMN', 'VOD', 'AOD', 'ASSR' } ) )
 			error( 'Invalid epochName input' )
 		end
 		for iEpoch = 1:numel( epochName )
@@ -91,10 +91,10 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		error( 'Can''t identify session' )
 	end
 
-	taskList = { 'VODMMN', 5; 'AOD', 4 };
+	taskList = { 'VODMMN', 5; 'AOD', 4; 'ASSR', 1 };
 
 	% need to make this whole thing a function and loop epochNames if not sessions too
-	if ~ischar( epochName ) || ~ismember( epochName, { 'MMN', 'VOD', 'AOD' } )
+	if ~ischar( epochName ) || ~ismember( epochName, { 'MMN', 'VOD', 'AOD', 'ASSR' } )
 		error( 'invalid epochName' )
 	end
 	iTask = contains( taskList(:,1), epochName );
@@ -119,6 +119,24 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		case 'AOD'
 			epochWin     = [ -1   , 2    ];
 			icaWin       = [ -0.25, 0.75 ];
+		case 'ASSR'
+			error( '%s under construction', epochName )		% do we epoch these?  don't downsample?
+			% 200 standard
+			% Half a second of ~1 ms (44 samples @ 44100 Hz) pulses every ~25 ms (1102 audio samples).  ~40 Hz
+			% repeated every 1101 (occasionally 1102) 1000 Hz EEG samples.
+			
+			% @ 250 Hz, [ -96, 1000 ] or [ -100, 996 ] ms yields 275 samples
+			% & frequency resolution of 250/275 Hz
+			% putting 40 Hz @ 45th point in spectrum
+			
+			% pick 250 samples for 1 Hz resolution?
+			
+% 			epochWin     = [ -0.100, 1.000 ];
+% 			epochWin     = [ -0.096, 1.000 ];		% baseline starts from -0.100 leading to error
+% 			epochWin     = [ -0.100, 0.996 ];
+			epochWin     = [ -0.100, 0.900 ];		% 900 not included in output of pop_epoch, this gives 250 points
+% 			icaWin       = [ -0.248, 0.748 ];
+			icaWin       = epochWin;
 	end
 	RTrange = AMPSCZ_EEG_RTrange;
 
