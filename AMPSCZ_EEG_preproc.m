@@ -134,8 +134,9 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 % 			epochWin     = [ -0.096, 1.000 ];		% baseline starts from -0.100 leading to error
 % 			epochWin     = [ -0.100, 0.996 ];
 % 			epochWin     = [ -0.100, 0.900 ];		% 900 not included in output of pop_epoch, this gives 250 points
-			epochWin     = [ -0.248, 0.752 ];		% center around on portion, [0,500]ms
-			icaWin       = epochWin;
+			epochWin     = [ -0.248, 0.752 ] + [ -1, 1 ]*1;		% center around on portion, [0,500]ms, pad to avoid NaNs in ft_freqanalysis
+% 			icaWin       = epochWin;
+			icaWin       = [ -0.25, 0.75 ];
 	end
 	RTrange = AMPSCZ_EEG_RTrange;
 
