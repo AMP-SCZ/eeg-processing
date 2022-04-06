@@ -120,7 +120,6 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 			epochWin     = [ -1   , 2    ];
 			icaWin       = [ -0.25, 0.75 ];
 		case 'ASSR'
-			error( '%s under construction', epochName )		% do we epoch these?  don't downsample?
 			% 200 standard
 			% Half a second of ~1 ms (44 samples @ 44100 Hz) pulses every ~25 ms (1102 audio samples).  ~40 Hz
 			% repeated every 1101 (occasionally 1102) 1000 Hz EEG samples.
@@ -134,8 +133,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 % 			epochWin     = [ -0.100, 1.000 ];
 % 			epochWin     = [ -0.096, 1.000 ];		% baseline starts from -0.100 leading to error
 % 			epochWin     = [ -0.100, 0.996 ];
-			epochWin     = [ -0.100, 0.900 ];		% 900 not included in output of pop_epoch, this gives 250 points
-% 			icaWin       = [ -0.248, 0.748 ];
+% 			epochWin     = [ -0.100, 0.900 ];		% 900 not included in output of pop_epoch, this gives 250 points
+			epochWin     = [ -0.248, 0.752 ];		% center around on portion, [0,500]ms
 			icaWin       = epochWin;
 	end
 	RTrange = AMPSCZ_EEG_RTrange;
