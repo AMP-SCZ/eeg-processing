@@ -74,7 +74,7 @@ function AMPSCZ_EEG_segmentRaw( verbose )
 			end
 			% data2bids.m has lots of dependencies, ft_defaults puts them on path
 			% even more paths get added when data2bids.m is called
-			ft_defaults			
+			ft_defaults
 		end
 		if ~contains( which( 'ft_read_tsv.m' ), 'modifications' )
 			% make sure my modifified fieldrip functions are higher on path

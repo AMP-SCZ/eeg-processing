@@ -1,4 +1,4 @@
-function success = AMPSCZ_EEG_matlabPaths
+function success = AMPSCZ_EEG_matlabPaths( addFieldTrip )
 % add AMPSCZ_EEG paths from AMPSCZ_EEG_matlabPaths.mat
 % if it exists in toolbox directory.  see lower section after
 % function return for how to make this mat-file
@@ -13,10 +13,13 @@ function success = AMPSCZ_EEG_matlabPaths
 
 % to do:
 % put in checks and only add paths if needed?
-%	removing redundant code from AMPSCZ_EEG_preproc, AMPSCZ_EEG_QC, AMPSCZ_EEG_ERPplot
 % include an option of force addpath if i do the above
 
-% 	narginchk( 0, 0 )
+	narginchk( 0, 1 )
+	if nargin == 0
+		addFieldTrip = false;
+	end
+	
 	success = false;
 	pathMatFile = fullfile( fileparts( mfilename( 'fullpath' ) ), 'AMPSCZ_EEG_matlabPaths.mat' );
 	if exist( pathMatFile, 'file' ) ~= 2
@@ -29,6 +32,11 @@ function success = AMPSCZ_EEG_matlabPaths
 % 	if verbose
 		fprintf( 'AMPSCZ EEG added to top of path\n' )
 % 	end
+
+	if addFieldTrip
+		AMPSCZ_EEG_addFieldTrip
+	end
+
 	success(:) = true;
 
 	return
