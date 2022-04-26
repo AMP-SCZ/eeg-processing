@@ -7,7 +7,11 @@ function success = AMPSCZ_EEG_matlabPaths( addFieldTrip )
 % fieldtrip & its mods not included
 %
 % usage:
-% >> success = AMPSCZ_EEG_matlabPaths
+% >> success = AMPSCZ_EEG_matlabPaths( [addFieldTrip] )
+%
+% where
+% addFieldTrip is an optional logical scalar indicating whether 
+% FieldTrip is added to path.  default = false.
 %
 % returns true if paths added, false if not
 

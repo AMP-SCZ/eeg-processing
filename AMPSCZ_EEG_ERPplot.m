@@ -469,7 +469,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 				% 0 = ignore, don't plot
 				% 1 = plot but keep all standards in other analyses
 				% 2 = exclude heralds from other analyses
-				plotHeralds = 1;
+% 				plotHeralds = 1;
+				plotHeralds = 0;
 			else
 				plotHeralds = 0;
 			end

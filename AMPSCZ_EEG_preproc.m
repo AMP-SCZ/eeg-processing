@@ -401,6 +401,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		% verify that your locations file labels match the data file
 		% then copy fields from chanLocs to EEG.  there aren't any new fields.
 		% eeg structure has extra fields ref='', urchan=[]
+		%
+		% *** why not use eeg = pop_chanedit( eeg, 'lookup', locsFile ); ? ***
 		if numel( chanLocs ) ~= EEG(iRun).nbchan || ~all( strcmp( { EEG(iRun).chanlocs.labels }, { chanLocs.labels } ) )
 			error( '%s labels don''t match data' )
 		end
