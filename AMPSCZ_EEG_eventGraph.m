@@ -3,8 +3,24 @@ function AMPSCZ_EEG_eventGraph( subjectID, sessionDate, VODMMNruns, AODruns, ASS
 % separate out redundant code in AMPSCZ_EEG_eegMerge.m, AMPSCZ_EEG_checkRuns.m, AMPSCZ_EEG_eventGraph.m
 
 	narginchk( 2, 7 )
+	
+	if exist( 'VODMMNruns', 'var' ) ~= 1
+		VODMMNruns = [];
+	end
+	if exist( 'AODruns', 'var' ) ~= 1
+		AODruns = [];
+	end
+	if exist( 'ASSRruns', 'var' ) ~= 1
+		ASSRruns = [];
+	end
+	if exist( 'RestEOruns', 'var' ) ~= 1
+		RestEOruns = [];
+	end
+	if exist( 'RestECruns', 'var' ) ~= 1
+		RestECruns = [];
+	end
 
-	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
+
 	sortFlag = false;
 	vhdr     = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns, sortFlag );
 	nHdr     = numel( vhdr );
@@ -70,5 +86,55 @@ function AMPSCZ_EEG_eventGraph( subjectID, sessionDate, VODMMNruns, AODruns, ASS
 	ylabel( 'Events (%)' )
 	title( sprintf( '%s\n%s', subjectID, sessionDate ) )
 	legend( hBar([1:3,5:6]), { 'Std', 'Dev/Nov', 'Trg', 'Resp', 'Sensor' }, 'Location', 'NorthEastOutside' )
+	
+	return
+	
+	%%
+	
+	clear
+	sessions  = AMPSCZ_EEG_findProcSessions;
+	nSession  = size( sessions, 1 );
+	AMPSCZdir = AMPSCZ_EEG_paths;
+	for iSession = 1:nSession
+
+		pngDir = fullfile( AMPSCZdir, sessions{iSession,1}(1:end-2), 'PHOENIX', 'PROTECTED', sessions{iSession,1},...
+	                        'processed', sessions{iSession,2}, 'eeg', [ 'ses-', sessions{iSession,3} ], 'Figures' );
+		if ~isfolder( pngDir )
+			warning( '%s does not exist', pngDir )
+			continue
+		end
+		pngName = [ sessions{iSession,2}, '_', sessions{iSession,3}, '_QCimg.png' ];
+		pngFile = fullfile( pngDir, pngName );
+		if exist( pngFile, 'file' ) == 2
+			fprintf( '%s exists\n', pngName )
+			continue
+		end
+		close all
+
+		% note: sessions w/ unexpected task sequence won't get created here!
+		%       you'll need to manually supply session indices
+		%       create lookup table here?
+		try
+			AMPSCZ_EEG_sessionDataImage( sessions{iSession,2}, sessions{iSession,3} )
+% 			AMPSCZ_EEG_sessionDataImage( sessions{iSession,2}, sessions{iSession,3}, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+		catch ME
+			warning( ME.message )
+			continue
+		end
+
+		% scale if getframe pixels don't match Matlab's figure size
+		hFig   = gcf;
+		figPos = get( hFig, 'Position' );
+		img = getfield( getframe( hFig ), 'cdata' );
+		if size( img, 1 ) ~= figPos(4)
+			img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
+		end
+
+		% save
+		imwrite( img, pngFile, 'png' )
+		fprintf( 'wrote %s\n', pngFile )
+
+	end
+	fprintf( 'done\n' )
 	
 end
