@@ -43,7 +43,8 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 
 	return
 
-	%% example
+	%% run loop over all processed sessions and make raw data image pngs if they don't already exist
+
 	clear
 	sessions  = AMPSCZ_EEG_findProcSessions;
 
