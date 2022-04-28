@@ -20,7 +20,6 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 		RestECruns = [];
 	end
 
-
 	sortFlag = false;
 	vhdr     = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns, sortFlag );
 	nHdr     = numel( vhdr );
@@ -124,6 +123,24 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 	sessions  = AMPSCZ_EEG_findProcSessions;
 	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
 
+			% UCSF Box
+			sessions = {    'PronetGA', 'GA00073', '20220406' }; VODMMNruns = [1:2]; AODruns = [1:2]; ASSRruns = []; RestEOruns = []; RestECruns = [];		% 1 run of VODMMN & AOD each split over 2 segments, + ASSR & 2 rest runs
+			sessions = {    'PronetMA', 'MA00007', '20211124' }; VODMMNruns = [1:3]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 3 VODMMN & 2 AOD only
+			sessions = {    'PronetMT', 'MT00099', '20220202' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
+			sessions = {    'PronetNC', 'NC00002', '20220408' }; VODMMNruns = [1:6]; AODruns = [1:3]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];			%incomplete [6VODMMN,3AOD], don't bother
+			sessions = {    'PronetNC', 'NC00002', '20220422' }; VODMMNruns = [1:4]; AODruns = [0]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];			% 3 VODMMNN runs, last 1 split over 2 segments.  line noise test
+			sessions = {    'PronetNC', 'NC00052', '20220304' }; VODMMNruns = [1:2,5:7]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
+			sessions = {    'PronetNC', 'NC00068', '20220304' }; VODMMNruns = [1,3:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
+			sessions = {    'PronetNN', 'NN00054', '20220216' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
+			sessions = {    'PronetPI', 'PI00034', '20220121' }; VODMMNruns = [1:6]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
+			sessions = {    'PronetSF', 'SF11111', '20220201' }; VODMMNruns = [1:2]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 2 VODMMN & 2 AOD only.  noise tests
+			sessions = {    'PronetSF', 'SF11111', '20220308' }; VODMMNruns = [1:2]; AODruns = [1]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];			% 2 VODMMN & 1 AOD only.  noise tests
+			sessions = {    'PronetYA', 'YA00059', '20220120' }; VODMMNruns = []; AODruns = [2:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
+			sessions = {    'PronetYA', 'YA00087', '20220208' }; VODMMNruns = [2:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
+% 			sessions = { 'PrescientBM', 'BM00066', '20220209' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
+% 			sessions = { 'PrescientGW', 'GW00005', '20220126' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
+% 			sessions = { 'PrescientME', 'ME00099', '20220217' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
+
 			% @ DPACC
 % 			sessions = {    'PronetMA', 'MA00007', '20211124' }; VODMMNruns = [1:3]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 3 VODMMN & 2 AOD only
 % 			sessions = {    'PronetMT', 'MT00099', '20220202' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
@@ -200,14 +217,20 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 	%%
 	subjectID   = 'YA00059';
 	sessionDate = '20220120';
-	siteId      = subjectID(1:2);
-	siteInfo    = AMPSCZ_EEG_siteInfo;
-	iSite       = ismember( siteInfo(:,1), siteId );
-	AMPSCZdir   = AMPSCZ_EEG_paths;
-	networkName = siteInfo{iSite,2};
-	bidsDir     = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ],...
-	                        'processed', subjectID, 'eeg', [ 'ses-', sessionDate ], 'BIDS' );
-	dir( fullfile( bidsDir, '*.vhdr' ) )
+	if false
+		siteId      = subjectID(1:2);
+		siteInfo    = AMPSCZ_EEG_siteInfo;
+		iSite       = ismember( siteInfo(:,1), siteId );
+		AMPSCZdir   = AMPSCZ_EEG_paths;
+		networkName = siteInfo{iSite,2};
+		bidsDir     = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ],...
+								'processed', subjectID, 'eeg', [ 'ses-', sessionDate ], 'BIDS' );
+		dir( fullfile( bidsDir, '*.vhdr' ) )
+	else
+		vhdr = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, 'all', 'all', 'all', 'all', 'all', false );
+		fprintf( '%s\n', vhdr.name  )
+	end
+
 	%%
 	VODMMNruns = [];
 	AODruns    = [2:5];

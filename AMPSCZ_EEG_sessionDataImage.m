@@ -19,7 +19,7 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 	end
 
 	eeg = AMPSCZ_EEG_eegMerge( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns, [ 0.2, Inf ], [ -1, 2 ] );
-	
+
 	% mean reference, nothing fancy, don't want interpolations here
 	eeg.data(:) = bsxfun( @minus, eeg.data, mean( eeg.data, 1 ) );
 	
@@ -30,12 +30,30 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 
 	tSegment = eeg.times( ceil( [ eeg.event( strcmp( { eeg.event.type }, 'boundary' ) ).latency ] ) ) - 0.5/eeg.srate;
 
+	% DPACC images
+	hFig = figure( 'Position', [ 500, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w', 'Colormap', jet( 256 ) );
+	hAx  =   axes( 'Units', 'normalized', 'Position', [ 0.15, 0.2, 0.8, 0.75 ] );
+	imagesc( eeg.times/60e3, 1:eeg.nbchan, eeg.data, [ -1, 1 ]*75 )
+	% continuous segment lines
+	if numel( tSegment ) > 1
+		line( repmat( tSegment(2:end)/60e3, 2, 1 ), [ 0.5; eeg.nbchan+0.5 ], 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1 )
+	end
+	set( hAx, 'YDir', 'reverse' )
+	xlabel( 'Time (min)' )
+	ylabel( 'Channel' )
+	ylabel( colorbar( 'YTick', -70:10:70 ), '(\muV)' )
+	return
+
+	% UCSF images
 	figure( 'Position', [ 500, 50, 1200, 900 ], 'Colormap', jet( 256 ) )
 	imagesc( eeg.times/60e3, 1:eeg.nbchan, eeg.data, [ -1, 1 ]*75 )
+	% continuous segment lines
 	if numel( tSegment ) > 1
 		line( repmat( tSegment(2:end)/60e3, 2, 1 ), [ 0.5; eeg.nbchan+0.5 ], 'Color', 'k', 'LineStyle', '--', 'LineWidth', 2 )
 	end
-	set( gca, 'YTick', 1:eeg.nbchan, 'YTickLabel', { eeg.chanlocs.labels }, 'YDir', 'reverse' )
+	set( gca, 'YDir', 'reverse' )
+	% channel labels
+	set( gca, 'YTick', 1:eeg.nbchan, 'YTickLabel', { eeg.chanlocs.labels } )
 	xlabel( 'Time (min)' )
 	ylabel( 'Channel' )
 	title( sprintf( '%s\n%s', subjectID, sessionDate ) )
@@ -46,9 +64,9 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 	%% run loop over all processed sessions and make raw data image pngs if they don't already exist
 
 	clear
-	sessions  = AMPSCZ_EEG_findProcSessions;
 
-% 	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
+	sessions  = AMPSCZ_EEG_findProcSessions;
+	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
 
 			% manually enter run indices for these sessions (UCSF Box data set)
 			% extra runs
@@ -71,9 +89,11 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 % 			sessions = {    'PronetSF', 'SF11111', '20220201' }; VODMMNruns = [1:2]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 2 VODMMN & 2 AOD only.  noise tests
 % 			sessions = {    'PronetSF', 'SF11111', '20220308' }; VODMMNruns = [1:2]; AODruns = [1]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];			% 2 VODMMN & 1 AOD only.  noise tests
 	
-	nSession  = size( sessions, 1 );
 	AMPSCZdir = AMPSCZ_EEG_paths;
-	for iSession = 1:nSession
+	nSession  = size( sessions, 1 );
+	kCool     = false( nSession, 1 );
+	errMsg    =  cell( nSession, 1 );
+	for iSession = 1%:nSession
 
 		pngDir = fullfile( AMPSCZdir, sessions{iSession,1}(1:end-2), 'PHOENIX', 'PROTECTED', sessions{iSession,1},...
 	                        'processed', sessions{iSession,2}, 'eeg', [ 'ses-', sessions{iSession,3} ], 'Figures' );
@@ -85,7 +105,7 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 		pngFile = fullfile( pngDir, pngName );
 		if exist( pngFile, 'file' ) == 2
 			fprintf( '%s exists\n', pngName )
-			continue
+% 			continue
 		end
 		close all
 
@@ -93,11 +113,20 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 		%       you'll need to manually supply session indices
 		%       create lookup table here?
 		try
-			AMPSCZ_EEG_sessionDataImage( sessions{iSession,2}, sessions{iSession,3} )
-% 			AMPSCZ_EEG_sessionDataImage( sessions{iSession,2}, sessions{iSession,3}, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+			AMPSCZ_EEG_sessionDataImage( sessions{iSession,2}, sessions{iSession,3}, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
 		catch ME
+			errMsg{iSession} = ME.message;
 			warning( ME.message )
 			continue
+% 			vhdr = AMPSCZ_EEG_vhdrFiles( sessions{iSession,2}, sessions{iSession,3}, 'all', 'all', 'all', 'all', 'all', false );
+% 			vhdr = { vhdr.name };
+% 			runFcn = @(u) str2double( u(end-10:end-9) );
+% 			Ivodmmn = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-VODMMN_' ], 'start', 'once' ) )) );
+% 			Iaod    = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-AOD_'    ], 'start', 'once' ) )) );
+% 			Iassr   = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-ASSR_'   ], 'start', 'once' ) )) );
+% 			IrestEO = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-RestEO_' ], 'start', 'once' ) )) );
+% 			IrestEC = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-RestEC_' ], 'start', 'once' ) )) );
+% 			AMPSCZ_EEG_sessionDataImage( sessions{iSession,2}, sessions{iSession,3}, Ivodmmn, Iaod, Iassr, IrestEO, IrestEC )
 		end
 
 		% scale if getframe pixels don't match Matlab's figure size
@@ -109,9 +138,10 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 		end
 
 		% save
-		imwrite( img, pngFile, 'png' )
-		fprintf( 'wrote %s\n', pngFile )
+% 		imwrite( img, pngFile, 'png' )
+% 		fprintf( 'wrote %s\n', pngFile )
 
+		kCool(iSession) = true;
 	end
 	fprintf( 'done\n' )
 

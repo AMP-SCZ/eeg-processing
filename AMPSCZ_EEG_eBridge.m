@@ -1,3 +1,8 @@
+% to do:
+% figure out what get thresholded & at what level in eBridge.m, use that for graphic
+% make channel x channel matrix full, then sum in one dimension & make topo plots instead?
+
+
 	%% https://psychophysiology.cpmc.columbia.edu/software/eBridge/Index.html
 
 	clear

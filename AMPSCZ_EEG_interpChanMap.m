@@ -32,8 +32,10 @@ sessionDate = '20220420';
 	tasksFound = [ tasksFound{:} ];
 
 	taskNames = { 'MMN', 'VOD', 'AOD', 'ASSR' };
-	if ~all( ismember( taskNames, tasksFound ) )
+	kFound    = ismember( taskNames, tasksFound );
+	if ~all( kFound )
 		error( 'missing task(s)' )
+% 		taskNames(~kFound) = [];
 	end
 	
 	nRun  =  0;
@@ -51,7 +53,7 @@ sessionDate = '20220420';
 		end
 		nRun(:) = nRun + nRep;
 	end
-%%
+
 	if nRun ~= 12
 		warning( 'unexpected # runs' )
 	end
@@ -61,6 +63,7 @@ sessionDate = '20220420';
 % 	cmap = AMPSCZ_EEG_GYRcmap( 256 );
 	cmap = [ 1, 1, 1; jet( nRun ) ];
 	topoOpts = AMPSCZ_EEG_topoOptions( cmap, [ -0.5, nRun+0.5 ] );
+
 	clf
 	topoplot( nInt(kPlot), S.chanProp(iRep).channelLocations(kPlot), topoOpts{:} );
 	set( gca, 'CLim', [ -0.5, nRun+0.5 ] )
@@ -69,4 +72,4 @@ sessionDate = '20220420';
 	set( hBar, 'YTick', 0:nRun )
 	ylabel( hBar, '# interpolated runs' )
 	figure( gcf )
-% chanProp(1).channelLocations
+
