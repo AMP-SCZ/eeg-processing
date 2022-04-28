@@ -117,12 +117,14 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 	
 	return
 	
-	%% generate these on full set of 
+	%% generate these on full set
 	
 	clear
 
 	sessions  = AMPSCZ_EEG_findProcSessions;
 	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
+
+			% @ DPACC
 % 			sessions = {    'PronetMA', 'MA00007', '20211124' }; VODMMNruns = [1:3]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 3 VODMMN & 2 AOD only
 % 			sessions = {    'PronetMT', 'MT00099', '20220202' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
 % 			sessions = {    'PronetNC', 'NC00052', '20220304' }; VODMMNruns = [1:2,5:7]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
@@ -138,10 +140,12 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 % 			sessions = {    'PronetPA', 'PA00000', '20211014' }; VODMMNruns = [1:4]; AODruns = [1:5]; ASSRruns = []; RestEOruns = [0]; RestECruns = [0];
 % 			sessions = { 'PrescientLS', 'LS00002', '20211207' }; VODMMNruns = [1:4]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
 % 			sessions = { 'PrescientLS', 'LS00018', '20220120' }; VODMMNruns = [1:7]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
+% 			sessions = {    'PronetYA', 'YA00059', '20220120' }; VODMMNruns = []; AODruns = [2:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
 
 	nSession  = size( sessions, 1 );
 	AMPSCZdir = AMPSCZ_EEG_paths;
 	kFinished = false( nSession, 1 );
+	errMsg    =  cell( nSession, 1 );
 	for iSession = 1:nSession
 
 		pngDir = fullfile( AMPSCZdir, sessions{iSession,1}(1:end-2), 'PHOENIX', 'PROTECTED', sessions{iSession,1},...
@@ -154,6 +158,7 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 		pngFile = fullfile( pngDir, pngName );
 		if exist( pngFile, 'file' ) == 2
 			fprintf( '%s exists\n', pngName )
+			kFinished(iSession) = true;
 			continue
 		end
 		close all
@@ -164,6 +169,7 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 		try
 			AMPSCZ_EEG_eventGraph( sessions{iSession,2}, sessions{iSession,3}, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
 		catch ME
+			errMsg{iSession} = ME.message;
 			warning( ME.message )
 			continue
 		end
@@ -186,12 +192,13 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 	fprintf( 'done\n' )
 	
 	if ~all( kFinished )
-		disp( sessions(~kFinished,2:3) )
+		tmp = [ sessions(~kFinished,2:3), errMsg(~kFinished) ]';
+		fprintf( '%s\t%s\t%s\n', tmp{:} )
 	end
 	
 	
 	%%
-	subjectID   = 'LS00018';
+	subjectID   = 'YA00059';
 	sessionDate = '20220120';
 	siteId      = subjectID(1:2);
 	siteInfo    = AMPSCZ_EEG_siteInfo;
@@ -202,8 +209,8 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 	                        'processed', subjectID, 'eeg', [ 'ses-', sessionDate ], 'BIDS' );
 	dir( fullfile( bidsDir, '*.vhdr' ) )
 	%%
-	VODMMNruns = [1:7];
-	AODruns    = [];
+	VODMMNruns = [];
+	AODruns    = [2:5];
 	ASSRruns   = [];
 	RestEOruns = [];
 	RestECruns = [];
