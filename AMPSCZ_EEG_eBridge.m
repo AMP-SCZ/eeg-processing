@@ -1,7 +1,24 @@
 % to do:
 % figure out what get thresholded & at what level in eBridge.m, use that for graphic
+% 		ScaledED = ED;
+% 		ScaledED = ScaledED * EB.Info.EDscale;
+% 		preBridged = ScaledED < EB.Info.EDcutoff;
+% 		finBridged = squeeze(sum(preBridged,3));
+% 		[BRrow,BRcol] = find(finBridged >= (EBinput.BCT * EB.Info.NumEpochs));
+% 		BRrow = squeeze(transpose(BRrow));
+% 		BRcol = squeeze(transpose(BRcol));
+% 		BRallIndsUnq = unique([BRrow BRcol]);
 % make channel x channel matrix full, then sum in one dimension & make topo plots instead?
 
+	% use this to replicate EB.Bridged.Indices
+	% [BRrow,BRcol] = find( sum( ED * EB.Info.EDscale < EB.Info.EDcutoff, 3 ) >= ( EB.Info.BCT * EB.Info.NumEpochs ) );
+	% BRallIndsUnq = unique( [ BRrow; BRcol ] )';		% note: unique() is faster than union()
+
+% 	img = sum( ED * EB.Info.EDscale < EB.Info.EDcutoff, 3 );
+% 	locsFile = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1\plugins\dipfit4.3\standard_BEM\elec\standard_1005.elc';
+% 	eeg = pop_chanedit( eeg, 'lookup', locsFile );		% can run this on .chanlocs alone too
+% 	topoOpts = AMPSCZ_EEG_topoOptions( AMPSCZ_EEG_GYRcmap( 256 ) );
+% 	topoplot( sum( img + img', 2 ), eeg.chanlocs, topoOpts{:}, 'maplimits', [ 0, EB.Info.BCT * EB.Info.NumEpochs ] );
 
 	%% https://psychophysiology.cpmc.columbia.edu/software/eBridge/Index.html
 
