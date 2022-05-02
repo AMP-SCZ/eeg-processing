@@ -30,7 +30,7 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 
 	tSegment = eeg.times( ceil( [ eeg.event( strcmp( { eeg.event.type }, 'boundary' ) ).latency ] ) ) - 0.5/eeg.srate;
 
-	if ispc
+	if ispc || true
 		% UCSF images
 		figure( 'Position', [ 500, 50, 1200, 900 ], 'Colormap', jet( 256 ) )
 		imagesc( eeg.times/60e3, 1:eeg.nbchan, eeg.data, [ -1, 1 ]*75 )

@@ -21,7 +21,11 @@ function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODM
 	end
 
 % 	currentDir = cd;
-	eBridgeDir = 'C:\Users\donqu\Downloads\eBridge';
+	if ispc
+		eBridgeDir = 'C:\Users\donqu\Downloads\eBridge';
+	else
+		eBridgeDir = '/PHShome/sn1005/Downloads/eBridge';
+	end
 	if isempty( which( 'eBridge.m' ) )
 		addpath( eBridgeDir, '-begin' )
 	end
@@ -64,7 +68,7 @@ function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODM
 	sessions  = AMPSCZ_EEG_findProcSessions;
 	
 		% restrict to single site
-		sessions( ~strcmp( sessions(:,1), 'PrescientME' ), : ) = [];
+% 		sessions( ~strcmp( sessions(:,1), 'PrescientME' ), : ) = [];
 	
 	nSession  = size( sessions, 1 );
 	AMPSCZdir = AMPSCZ_EEG_paths;
@@ -86,9 +90,11 @@ function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODM
 		pngFile = fullfile( pngDir, pngName );
 		if exist( pngFile, 'file' ) == 2
 			fprintf( '%s exists\n', pngName )
-			Nbridge(iSession) = -1;
+% 			Nbridge(iSession) = -1;
 % 			continue
 		end
+
+		pause( 1 )		% doesn't pause nearly as long as advertised?
 		close all
 
 		try
@@ -98,9 +104,6 @@ function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODM
 			warning( ME.message )
 			continue
 		end
-	
-		pause( 1 )		% doesn't pause nearly as long as advertised?
-		close all
 
 		Nbridge(iSession) = EB.Bridged.Count;
 		Ebridge(EB.Bridged.Indices) = Ebridge(EB.Bridged.Indices) + 1;
@@ -147,7 +150,13 @@ function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODM
 	xlabel( 'Average Bridged Channels', 'Visible', 'on', 'FontSize', 14 )
 	title( sprintf( 'n = %d', n ), 'FontSize', 14 )
 	colorbar
-
+	figPos = get( hFig, 'Position' );
+	img = getfield( getframe( hFig ), 'cdata' );
+	if size( img, 1 ) ~= figPos(4)
+		img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
+	end
+	% imwrite( img, 'C:\Users\donqu\Box\Certification Files\Pronet\PHOENIX\PROTECTED\PredictGRAN\processed\GRANavg\eeg\ses-00000000\Figures\GRANavg_00000000_QCbridge.png', 'png' )
+	
 %% summary distributions
 
 	Nmax = max( Nbridge, [], 1, 'omitnan' );
