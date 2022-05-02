@@ -43,7 +43,9 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 		set( gca, 'YTick', 1:eeg.nbchan, 'YTickLabel', { eeg.chanlocs.labels } )
 		xlabel( 'Time (min)' )
 		ylabel( 'Channel' )
-		title( sprintf( '%s\n%s', subjectID, sessionDate ) )
+		if ispc
+			title( sprintf( '%s\n%s', subjectID, sessionDate ) )
+		end
 		ylabel( colorbar( 'YTick', -70:10:70 ), '(\muV)' )
 	else
 		% DPACC images
