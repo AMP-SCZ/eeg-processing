@@ -30,34 +30,36 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 
 	tSegment = eeg.times( ceil( [ eeg.event( strcmp( { eeg.event.type }, 'boundary' ) ).latency ] ) ) - 0.5/eeg.srate;
 
-	% DPACC images
-	hFig = figure( 'Position', [ 500, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w', 'Colormap', jet( 256 ) );
-	hAx  =   axes( 'Units', 'normalized', 'Position', [ 0.15, 0.2, 0.8, 0.75 ] );
-	imagesc( eeg.times/60e3, 1:eeg.nbchan, eeg.data, [ -1, 1 ]*75 )
-	% continuous segment lines
-	if numel( tSegment ) > 1
-		line( repmat( tSegment(2:end)/60e3, 2, 1 ), [ 0.5; eeg.nbchan+0.5 ], 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1 )
+	if ispc
+		% UCSF images
+		figure( 'Position', [ 500, 50, 1200, 900 ], 'Colormap', jet( 256 ) )
+		imagesc( eeg.times/60e3, 1:eeg.nbchan, eeg.data, [ -1, 1 ]*75 )
+		% continuous segment lines
+		if numel( tSegment ) > 1
+			line( repmat( tSegment(2:end)/60e3, 2, 1 ), [ 0.5; eeg.nbchan+0.5 ], 'Color', 'k', 'LineStyle', '--', 'LineWidth', 2 )
+		end
+		set( gca, 'YDir', 'reverse' )
+		% channel labels
+		set( gca, 'YTick', 1:eeg.nbchan, 'YTickLabel', { eeg.chanlocs.labels } )
+		xlabel( 'Time (min)' )
+		ylabel( 'Channel' )
+		title( sprintf( '%s\n%s', subjectID, sessionDate ) )
+		ylabel( colorbar( 'YTick', -70:10:70 ), '(\muV)' )
+	else
+		% DPACC images
+		hFig = figure( 'Position', [ 500, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w', 'Colormap', jet( 256 ) );
+		hAx  =   axes( 'Units', 'normalized', 'Position', [ 0.15, 0.2, 0.8, 0.75 ] );
+		imagesc( eeg.times/60e3, 1:eeg.nbchan, eeg.data, [ -1, 1 ]*75 )
+		% continuous segment lines
+		if numel( tSegment ) > 1
+			line( repmat( tSegment(2:end)/60e3, 2, 1 ), [ 0.5; eeg.nbchan+0.5 ], 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1 )
+		end
+		set( hAx, 'YDir', 'reverse' )
+		xlabel( 'Time (min)' )
+		ylabel( 'Channel' )
+		ylabel( colorbar( 'YTick', -70:10:70 ), '(\muV)' )
 	end
-	set( hAx, 'YDir', 'reverse' )
-	xlabel( 'Time (min)' )
-	ylabel( 'Channel' )
-	ylabel( colorbar( 'YTick', -70:10:70 ), '(\muV)' )
-	return
-
-	% UCSF images
-	figure( 'Position', [ 500, 50, 1200, 900 ], 'Colormap', jet( 256 ) )
-	imagesc( eeg.times/60e3, 1:eeg.nbchan, eeg.data, [ -1, 1 ]*75 )
-	% continuous segment lines
-	if numel( tSegment ) > 1
-		line( repmat( tSegment(2:end)/60e3, 2, 1 ), [ 0.5; eeg.nbchan+0.5 ], 'Color', 'k', 'LineStyle', '--', 'LineWidth', 2 )
-	end
-	set( gca, 'YDir', 'reverse' )
-	% channel labels
-	set( gca, 'YTick', 1:eeg.nbchan, 'YTickLabel', { eeg.chanlocs.labels } )
-	xlabel( 'Time (min)' )
-	ylabel( 'Channel' )
-	title( sprintf( '%s\n%s', subjectID, sessionDate ) )
-	ylabel( colorbar( 'YTick', -70:10:70 ), '(\muV)' )
+	
 
 	return
 
@@ -81,6 +83,7 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 % 			sessions = { 'PrescientBM', 'BM00066', '20220209' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
 % 			sessions = { 'PrescientGW', 'GW00005', '20220126' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
 % 			sessions = { 'PrescientME', 'ME00099', '20220217' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
+% 			sessions = { 'PrescientLS', 'LS00074', '20220427' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
 			% missing runs
 % 			sessions = {    'PronetGA', 'GA00073', '20220406' }; VODMMNruns = [1:2]; AODruns = [1:2]; ASSRruns = []; RestEOruns = []; RestECruns = [];		% 1 run of VODMMN & AOD each split over 2 segments, + ASSR & 2 rest runs
 % 			sessions = {    'PronetMA', 'MA00007', '20211124' }; VODMMNruns = [1:3]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 3 VODMMN & 2 AOD only

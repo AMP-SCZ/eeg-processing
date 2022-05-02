@@ -1,39 +1,77 @@
-% to do:
-% figure out what get thresholded & at what level in eBridge.m, use that for graphic
-% 		ScaledED = ED;
-% 		ScaledED = ScaledED * EB.Info.EDscale;
-% 		preBridged = ScaledED < EB.Info.EDcutoff;
-% 		finBridged = squeeze(sum(preBridged,3));
-% 		[BRrow,BRcol] = find(finBridged >= (EBinput.BCT * EB.Info.NumEpochs));
-% 		BRrow = squeeze(transpose(BRrow));
-% 		BRcol = squeeze(transpose(BRcol));
-% 		BRallIndsUnq = unique([BRrow BRcol]);
-% make channel x channel matrix full, then sum in one dimension & make topo plots instead?
+function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+% https://psychophysiology.cpmc.columbia.edu/software/eBridge/Index.html
+% https://psychophysiology.cpmc.columbia.edu/software/eBridge/eBridge.m
 
-	% use this to replicate EB.Bridged.Indices
-	% [BRrow,BRcol] = find( sum( ED * EB.Info.EDscale < EB.Info.EDcutoff, 3 ) >= ( EB.Info.BCT * EB.Info.NumEpochs ) );
-	% BRallIndsUnq = unique( [ BRrow; BRcol ] )';		% note: unique() is faster than union()
+	narginchk( 2, 7 )
+	
+	if exist( 'VODMMNruns', 'var' ) ~= 1
+		VODMMNruns = 0;
+	end
+	if exist( 'AODruns', 'var' ) ~= 1
+		AODruns = 0;
+	end
+	if exist( 'ASSRruns', 'var' ) ~= 1
+		ASSRruns = 0;
+	end
+	if exist( 'RestEOruns', 'var' ) ~= 1
+		RestEOruns = 0;
+	end
+	if exist( 'RestECruns', 'var' ) ~= 1
+		RestECruns = 1;
+	end
 
-	%% https://psychophysiology.cpmc.columbia.edu/software/eBridge/Index.html
+% 	currentDir = cd;
+	eBridgeDir = 'C:\Users\donqu\Downloads\eBridge';
+	if isempty( which( 'eBridge.m' ) )
+		addpath( eBridgeDir, '-begin' )
+	end
+	locsFile   = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.elc' );
 
+	eeg = AMPSCZ_EEG_eegMerge( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns, [ 0.2, 50 ], [ -1, 2 ] );
+
+% 	cd( eBridgeDir )
+	[ EB, ED ] = eBridge( eeg );
+% 	cd( currentDir )
+
+	% 2D channel x channel image matrix, triangular
+	img  = sum( ED * EB.Info.EDscale < EB.Info.EDcutoff, 3 );
+	% topography vector
+	img = sum( img + img', 2 );
+	% clip @ bridging threshold?
+	cMax = EB.Info.BCT * EB.Info.NumEpochs;
+	img = min( img, cMax );
+
+	eeg = pop_chanedit( eeg, 'lookup', locsFile );		% do this on EEG, not chanlocs or topos won't have right orientation
+
+	topoOpts = AMPSCZ_EEG_topoOptions( AMPSCZ_EEG_GYRcmap( 256 ) );
+	
+	hFig = figure( 'Position', [ 500, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' );
+	hAx  =   axes( 'Units', 'normalized', 'Position', [ 0, 0.18, 0.9, 0.9-0.18 ] );
+	topoplot( img, eeg.chanlocs, topoOpts{:}, 'maplimits', [ 0, cMax ] );
+	set( hAx, 'CLim', [ 0, cMax ], 'XLim', [ -0.55, 0.55 ], 'YLim', [ -0.45, 0.55 ] )
+	xlabel( sprintf( '%d Bridged Channels', EB.Bridged.Count ), 'Visible', 'on', 'FontSize', 14 )
+	title( sprintf( '%s - %s', subjectID, sessionDate ), 'FontSize', 14 )
+% 	colorbar
+
+	chanlocs = eeg.chanlocs;
+
+	return
+
+	%% run loop over all sessions
+	
 	clear
+	
 	sessions  = AMPSCZ_EEG_findProcSessions;
+	
+		% restrict to single site
+		sessions( ~strcmp( sessions(:,1), 'PrescientME' ), : ) = [];
+	
 	nSession  = size( sessions, 1 );
 	AMPSCZdir = AMPSCZ_EEG_paths;
 
-	VODMMNruns = 0;
-	AODruns    = 0;
-	ASSRruns   = 0;
-	RestEOruns = 0;
-	RestECruns = 1;
-
-	currentDir = cd;
-	eBridgeDir = 'C:\Users\donqu\Downloads\eBridge';
-	locsFile   = 'C:\Users\donqu\Downloads\eeglab\eeglab2021.1\plugins\dipfit4.3\standard_BEM\elec\standard_1005.elc';
-	topoOpts   = AMPSCZ_EEG_topoOptions( AMPSCZ_EEG_GYRcmap( 256 ) );
-
-	Nbridge =  nan( nSession, 2 );
-	errMsg  = cell( nSession, 1 );
+	Nbridge =   nan( nSession, 1 );
+	Ebridge = zeros(       63, 1);
+	errMsg  =  cell( nSession, 1 );
 	hWait   = waitbar( 0, '' );
 	for iSession = 1:nSession
 
@@ -48,13 +86,13 @@
 		pngFile = fullfile( pngDir, pngName );
 		if exist( pngFile, 'file' ) == 2
 			fprintf( '%s exists\n', pngName )
-			Nbridge(iSession,2) = -1;
-			continue
+			Nbridge(iSession) = -1;
+% 			continue
 		end
 		close all
 
 		try
-			eeg = AMPSCZ_EEG_eegMerge( sessions{iSession,2}, sessions{iSession,3}, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns, [ 0.2, 50 ], [ -1, 2 ] );
+			[ EB, ~, chanlocs ] = AMPSCZ_EEG_eBridge( sessions{iSession,2}, sessions{iSession,3} );
 		catch ME
 			errMsg{iSession} = ME.message;
 			warning( ME.message )
@@ -64,53 +102,12 @@
 		pause( 1 )		% doesn't pause nearly as long as advertised?
 		close all
 
-		cd( eBridgeDir )
-		[ EB, ED ] = eBridge( eeg );
-		cd( currentDir )
-
-		Nbridge(iSession,:) = [ size( EB.Bridged.Pairs, 2 ), EB.Bridged.Count ];
-% 		continue
-		
-
-		switch 2
-			case 1		% initial quick thing
-				img = median( 1./ED, 3 );
-				if EB.Bridged.Count == 0
-					nPair = 0;
-					xPair = [];
-					yPair = [];
-				else
-					nPair = size( EB.Bridged.Pairs, 2 );
-					[ ~, I ] = ismember( EB.Bridged.Pairs(1,:), EB.Bridged.Labels );
-					yPair = EB.Bridged.Indices( I );
-					[ ~, I ] = ismember( EB.Bridged.Pairs(2,:), EB.Bridged.Labels );
-					xPair = EB.Bridged.Indices( I );
-				end
-				hFig   = figure( 'Colormap', flip( pink( 256 ), 1 ), 'Position',[ 600 150 900 800 ] );		% flip(gray)?, 1-hot?
-
-				imagesc( img, [ 0, max( img, [], 'all' ) ] )
-				set( gca, 'YDir', 'normal', 'DataAspectRatio', [ 1 1 1 ] )
-				set( gca, 'XTick', 1:eeg.nbchan, 'YTick', 1:eeg.nbchan, 'XTickLabel', '', 'YTickLabel', '', 'XGrid', 'on', 'YGrid', 'on' )
-				set( gca, 'XTickLabel', { eeg.chanlocs.labels }, 'YTickLabel', { eeg.chanlocs.labels }, 'XTickLabelRotation', 90 )
-
-				line( xPair, yPair, 'LineStyle', 'none', 'Marker', 'o', 'Color', [ 1, 0.25, 0 ], 'MarkerSize', 12 )
-				xlabel( 'channel' )
-				ylabel( 'channel' )
-				title( sprintf( '%s\n%s\ndetected bridges: %d pairs, %d channels', sessions{iSession,2}, sessions{iSession,3}, nPair, EB.Bridged.Count ) )
-				colorbar
-			case 2		% more sensible topo plot
-				hFig = figure( 'Position', [ 500, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' );
-				hAx  =   axes( 'Units', 'normalized', 'Position', [ 0, 0.18, 0.9, 0.9-0.18 ] );
-				img  = sum( ED * EB.Info.EDscale < EB.Info.EDcutoff, 3 );
-				eeg = pop_chanedit( eeg, 'lookup', locsFile );
-				topoplot( sum( img + img', 2 ), eeg.chanlocs, topoOpts{:}, 'maplimits', [ 0, EB.Info.BCT * EB.Info.NumEpochs ] );
-				set( hAx, 'CLim', [ 0, EB.Info.BCT * EB.Info.NumEpochs ], 'XLim', [ -0.55, 0.55 ], 'YLim', [ -0.45, 0.55 ] )
-				xlabel( sprintf( '%d Bridged Channels', EB.Bridged.Count ), 'Visible', 'on', 'FontSize', 14 )
-				title( sprintf( '%s - %s', sessions{iSession,2:3} ), 'FontSize', 14 )
-% 				colorbar
-		end
+		Nbridge(iSession) = EB.Bridged.Count;
+		Ebridge(EB.Bridged.Indices) = Ebridge(EB.Bridged.Indices) + 1;
+		continue
 
 		% scale if getframe pixels don't match Matlab's figure size
+		hFig   = gcf;
 		figPos = get( hFig, 'Position' );
 		img = getfield( getframe( hFig ), 'cdata' );
 		if size( img, 1 ) ~= figPos(4)
@@ -126,7 +123,7 @@
 	close( hWait )
 	fprintf( 'done\n' )
 
-	kCrash = isnan( Nbridge(:,2) );
+	kCrash = isnan( Nbridge );
 	if any( kCrash )
 		tmp = [ sessions(kCrash,2:3), errMsg(kCrash) ]';
 		fprintf( '%s\t%s\t%s\n', tmp{:} )
@@ -138,26 +135,36 @@
 
 	return
 	
+%% average figure
+
+	n = nnz( Nbridge >= 0 );
+	topoOpts = AMPSCZ_EEG_topoOptions( AMPSCZ_EEG_GYRcmap( 256 ) );
+	
+	hFig = figure( 'Position', [ 500, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' );
+	hAx  =   axes( 'Units', 'normalized', 'Position', [ 0, 0.18, 0.9, 0.9-0.18 ] );
+	topoplot( Ebridge/n, chanlocs, topoOpts{:}, 'maplimits', [ 0, 1 ] );
+	set( hAx, 'CLim', [ 0, 1 ], 'XLim', [ -0.55, 0.55 ], 'YLim', [ -0.45, 0.55 ] )
+	xlabel( 'Average Bridged Channels', 'Visible', 'on', 'FontSize', 14 )
+	title( sprintf( 'n = %d', n ), 'FontSize', 14 )
+	colorbar
+
 %% summary distributions
 
-	i = 2;		% column: 1 = #brige pairs, 2 = #channels
-	varName = { 'pairs', 'channels' };
-	
 	Nmax = max( Nbridge, [], 1, 'omitnan' );
-	x = 0:Nmax(i);
-	N = histcounts( categorical( Nbridge(~isnan(Nbridge(:,i)),i) ), categorical( x ) )
+	x = 0:Nmax;
+	N = histcounts( categorical( Nbridge(~isnan(Nbridge)) ), categorical( x ) );
 	
 	clf
 	subplot( 2, 1, 1 )
-%		histogram( categorical( Nbridge(~isnan(Nbridge(:,i)),i) ), categorical( x ) )
+%		histogram( categorical( Nbridge(~isnan(Nbridge)) ), categorical( x ) )
 		bar( x, N, 1, 'FaceColor', [ 0, 0.625, 1 ] )
-%		xlim( [ -0.5, Nmax(i)+0.5 + 1 ] )
+%		xlim( [ -0.5, Nmax+0.5 + 1 ] )
 		xlim( [ -0.5, 63+0.5 ] )
-		xlabel( [ '# bridged ', varName{i} ] )
+		xlabel( '# bridged channels' )
 		ylabel( '# sessions' )
 		title( sprintf( '%d sesssions total', sum( N ) ) )
 	subplot( 2, 1, 2 )
-		h = cdfplot( Nbridge(~isnan(Nbridge(:,i)),i) );
+		h = cdfplot( Nbridge(~isnan(Nbridge)) );
 		set( h, 'Color', [ 0, 0.625, 1 ], 'LineWidth', 1.5 )
 		axis( [ 0, 63, 0, 1 ] )
 % 		axis( [ -0.5, 63+0.5, 0, 1 ] )
@@ -165,5 +172,5 @@
 	
 
 
-
+end
 
