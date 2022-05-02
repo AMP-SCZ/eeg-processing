@@ -1,6 +1,9 @@
-function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThresh, zLimit )
+function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThresh, zLimit, nAvg )
 
-	narginchk( 5, 7 )
+	narginchk( 5, 8 )
+	if exist( 'nAvg', 'var' ) ~= 1 || isempty( nAvg )
+		nAvg = 0;
+	end
 
 	% locsFile = 'AMPSCZ_EEG_actiCHamp65ref_noseX.ced';
 	% chanlocs = readlocs( locsFile, 'importmode', 'native', 'filetype', 'chanedit' );		% [ 63 EEG, 'VIS', FCz ref ]
@@ -21,7 +24,12 @@ function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThr
 		Zdata = median( Zdata, 3, 'omitnan' );
 	end
 	[ kZ, ILocs ] = ismember( Zname, { chanlocs.labels } );
-	if ~all( isnan( Zdata(kZ,iRec) ) )
+	if isempty( iRec )
+		
+		axes( hAx )
+		topoplot( [], chanlocs(ILocs(kZ)) );
+
+	elseif ~all( isnan( Zdata(kZ,iRec) ) )
 
 		if exist( 'zThresh', 'var' ) ~= 1 || isempty( zThresh )
 			zThresh = 25;
@@ -47,11 +55,23 @@ function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThr
 
 	if nSubj == 1
 		if nRec == 1
-			zStr = sprintf( '%d Recording\n' , nRec );
+			if nAvg == 0
+				zStr = sprintf( '%d Recording\n' , nRec );
+			elseif nAvg == 1
+				zStr = sprintf( '%d Session\n' , nAvg );
+			else
+				zStr = sprintf( '%d Sessions\n' , nAvg );
+			end
 		else
+			if nAvg ~= 0
+				error( 'don''t use nAvg w/ multiple recordings' )
+			end
 			zStr = sprintf( 'Recording %d / %d\n', iRec, nRec );
 		end
 	else
+		if nAvg ~= 0
+			error( 'don''t use nAvg w/ multiple subjects' )
+		end
 		zStr = sprintf( 'Median %d Subjects\n', NSubj );
 	end
 	% use kZ or all impedance channels? i.e. include "Gnd"?
