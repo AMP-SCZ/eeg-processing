@@ -24,11 +24,11 @@ function [ AMPSCZdir, eegLabDir, fieldTripDir, adjustDir ] = AMPSCZ_EEG_paths
 		fieldTripDir = fullfile( downloadDir, 'fieldtrip', 'fieldtrip-20210929' );
 		adjustDir    = fullfile( downloadDir, 'adjust',    'ADJUST1.1.1' );
 	else
-		[ AMPSCZdir, eegLabDir, fieldTripDir, adjustDir ] = deal( '' );
+		[ AMPSCZdir, eegLabDir, fieldTripDir, adjustDir ] = deal( '' );		% isfolder( '' ) returns false
 	end
 
 	if ~isfolder( AMPSCZdir )
-		error( 'Invalid project directory' )
+		error( 'Invalid project directory %s', AMPSCZdir )
 	end
 
 end
