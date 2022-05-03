@@ -32,7 +32,7 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 
 	if ispc || true
 		% UCSF images
-		figure( 'Position', [ 500, 50, 1200, 900 ], 'Colormap', jet( 256 ) )
+		figure( 'Position', [ 500, 50, 1200, 900 ], 'Colormap', jet( 256 ), 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
 		imagesc( eeg.times/60e3, 1:eeg.nbchan, eeg.data, [ -1, 1 ]*75 )
 		% continuous segment lines
 		if numel( tSegment ) > 1
@@ -70,7 +70,9 @@ function img = AMPSCZ_EEG_sessionDataImage( subjectID, sessionDate, VODMMNruns, 
 	clear
 
 	sessions  = AMPSCZ_EEG_findProcSessions;
-	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
+	
+% 	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
+	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_sessionTaskSegments( subjectID, sessionDate )
 
 			% manually enter run indices for these sessions (UCSF Box data set)
 			% extra runs
