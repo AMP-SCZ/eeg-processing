@@ -8,8 +8,8 @@ function [ AMPSCZdir, eegLabDir, fieldTripDir, adjustDir ] = AMPSCZ_EEG_paths
 % 	narginchk( 0, 0 )
 
 % 	bwhHostName = 'grx##.research.partners.org';		% max ScreenSize ~ 1812x1048
-	[ ~, hostname ] = system( 'hostname' );
-	if isunix && ~isempty( regexp( hostname, '^grx\d{2}.research.partners.org', 'start', 'once' ) )
+	[ ~, hostname ] = system( 'hostname' );		% could be e.g. eris2n5
+	if isunix %&& ~isempty( regexp( hostname, '^grx\d{2}.research.partners.org', 'start', 'once' ) )
 % 		AMPSCZdir    = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
 		AMPSCZdir    = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?
 		downloadDir  = '/PHShome/sn1005/Downloads';
