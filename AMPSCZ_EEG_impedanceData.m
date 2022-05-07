@@ -4,7 +4,7 @@ function [ Z, Zname, Zrange, Ztime ] = AMPSCZ_EEG_impedanceData( subjectID, sess
 % >> AMPSCZ_EEG_impedanceData( subjectID, sessionDate, [impedanceType] )
 % impedanceType = 'first', 'last', 'best', 'worst', 'mean', or 'median'
 %                 default is 'last'
-	
+
 	narginchk( 2, 3 )
 
 	if exist( 'impedanceType', 'var' ) ~= 1 || isempty( impedanceType )
@@ -23,21 +23,7 @@ function [ Z, Zname, Zrange, Ztime ] = AMPSCZ_EEG_impedanceData( subjectID, sess
 		[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( 'all' );
 		vhdr = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns, false );
 	else	% faster if you're for sure finding all vhdr files
-		AMPSCZdir = AMPSCZ_EEG_paths;
-		siteInfo  = AMPSCZ_EEG_siteInfo;
-		siteId    = subjectID(1:2);
-		iSite     = ismember( siteInfo(:,1), siteId );
-		switch nnz( iSite )
-			case 1
-% 				iSite = find( iSite );
-			case 0
-				error( 'Invalid site identifier' )
-			otherwise
-				error( 'non-unique site bug' )
-		end
-		networkName = siteInfo{iSite,2};
-		bidsDir     = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ],...
-								'processed', subjectID, 'eeg', [ 'ses-', sessionDate ], 'BIDS' );
+		bidsDir = fullfile( AMPSCZ_EEG_procSessionDir( subjectID, sessionDate ), 'BIDS' );
 		if ~isfolder( bidsDir )
 			error( '%s is not a valid directory', bidsDir )
 		end
@@ -130,168 +116,4 @@ function [ Z, Zname, Zrange, Ztime ] = AMPSCZ_EEG_impedanceData( subjectID, sess
 
 	return
 	
-	%%
-	
-	clear
-	
-	switch 'average'
-		case 'session'
-			subjectID     = 'AD00051';
-			sessionDate   = '20220429';
-			subjectID     = 'HK00068';		sessionDate   = '20220104';		% no impedance data found
-			subjectID     = 'HK00074';		sessionDate   = '20220105';		% no impedance data found
-			subjectID     = 'HK00080';		sessionDate   = '20220106';
-			subjectID     = 'HK00096';		sessionDate   = '20220111';		% no impedance data found
-			impedanceType = 'last';
-			AMPSCZ_EEG_impedanceData( subjectID, sessionDate, impedanceType );
-			
-% 			vhdr = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, 'all', 'all', 'all', 'all', 'all', false ); vhdr = fullfile( { vhdr.folder }, { vhdr.name } )'
-		case 'site'
-			% restrict to single site
-			impedanceType = 'last';
-
-			AMPSCZdir   = AMPSCZ_EEG_paths;
-			allSessions = AMPSCZ_EEG_findProcSessions;
-			siteNames   = unique( allSessions(:,1), 'stable' );
-			nSite       = numel( siteNames );
-			status      = zeros( nSite, 1 );
-			errMsg      =  cell( nSite, 1 );
-			for iSite = 1:nSite
-
-				siteName = siteNames{iSite};
-
-				pngDir = fullfile( AMPSCZdir, siteName(1:end-2), 'PHOENIX', 'PROTECTED', siteName,...
-									'processed', [ siteName(end-1:end), 'avg' ], 'eeg', 'ses-00000000', 'Figures' );
-				if ~isfolder( pngDir )
-					mkdir( pngDir )
-					fprintf( 'created %s\n', pngDir )
-% 					warning( '%s does not exist', pngDir )
-% 					status(iSite) = -1;
-% 					continue
-				end
-				pngName = [ siteName(end-1:end), 'avg_00000000_QCimpedance.png' ];
-				pngFile = fullfile( pngDir, pngName );
-				if exist( pngFile, 'file' ) == 2
-					fprintf( '%s exists\n', pngName )
-					status(iSite) = 1;
-					continue
-				end
-
-				sessions  = allSessions( strcmp( allSessions(:,1), siteName ), : );
-				nSession  = size( sessions, 1 );
-				Z = nan( 64, nSession );
-				Zrange = nan( nSession, 2 );
-				try
-					for iSession = 1:nSession
-						[ Z(:,iSession), Zname, Zrange(iSession,:) ] = AMPSCZ_EEG_impedanceData( sessions{iSession,2}, sessions{iSession,3}, impedanceType );
-					end
-				catch ME
-					errMsg{iSite} = ME.message;
-					warning( ME.message )
-					status(iSite) = -2;
-					continue
-				end
-				locsFile = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.ced' );
-				chanlocs = readlocs( locsFile, 'importmode', 'eeglab', 'filetype', 'chanedit' );	% nose +X, left +Y
-				[ ~, Iloc ] = ismember( Zname, { chanlocs.labels } );
-				if any( Iloc == 0 )
-					error( 'Can''t identify channel(s)' )
-				end
-				chanlocs = chanlocs(Iloc);
-				clear Iloc
-				close all
-				hFig = figure( 'Position', [ 500, 300, 525, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' );
-				hAx = axes( 'Units', 'normalized', 'Position', [ 0, 0.18, 0.55, 0.97-0.18 ] );
-				zThresh = 25;				% impedance threshold
-				zLimit  = zThresh * 2;
-				AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, mean( Z, 2, 'omitnan' ), chanlocs, mean( Zrange, 1, 'omitnan' ), zThresh, zLimit, nSession )
-			
-				figPos = get( hFig, 'Position' );
-				img = getfield( getframe( hFig ), 'cdata' );
-				if size( img, 1 ) ~= figPos(4)
-					img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-				end
-				% save
-				imwrite( img, pngFile, 'png' )
-				fprintf( 'wrote %s\n', pngFile )
-				status(iSite) = 2;
-				
-			end
-			if any( status <= 0 )
-				disp( siteNames( status <= 0 ) )
-			end
-			
-		case 'average'
-
-			% average all sites
-			impedanceType = 'last';
-
-			AMPSCZdir = AMPSCZ_EEG_paths;
-			sessions  = AMPSCZ_EEG_findProcSessions;
-			nSession  = size( sessions, 1 );
-			status    = false( nSession, 1 );
-			errMsg    =  cell( nSession, 1 );
-
-			pngDir = fullfile( AMPSCZdir, 'Pronet', 'PHOENIX', 'PROTECTED', 'PredictGRAN',...
-								'processed', 'GRANavg', 'eeg', 'ses-00000000', 'Figures' );
-			if ~isfolder( pngDir )
-				mkdir( pngDir )
-				fprintf( 'created %s\n', pngDir )
-% 				warning( '%s does not exist', pngDir )
-			end
-			
-			pngName = 'GRANavg_00000000_QCimpedance.png';
-			pngFile = fullfile( pngDir, pngName );
-			if exist( pngFile, 'file' ) == 2
-				fprintf( '%s exists\n', pngName )
-% 				return
-			end
-
-			Z = nan( 64, nSession );
-			Zrange = nan( nSession, 2 );
-
-			for iSession = 1:nSession
-				try
-					[ Z(:,iSession), Zname, Zrange(iSession,:) ] = AMPSCZ_EEG_impedanceData( sessions{iSession,2}, sessions{iSession,3}, impedanceType );
-					status(iSession) = true;
-				catch ME
-					errMsg{iSession} = ME.message;
-					warning( ME.message )
-					continue
-				end
-			end
-			locsFile = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.ced' );
-			chanlocs = readlocs( locsFile, 'importmode', 'eeglab', 'filetype', 'chanedit' );	% nose +X, left +Y
-			[ ~, Iloc ] = ismember( Zname, { chanlocs.labels } );
-			if any( Iloc == 0 )
-				error( 'Can''t identify channel(s)' )
-			end
-			chanlocs = chanlocs(Iloc);
-			clear Iloc
-			close all
-			hFig = figure( 'Position', [ 500, 300, 525, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' );
-			hAx = axes( 'Units', 'normalized', 'Position', [ 0, 0.18, 0.55, 0.97-0.18 ] );
-			zThresh = 25;				% impedance threshold
-			zLimit  = zThresh * 2;
-			AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, mean( Z, 2, 'omitnan' ), chanlocs, mean( Zrange, 1, 'omitnan' ), zThresh, zLimit, nnz( status ) )
-
-			figPos = get( hFig, 'Position' );
-			img = getfield( getframe( hFig ), 'cdata' );
-			if size( img, 1 ) ~= figPos(4)
-				img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-			end
-			% save
-% 			imwrite( img, pngFile, 'png' )
-% 			fprintf( 'wrote %s\n', pngFile )
-				
-			if ~all( status )
-				disp( sessions(~status,2:3) )
-			end
-
-		case 'loop'
-	end
-	
-	
-
-
 end

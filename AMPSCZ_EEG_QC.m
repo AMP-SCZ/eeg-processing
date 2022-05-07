@@ -152,7 +152,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 	sessDate = sessionName(9:16);
 	subjTag  = [ 'sub-', subjId   ];
 	sessTag  = [ 'ses-', sessDate ];
-	sessDir  = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg', sessTag );
+	sessDir  = AMPSCZ_EEG_procSessionDir( subjId, sessDate, networkName );
+% 	sessDir  = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjId, 'eeg', sessTag );
 	bvDir    = fullfile( sessDir, 'BIDS' );
 
 	if legacyPaths
@@ -421,16 +422,19 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		% Check for photosensor pulses - just counting them
 		% check for lack of photosensor signal in other tasks?
 		if strcmp( taskName, 'VODMMN' )
+			
+			nVis = numel( AMPSCZ_EEG_photosensorOnset( eeg(64,:) * H.Channel.Ch(64).resolution ) );
+%{
 			% pulse duration = 31-32 60Hz refreshes
 			% there should be 160 of them
 			% interval is ~normally distributed w/ 2000ms mean & 300/2.3 std
 			nEnd      = 10;
 			nGap      = 40;
-			vis       = double( sort( eeg(64,:), 2, 'ascend' ) );		% eeg is single
+			vis       = double( sort( eeg(64,:) * H.Channel.Ch(64).resolution, 2, 'ascend' ) );		% eeg is single
 			visLo     = vis( round( 0.7 * nfft ) );
 			visHi     = vis( round( 0.8 * nfft ) );
 				% if nRun(iSeq)==1, figure, plot( vis(1:100:end) ), title( [ visLo, visHi ] ), pause, close( gcf ), end
-			if visHi - visLo > 200000
+			if visHi - visLo > 200000 * H.Channel.Ch(64).resolution			% ~6e4
 				vis(:)    = ( eeg(64,:) > ( ( visLo + visHi ) / 2 ) ) * 2 - 1;
 				visOn     = filter( [ ones(1,nEnd), zeros(1,nGap), -ones(1,nEnd) ], 1, vis ) == 2*nEnd;
 				visOn(:)  = [ false, visOn(2:nfft) & ~visOn(1:nfft-1) ];
@@ -445,6 +449,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 			else
 				nVis = 0;
 			end
+%}
+
 			nMrk = sum( ismember( { M.Marker.Mk.description }, { 'S 32', 'S 64', 'S128' } ) );
 			kVar(:) = strcmp( QCvars, 'VIS' );
 			QCtable{iSeq,kVar} = sprintf( '%d/%d', nVis, nMrk );
@@ -1406,8 +1412,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		kSeg = true( 1, nSeg );
 		for iSeg = 1:nSeg
 			for iFig = 1:nFig
-				QCfigs = dir( fullfile( AMPSCZdir, seg{iSeg,1}(1:end-2), 'PHOENIX', 'PROTECTED', seg{iSeg,1},...
-					'processed', seg{iSeg,2}, 'eeg', [ 'ses-', seg{iSeg,3} ], 'Figures', [ '*_QC', figSuffix{iFig}, '.png' ] ) );
+				QCfigs = dir( fullfile( AMPSCZ_EEG_procSessionDir( seg{iSeg,2}, seg{iSeg,3}, seg{iSeg,1}(1:end-2) ), 'Figures', [ '*_QC', figSuffix{iFig}, '.png' ] ) );
 				if isempty( QCfigs )
 					kSeg(iSeg) = false;
 					break

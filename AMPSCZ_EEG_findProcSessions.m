@@ -145,7 +145,7 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 	ok = true;
 	fprintf( '\n' )
 	for iSeg = 1:nSeg
-		QCfigs = dir( fullfile( AMPSCZdir, seg{iSeg,1}(1:end-2), 'PHOENIX', 'PROTECTED', seg{iSeg,1}, 'processed', seg{iSeg,2}, 'eeg', [ 'ses-', seg{iSeg,3} ], 'Figures', '*QC.png' ) );
+		QCfigs = dir( fullfile( AMPSCZ_EEG_procSessionDir( seg{iSeg,2}, seg{iSeg,3}, seg{iSeg,1}(1:end-2) ), 'Figures', '*QC.png' ) );
 		if isempty( QCfigs )
 			fprintf( 'No QC figs for %s %s\n', seg{iSeg,2:3} )
 			ok(:) = false;
@@ -165,7 +165,7 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 	ok = true;
 	fprintf( '\n' )
 	for iSeg = 1:nSeg
-		matFiles = dir( fullfile( AMPSCZdir, seg{iSeg,1}(1:end-2), 'PHOENIX', 'PROTECTED', seg{iSeg,1}, 'processed', seg{iSeg,2}, 'eeg', [ 'ses-', seg{iSeg,3} ], 'mat', '*_[0.1,Inf].mat' ) );
+		matFiles = dir( fullfile( AMPSCZ_EEG_procSessionDir( seg{iSeg,2}, seg{iSeg,3}, seg{iSeg,1}(1:end-2) ), 'mat', '*_[0.1,Inf].mat' ) );
 		if isempty( matFiles )
 			fprintf( 'No ERP mat-files for %s %s %s\n', seg{iSeg,1}(1:end-2), seg{iSeg,2:3} )
 			ok(:) = false;
@@ -187,7 +187,7 @@ function [ Sess, iSession ] = AMPSCZ_EEG_findProcSessions( selectionMode )
 % 	imgExt = '.mp4';
 	fprintf( '\n' )
 	for iSeg = 1:nSeg
-		imgFiles = dir( fullfile( AMPSCZdir, seg{iSeg,1}(1:end-2), 'PHOENIX', 'PROTECTED', seg{iSeg,1}, 'processed', seg{iSeg,2}, 'eeg', [ 'ses-', seg{iSeg,3} ], 'Figures', [ '*', imgExt ] ) );
+		imgFiles = dir( fullfile( AMPSCZ_EEG_procSessionDir( seg{iSeg,2}, seg{iSeg,3}, seg{iSeg,1}(1:end-2) ), 'Figures', [ '*', imgExt ] ) );
 		if isempty( imgFiles )
 			fprintf( 'No ERP image files for %s %s %s\n', seg{iSeg,1}(1:end-2), seg{iSeg,2:3} )
 			ok(:) = false;

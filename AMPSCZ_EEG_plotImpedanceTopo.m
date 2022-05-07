@@ -1,4 +1,5 @@
 function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThresh, zLimit, nAvg )
+% AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThresh, zLimit, nAvg )
 
 	narginchk( 5, 8 )
 	if exist( 'nAvg', 'var' ) ~= 1 || isempty( nAvg )

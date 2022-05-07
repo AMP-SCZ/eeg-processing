@@ -4,22 +4,7 @@ clear
 subjectID   = 'BI00018';
 sessionDate = '20220420';
 
-	siteId   = subjectID(1:2);
-	siteInfo = AMPSCZ_EEG_siteInfo;
-	iSite    = ismember( siteInfo(:,1), siteId );
-	switch nnz( iSite )
-		case 1
-% 			iSite = find( iSite );
-		case 0
-			error( 'Invalid site identifier' )
-		otherwise
-			error( 'non-unique site bug' )
-	end
-	
-	AMPSCZdir   = AMPSCZ_EEG_paths;
-	networkName = siteInfo{iSite,2};
-	matDir      = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ],...
-	                        'processed', subjectID, 'eeg', [ 'ses-', sessionDate ], 'mat' );
+	matDir      = fullfile( AMPSCZ_EEG_procSessionDir( subjectID, sessionDate ), 'mat' );
 	if ~isfolder( matDir )
 		error( '%s is not a valid directory', matDir )
 	end

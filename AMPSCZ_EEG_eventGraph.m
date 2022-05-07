@@ -49,18 +49,7 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 			codeTotals{iCode,3} = codeTotals{iCode,3} + nnz( strcmp( { eeg.event.type }, sprintf( 'S%3d', codeTotals{iCode,2} ) ) );
 		end
 		if strcmp( vhdr(iHdr).name(31:36), 'VODMMN' )
-			vis       = double( sort( eeg.data(64,:), 2, 'ascend' ) );		% eeg is single
-			visLo     = vis( round( 0.7 * eeg.pnts ) );		% 70% cdf
-			visHi     = vis( round( 0.8 * eeg.pnts ) );		% 80% cdf
-			if visHi - visLo > 200000*0.0488		% 0.0488 in conversion to muV.  same for all sites?
-				nEnd      = 10;
-				nGap      = 40;
-				vis(:)    = ( eeg.data(64,:) > ( ( visLo + visHi ) / 2 ) ) * 2 - 1;		% -1 or 1
-				visOn     = filter( [ ones(1,nEnd), zeros(1,nGap), -ones(1,nEnd) ], 1, vis ) == 2*nEnd;
-				visOn(:)  = [ false, visOn(2:eeg.pnts) & ~visOn(1:eeg.pnts-1) ];
-				visOn     = find( visOn ) - nEnd;
-				nSensor(:)  = nSensor + numel( visOn );
-			end
+			nSensor(:) = nSensor + numel( AMPSCZ_EEG_photosensorOnset( eeg.data(64,:) ) );
 		end
 	end
 	nVisStim = sum( [ codeTotals{3:5,4} ] );
@@ -164,13 +153,12 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 %
 	
 	nSession  = size( sessions, 1 );
-	AMPSCZdir = AMPSCZ_EEG_paths;
+% 	AMPSCZdir = AMPSCZ_EEG_paths;
 	kFinished = false( nSession, 1 );
 	errMsg    =  cell( nSession, 1 );
 	for iSession = 1:nSession
 
-		pngDir = fullfile( AMPSCZdir, sessions{iSession,1}(1:end-2), 'PHOENIX', 'PROTECTED', sessions{iSession,1},...
-	                        'processed', sessions{iSession,2}, 'eeg', [ 'ses-', sessions{iSession,3} ], 'Figures' );
+		pngDir = fullfile( AMPSCZ_EEG_procSessionDir( sessions{iSession,2}, sessions{iSession,3}, sessions{iSession,1}(1:end-2) ), 'Figures' );
 		if ~isfolder( pngDir )
 			warning( '%s does not exist', pngDir )
 			continue
@@ -179,8 +167,8 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 		pngFile = fullfile( pngDir, pngName );
 		if exist( pngFile, 'file' ) == 2
 			fprintf( '%s exists\n', pngName )
-% 			kFinished(iSession) = true;
-% 			continue
+			kFinished(iSession) = true;
+			continue
 		end
 		close all
 
@@ -222,13 +210,7 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 	subjectID   = 'YA00059';
 	sessionDate = '20220120';
 	if false
-		siteId      = subjectID(1:2);
-		siteInfo    = AMPSCZ_EEG_siteInfo;
-		iSite       = ismember( siteInfo(:,1), siteId );
-		AMPSCZdir   = AMPSCZ_EEG_paths;
-		networkName = siteInfo{iSite,2};
-		bidsDir     = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ],...
-								'processed', subjectID, 'eeg', [ 'ses-', sessionDate ], 'BIDS' );
+		bidsDir = fullfile( AMPSCZ_EEG_procSessionDir( subjectID, sessionDate ), 'BIDS' );
 		dir( fullfile( bidsDir, '*.vhdr' ) )
 	else
 		vhdr = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, 'all', 'all', 'all', 'all', 'all', false );

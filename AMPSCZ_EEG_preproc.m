@@ -281,7 +281,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	compMethod      = 'ICLABEL';
 	Iocular         = [];				% faster ica cleaning only
 
-	sessDir = fullfile( AMPSCZdir, sessionList{iSession,1}(1:end-2), 'PHOENIX', 'PROTECTED', sessionList{iSession,1}, 'processed', sessionList{iSession,2}, 'eeg', sessTag );
+	sessDir = fullfile( AMPSCZ_EEG_procSessionDir( sessionList{iSession,2}, sessionList{iSession,3}, sessionList{iSession,1}(1:end-2) ) );
 	bvDir   = fullfile( sessDir, 'BIDS' );
 	matDir  = fullfile( sessDir, 'mat'  );
 	if ~isfolder( matDir )

@@ -868,16 +868,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	
 	set( hFig(1), 'Color', 'w' )
 	figure( hFig(1) )
-	
-	siteId   = subjSess{1}(1:2);
-	siteInfo = AMPSCZ_EEG_siteInfo;
-	kSite    = strcmp( siteInfo(:,1), siteId );
-	if nnz( kSite ) ~= 1
-		error( 'site id bug' )
-	end
-	networkName = siteInfo{kSite,2};
-	
-	pngDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ], 'processed', subjSess{1}, 'eeg', [ 'ses-', subjSess{2} ], 'Figures' );
+
+	pngDir = fullfile( AMPSCZ_EEG_procSessionDir( subjSess{1}, subjSess{2} ), 'Figures' );
 	if ~isfolder( pngDir )
 		mkdir( pngDir )
 		fprintf( 'created %s\n', pngDir )
@@ -1030,7 +1022,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	taskName = { 'MMN', 'VOD', 'AOD' };
 	for iProc = 6%4:size(proc,1)
 		close all
-		matDir = fullfile( AMPSCZdir, proc{iProc,1}(1:end-2), 'PHOENIX', 'PROTECTED', proc{iProc,1}, 'processed', proc{iProc,2}, 'eeg', [ 'ses-', proc{iProc,3} ], 'mat' );
+		matDir = fullfile( AMPSCZ_EEG_procSessionDir( proc{iProc,2}, proc{iProc,3}, proc{iProc,1}(1:end-2) ), 'mat' );
 		for iTask = 1%1:numel( taskName )
 			AMPSCZ_EEG_ERPplot( fullfile( matDir, [ proc{iProc,2}, '_', proc{iProc,3}, '_', taskName{iTask}, '_[0.1,50].mat' ] ) )
 		end

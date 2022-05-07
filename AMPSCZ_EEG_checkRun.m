@@ -32,16 +32,7 @@ function AMPSCZ_EEG_checkRun( subjStr, dateStr, runType, runNumber )
 		error( 'Run # must be numeric scalar' )
 	end
 	
-	AMPSCZdir = AMPSCZ_EEG_paths;
-	siteInfo  = AMPSCZ_EEG_siteInfo;
-	iSite     = strncmp( subjStr, siteInfo(:,1), 2 );
-	if nnz( iSite ) ~= 1
-		error( 'Can''t identify site %s', subjStr(1:2) )
-	end
-	iSite = find( iSite );
-	bidsDir = fullfile( AMPSCZdir, siteInfo{iSite,2}, 'PHOENIX', 'PROTECTED',...
-		[ siteInfo{iSite,2}, siteInfo{iSite,1} ], 'processed',...
-		subjStr, 'eeg', [ 'ses-', dateStr ], 'BIDS' );
+	bidsDir = fullfile( AMPSCZ_EEG_procSessionDir( subjStr, dateStr ), 'BIDS' );
 	if ~isfolder( bidsDir )
 		error( 'folder %s does not exist', bidsDir )
 	end

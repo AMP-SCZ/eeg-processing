@@ -80,8 +80,7 @@ function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODM
 	for iSession = 1:nSession
 
 		waitbar( (iSession-1)/nSession, hWait, sessions{iSession,2} )
-		pngDir = fullfile( AMPSCZdir, sessions{iSession,1}(1:end-2), 'PHOENIX', 'PROTECTED', sessions{iSession,1},...
-	                        'processed', sessions{iSession,2}, 'eeg', [ 'ses-', sessions{iSession,3} ], 'Figures' );
+		pngDir = fullfile( AMPSCZ_EEG_procSessionDir( sessions{iSession,2}, sessions{iSession,3}, sessions{iSession,1}(1:end-2) ), 'Figures' );
 		if ~isfolder( pngDir )
 			warning( '%s does not exist', pngDir )
 			continue
@@ -90,8 +89,8 @@ function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODM
 		pngFile = fullfile( pngDir, pngName );
 		if exist( pngFile, 'file' ) == 2
 			fprintf( '%s exists\n', pngName )
-% 			Nbridge(iSession) = -1;
-% 			continue
+			Nbridge(iSession) = -1;
+			continue
 		end
 
 		pause( 1 )		% doesn't pause nearly as long as advertised?
@@ -107,7 +106,7 @@ function [ EB, ED, chanlocs ] = AMPSCZ_EEG_eBridge( subjectID, sessionDate, VODM
 
 		Nbridge(iSession) = EB.Bridged.Count;
 		Ebridge(EB.Bridged.Indices) = Ebridge(EB.Bridged.Indices) + 1;
-		continue
+% 		continue
 
 		% scale if getframe pixels don't match Matlab's figure size
 		hFig   = gcf;

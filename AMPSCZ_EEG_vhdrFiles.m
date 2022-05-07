@@ -13,21 +13,7 @@ function vhdr = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, VODMMNruns, AODrun
 
 	narginchk( 2, 8 )
 
-	siteId   = subjectID(1:2);
-	siteInfo = AMPSCZ_EEG_siteInfo;
-	iSite    = ismember( siteInfo(:,1), siteId );
-	switch nnz( iSite )
-		case 1
-% 			iSite = find( iSite );
-		case 0
-			error( 'Invalid site identifier' )
-		otherwise
-			error( 'non-unique site bug' )
-	end
-	AMPSCZdir   = AMPSCZ_EEG_paths;
-	networkName = siteInfo{iSite,2};
-	bidsDir     = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteId ],...
-	                        'processed', subjectID, 'eeg', [ 'ses-', sessionDate ], 'BIDS' );
+	bidsDir     = fullfile( AMPSCZ_EEG_procSessionDir( subjectID, sessionDate ), 'BIDS' );
 	if ~isfolder( bidsDir )
 		error( '%s is not a valid directory', bidsDir )
 	end

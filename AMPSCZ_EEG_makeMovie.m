@@ -30,16 +30,12 @@ function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
 	siteInfo = AMPSCZ_EEG_siteInfo;
 	networkName = siteInfo{strcmp( siteInfo(:,1), subjId(1:2) ),2};
 	
-	AMPSCZdir = AMPSCZ_EEG_paths;
-% 	AMPSCZdir = 'C:\Users\donqu\Box\Certification Files';
-	
 	nameFmt = [ subjId, '_', sessId, '_%s_', filterStr ];
 	for iTask = 1:numel( taskNames )
 		
 % 		[ standardCode, targetCode, novelCode, respCode ] = AMPSCZ_EEG_eventCodes( taskNames{iTask} );
 	
-		matFile = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED',...
-			[ networkName, subjId(1:2) ], 'processed', subjId, 'eeg', [ 'ses-', sessId ], 'mat',...
+		matFile = fullfile( AMPSCZ_EEG_procSessionDir( subjId, sessId, networkName ), 'mat',...
 			sprintf( [ nameFmt, '.mat' ], taskNames{iTask} ) );
 
 		load( matFile, 'EEG', 'epochInfo' )
@@ -162,8 +158,7 @@ function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
 
 		%% animate ------------------------------------------------------------
 
-		outputDir = fullfile( AMPSCZdir, networkName, 'PHOENIX', 'PROTECTED',...
-			[ networkName, subjId(1:2) ], 'processed', subjId, 'eeg', [ 'ses-', sessId ], 'Figures' );
+		outputDir = fullfile( AMPSCZ_EEG_procSessionDir( subjId, sessId, networkName ), 'Figures' );
 
 		figure( gcf )
 		
