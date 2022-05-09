@@ -918,7 +918,7 @@ error( 'left off here' )
 				end
 
 				for iSession = 1:nSession
-					
+
 					if verbose
 						fprintf( '\n%s %s %s\n\n', repmat( '=', [1,20] ), sessionName{iSession}, repmat( '=', [1,20] ) )
 					end
