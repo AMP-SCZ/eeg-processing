@@ -1,7 +1,9 @@
-function AMPSCZ_EEG_QCimg%( loopType )
+function AMPSCZ_EEG_QCimg( replacePng )
+% AMPSCZ_EEG_QCimg( replacePng )
+% replacePng = true or false
 
 
-replacePng = false;
+	narginchk( 1, 1 )
 
 	%% run loop over all processed sessions and make raw data image pngs if they don't already exist
 
