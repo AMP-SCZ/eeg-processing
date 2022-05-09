@@ -1004,6 +1004,9 @@ error( 'left off here' )
 								% ignore folders that appear in content list - for site that mess with their zip files by hand
 								[ ~, zipName ] = fileparts( zipContent );
 								zipContent(cellfun( @isempty, zipName )) = [];
+								% ignore Mac-injected junk
+								zipContent(~cellfun( @isempty, strfind( zipContent, 'DS_Store' ) )) = [];
+								zipContent(strncmp( zipContent, '__MACOS', 7 )) = [];								
 							% -- check for existence of unzipped files
 							unzipCheck = cellfun( @(u)exist(u,'file')==2, fullfile( outputDir, zipContent ) );
 							[ zipContentPath, zipContentFile, zipContentExt ] = fileparts( zipContent );	% extensions include initial '.'
@@ -1231,6 +1234,8 @@ error( 'left off here' )
 								switch sum( iTaskType )
 									case 1
 										% make sure all event codes in segment are valid for current task segment
+										% ***	what about 'S  9' event type found @ beginning of 1st 2 AOD runs in CM00095 20220505?  
+										% ***	not sure what these are yet.  if they're legit, add some code to let them pass through?
 										if ~all( ismember( eventCode, [ taskInfo{iTaskType,2}{:,1} ] ) )
 											writeToLog( verbose, '%s segment #%d - Unexpected events in task segment\nunique codes =', H(iBV).Common.MarkerFile, iSegment )
 											writeToLog( verbose, ' %d', unique( eventCode(:) )' )
@@ -1238,7 +1243,10 @@ error( 'left off here' )
 											iSkip(:) = iSkip + 1;
 											skipLog{iSkip,1} = sprintf( '%s segment #%d - Unexpected events in task segment', H(iBV).Common.MarkerFile, iSegment );
 											skipLog{iSkip,2} = true;
+											% ***	see comment above
+											% if all( ismember( setdiff( eventCode, [ taskInfo{iTaskType,2}{:,1} ] ), 'S  9' ) )
 											continue		% segment loop
+											% end
 										end
 										% index into taskInfo cell array
 										Itask{iBV}(iSegment) = find( iTaskType );
