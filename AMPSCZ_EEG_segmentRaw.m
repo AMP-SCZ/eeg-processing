@@ -893,8 +893,11 @@ error( 'left off here' )
 				% throw out illegal filenames
 				% make sure to allow for session coming in as multiple zips
 				% allow lower case site codes?
+% 				zipFiles( cellfun( @isempty, regexp( { zipFiles.name }, [ '^[', siteName(1), lower( siteName(1) ), '][',...
+% 					siteName(2), lower( siteName(2) ), ']\d{5}_eeg_\d{8}_?\d*.zip$' ], 'start', 'once' ) ) ) = [];
+				% make sure ID# agrees with folder location
 				zipFiles( cellfun( @isempty, regexp( { zipFiles.name }, [ '^[', siteName(1), lower( siteName(1) ), '][',...
-					siteName(2), lower( siteName(2) ), ']\d{5}_eeg_\d{8}_?\d*.zip$' ], 'start', 'once' ) ) ) = [];
+					siteName(2), lower( siteName(2) ), ']', subjDirs(iSubj).name(3:end), '_eeg_\d{8}_?\d*.zip$' ], 'start', 'once' ) ) ) = [];
 
 
 				if numel( zipFiles ) == 0
