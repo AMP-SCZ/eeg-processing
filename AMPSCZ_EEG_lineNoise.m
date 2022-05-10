@@ -51,10 +51,6 @@ function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, VODMMNruns, AO
 	eeg = pop_chanedit( eeg, 'lookup', locsFile );
 	eeg.data = double( eeg.data );
 
-	% mean reference, nothing fancy, don't want interpolations here
-	kRef = ~ismember( { eeg.chanlocs.labels }, { 'TP9', 'TP10' } );
-	eeg.data(:) = bsxfun( @minus, eeg.data, mean( eeg.data(kRef,:), 1 ) );
-
 	% these will not be integers but halfway between
 	IboundaryEvent = find( strcmp( { eeg.event.type }, 'boundary' ) );
 	IboundaryData  = [ eeg.event(IboundaryEvent).latency ];
@@ -65,7 +61,27 @@ function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, VODMMNruns, AO
 	newEventName = 'noiseTest';
 	[ eeg.event(IboundaryEvent(kUse)).type ] = deal( newEventName );
 
+% 	kRef = ~ismember( { eeg.chanlocs.labels }, { 'TP9', 'TP10' } );
+% 	eeg.data(:) = bsxfun( @minus, eeg.data, mean( eeg.data(kRef,:), 1 ) );
+
 	eeg = pop_epoch( eeg, { newEventName }, [ 0, tSegment ] + 0.5/eeg.srate );
+	
+	% mean reference, nothing too fancy, but do faster-based interpolation
+	kRef  = ~ismember( { eeg.chanlocs.labels }, { 'TP9', 'TP10' } );
+	kGood = true( eeg.nbchan, 1 );
+	for iTrial = 1:eeg.trials
+		kGood(kRef) = ~min_z( channel_properties( eeg.data(kRef,:,iTrial), 1:nnz(kRef), [] ) );
+		if any( kGood )
+			if all( kGood )
+				eeg.data(:,:,iTrial) = bsxfun( @minus, eeg.data(:,:,iTrial), mean( eeg.data(kRef,:,iTrial), 1 ) );
+			else
+				eegTmp = pop_select( eeg, 'trial', iTrial );
+				eegTmp = h_eeg_interp_spl( eegTmp, find(~kGood), [] );			% note: help says 3rd input is interpolation method, but really its channels to ignore!
+				eeg.data(:,:,iTrial) = bsxfun( @minus, eeg.data(:,:,iTrial), mean( eegTmp.data(kRef,:), 1 ) );
+				clear eegTmp
+			end
+		end
+	end	
 
 	nfft = eeg.pnts;	% 180 s * 250 Hz = 45000 samples, frequency resolution = 0.0056 Hz
 	nu   = floor(   nfft       / 2 ) + 1;		% # unique points in spectrum

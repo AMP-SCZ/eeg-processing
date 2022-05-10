@@ -7,9 +7,11 @@ function AMPSCZ_EEG_QClineNoise( powerType, replacePng )
 
 	narginchk( 2, 2 )
 
-	% make sure FieldTrip's not on path.  detect it 1st?
-	AMPSCZ_EEG_matlabPaths( false );
-	
+	% make sure FieldTrip's not on path
+	if ~contains( which( 'hann.m' ), matlabroot )
+		AMPSCZ_EEG_matlabPaths( false );
+	end
+
 	%% run loop over all processed sessions and make line noise pngs if they don't already exist
 
 	sessions  = AMPSCZ_EEG_findProcSessions;	

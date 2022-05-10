@@ -59,7 +59,7 @@ function AMPSCZ_EEG_interpChanMap( subjectID, sessionDate )
 	topoplot( nInt(kPlot), S.chanProp(iRep).channelLocations(kPlot), topoOpts{:} );
 	set( hAx, 'CLim', [ -0.5, nRun+0.5 ] )
 % 	title( hAx, printf( '%s\n%s', subjectID, sessionDate ) )
-	xlabel( hAx, '# interpolated runs', 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
+	xlabel( hAx, '# interpolated epochs', 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
 	hBar = colorbar;
 	set( hBar, 'YTick', 0:nRun )
 % 	ylabel( hBar, '# interpolated runs' )

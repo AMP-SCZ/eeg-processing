@@ -48,7 +48,7 @@ function EEG = AMPSCZ_EEG_eegMerge( subjectID, sessionDate, VODMMNruns, AODruns,
 		if i1 > 1 || i2 < eeg.pnts
 			eeg = pop_select( eeg, 'point', [ i1, i2 ] );
 		end
-		% reample
+		% resample
 		eeg.data = double( eeg.data );
 		eeg = pop_resample( eeg, 250 );
 		% filter
