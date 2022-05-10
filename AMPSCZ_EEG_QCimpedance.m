@@ -5,7 +5,7 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 % replacePng    = true or false
 % subjectID, sessionDate are only used when loopType is 'single'
 
-% 	impedanceType = 'last';
+% AMPSCZ_EEG_QCimpedance( 'session', 'last', false )
 
 	narginchk( 3, 5 )
 			
@@ -46,7 +46,7 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 					continue
 				end
 
-				hFig = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_impedanceData' );
+				hFig   = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_impedanceData' );
 				figPos = get( hFig, 'Position' );
 				img = getfield( getframe( hFig ), 'cdata' );
 				% PC only thing?  where matlab ScreenSize doesn't match actual display resolution
@@ -57,8 +57,8 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 				% save
 				imwrite( img, pngFile, 'png' )
 				fprintf( 'wrote %s\n', pngFile )
+
 				status(iSession) = 2;
-				
 			end
 			kProblem = status <= 0;
 			if any( kProblem )

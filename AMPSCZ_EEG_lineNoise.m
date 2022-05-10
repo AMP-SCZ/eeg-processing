@@ -1,9 +1,9 @@
-function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+% AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+% powerType = 'first', 'last', 'min', 'max', 'mean', or 'median'
 
-	powerType = 'worst';
+	narginchk( 3, 8 )
 
-	narginchk( 2, 7 )
-	
 %{
 % 	if false
 % 		[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( 'all' );
@@ -19,7 +19,7 @@ function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, VODMMNruns, AODruns, ASSR
 % 	end
 	nHdr = numel( vhdr );
 %}
-	
+
 	siteInfo = AMPSCZ_EEG_siteInfo;
 	kSite    = ismember( siteInfo(:,1), subjectID(1:2) );
 	fLine    = siteInfo{kSite,4};
@@ -43,6 +43,14 @@ function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, VODMMNruns, AODruns, ASSR
 	% VIS channel gets removed, data are resampled & filtered and chronologcially sorted
 	eeg = AMPSCZ_EEG_eegMerge( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns, [ 0.2, Inf ], [ -1, 2 ] );
 
+	% add in FCz???
+	eeg.nbchan(:) = eeg.nbchan + 1;
+	eeg.data(eeg.nbchan,:) = 0;
+	eeg.chanlocs(eeg.nbchan).labels = 'FCz';
+	locsFile = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.elc' );		% does .elc or .ced make any difference?
+	eeg = pop_chanedit( eeg, 'lookup', locsFile );
+	eeg.data = double( eeg.data );
+
 	% mean reference, nothing fancy, don't want interpolations here
 	kRef = ~ismember( { eeg.chanlocs.labels }, { 'TP9', 'TP10' } );
 	eeg.data(:) = bsxfun( @minus, eeg.data, mean( eeg.data(kRef,:), 1 ) );
@@ -51,7 +59,7 @@ function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, VODMMNruns, AODruns, ASSR
 	IboundaryEvent = find( strcmp( { eeg.event.type }, 'boundary' ) );
 	IboundaryData  = [ eeg.event(IboundaryEvent).latency ];
 	Tsegment  = diff( [ ceil( IboundaryData ), eeg.pnts ] ) / eeg.srate;
-	
+
 	tSegment     = 180;
 	kUse         = Tsegment > tSegment;
 	newEventName = 'noiseTest';
@@ -68,18 +76,18 @@ function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, VODMMNruns, AODruns, ASSR
 	P = abs( P(:,1:nu,:) ) / nfft;		% amplitude
 	P(:,2:n2,:) = P(:,2:n2,:) * 2;		% double non-unique freqencies
 	P(:) = P.^2;						% power
-	
+
 	wf   = 0.25;		% width around line frequency to sum (Hz)
 	kDen = f >= 1 & f <= 80;
 	kNum = kDen;
 	kNum(kNum) = abs( f(kNum) - fLine ) <= wf;
-	
+
 	P = permute( sum( P(:,kNum,:), 2 ) ./ sum( P(:,kDen,:), 2 ) * 100, [ 1, 3, 2 ] );		% 63 channels x #runs
-	
+
 	switch powerType
-		case 'best'
+		case 'min'
 			P = min( P, [], 2 );
-		case 'worst'
+		case 'max'
 			P = max( P, [], 2 );
 		case 'mean'
 			P = mean( P, 2 );
@@ -94,36 +102,30 @@ function AMPSCZ_EEG_lineNoise( subjectID, sessionDate, VODMMNruns, AODruns, ASSR
 	locsFile = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.ced' );
 	eeg = pop_chanedit( eeg, 'lookup', locsFile );
 
-	topoOpts = AMPSCZ_EEG_topoOptions( AMPSCZ_EEG_GYRcmap( 256 ) );
+	[ cmap, badChanColor ] = AMPSCZ_EEG_GYRcmap( 256 );
+	topoOpts = AMPSCZ_EEG_topoOptions( cmap );
+	pLimit   = 10;		% line power limit/threshold
+
+	figure( 'Position', [ 500, 300, 525, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )		
+	hAx = axes( 'Units', 'normalized', 'Position', [ 0, 0.18, 0.55, 0.97-0.18 ] );
+	topoplot( P, eeg.chanlocs, topoOpts{:} );%, 'electrodes', 'ptslabels' );
+	set( hAx, 'CLim', [ 0, pLimit ] )
 	
-	clf
-	topoplot( P, eeg.chanlocs, topoOpts{:} )%, 'electrodes', 'ptslabels' );
-	set( gca, 'CLim', [ 0, 10 ] )
-	xlabel( sprintf( 'power @ %g Hz (%%)\n%s of %d', fLine, powerType, eeg.trials ), 'Visible', 'on' )
-% 	title( sprintf( '%s - %s', subjectID, sessionDate ) )
-	
-	
-% 	error( 'under construction' )
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+	[ topoX, topoY ] = bieegl_topoCoords( eeg.chanlocs );
+	kThresh = P > pLimit;
+	line( topoY(kThresh), topoX(kThresh), repmat( 10.5, 1, nnz(kThresh) ), 'LineStyle', 'none', 'Marker', 'o', 'Color', badChanColor )
+
+	xlabel( hAx, sprintf( 'Power @ %g Hz (%%)', fLine ), 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
+
+% 	title( hAx, sprintf( '%s - %s', subjectID, sessionDate ) )
+	colorbar
+
+	text( hAx, 'Units', 'normalized', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', 'Position', [ 1.35, 0.95, 0 ],...
+		'FontSize', 12, 'String', sprintf( [	'{\\it%s} of %d epochs\n\n',...
+												'Min. = %0.1f\n',...
+												'Max. = %0.1f\n',...
+												'Med. = %0.1f\n',...
+												'# > %g %% = %d / %d' ],...
+		powerType, eeg.trials, min(P), max(P), median(P), pLimit, sum(P>pLimit), numel(P) ) )
 
 end

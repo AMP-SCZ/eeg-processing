@@ -1,12 +1,12 @@
-function AMPSCZ_EEG_QCimg( replacePng )
-% AMPSCZ_EEG_QCimg( replacePng )
+function AMPSCZ_EEG_QCcounts( replacePng )
+% AMPSCZ_EEG_QCcounts( replacePng )
 % replacePng = true or false
 
-% AMPSCZ_EEG_QCimg( false )
+% AMPSCZ_EEG_QCcounts( false )
 
 	narginchk( 1, 1 )
 
-	%% run loop over all processed sessions and make raw data image pngs if they don't already exist
+	%% run loop over all processed sessions and make event count pngs if they don't already exist
 
 	sessions  = AMPSCZ_EEG_findProcSessions;	
 	nSession  = size( sessions, 1 );
@@ -19,7 +19,7 @@ function AMPSCZ_EEG_QCimg( replacePng )
 			mkdir( pngDir )
 			fprintf( 'created %s\n', pngDir )
 		end
-		pngName = [ sessions{iSession,2}, '_', sessions{iSession,3}, '_QCimg.png' ];
+		pngName = [ sessions{iSession,2}, '_', sessions{iSession,3}, '_QCcounts.png' ];
 		pngFile = fullfile( pngDir, pngName );
 		if exist( pngFile, 'file' ) == 2 && ~replacePng
 			fprintf( '%s exists\n', pngName )
@@ -32,26 +32,20 @@ function AMPSCZ_EEG_QCimg( replacePng )
 		close all
 		try
 			[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_sessionTaskSegments( sessions{iSession,2}, sessions{iSession,3} );
-			AMPSCZ_EEG_sessionDataImage( sessions{iSession,2}, sessions{iSession,3}, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+			AMPSCZ_EEG_eventGraph( sessions{iSession,2}, sessions{iSession,3}, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
 		catch ME
 			errMsg{iSession} = ME.message;
 			warning( ME.message )
+% 			disp( ME )
 			status(iSession) = -1;
 			continue
-% 			vhdr = AMPSCZ_EEG_vhdrFiles( sessions{iSession,2}, sessions{iSession,3}, 'all', 'all', 'all', 'all', 'all', false );
-% 			vhdr = { vhdr.name };
-% 			runFcn = @(u) str2double( u(end-10:end-9) );
-% 			Ivodmmn = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-VODMMN_' ], 'start', 'once' ) )) );
-% 			Iaod    = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-AOD_'    ], 'start', 'once' ) )) );
-% 			Iassr   = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-ASSR_'   ], 'start', 'once' ) )) );
-% 			IrestEO = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-RestEO_' ], 'start', 'once' ) )) );
-% 			IrestEC = cellfun( runFcn, vhdr(~cellfun( @isempty, regexp( vhdr, [ '_task-RestEC_' ], 'start', 'once' ) )) );
-% 			AMPSCZ_EEG_sessionDataImage( sessions{iSession,2}, sessions{iSession,3}, Ivodmmn, Iaod, Iassr, IrestEO, IrestEC )
 		end
+
+% 		return			% for debugging: make 1 figure, don't save, exit
 
 		% scale if getframe pixels don't match Matlab's figure size
 % 		hFig   = gcf;
-		hFig   = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_sessionDataImage' );
+		hFig   = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_eventGraph' );
 		figPos = get( hFig, 'Position' );
 		img = getfield( getframe( hFig ), 'cdata' );
 		if size( img, 1 ) ~= figPos(4)
@@ -76,5 +70,12 @@ function AMPSCZ_EEG_QCimg( replacePng )
 		end
 		fprintf( '\n' )
 	end
+	
+		% UCSF:
+		% 	CM00051	20220426	bad threshold
+		% 	CM00095	20220505	CM00095 20220505: requested run(s) don't exist
+		% 	YA00037	20220503	YA00037 20220503: Non-standard run sequence, run indices must be supplied for this session
+
+	return
 
 end

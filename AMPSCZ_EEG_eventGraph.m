@@ -1,6 +1,5 @@
 function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
-
-% separate out redundant code in AMPSCZ_EEG_eegMerge.m, AMPSCZ_EEG_checkRuns.m, AMPSCZ_EEG_eventGraph.m
+% [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
 
 	narginchk( 2, 7 )
 	
@@ -65,7 +64,11 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 		nName     = [ codeTotals(:,1); { 'sensor' } ]';
 	end
 
-% 	clf
+	xLimit = [ 0.5, 18.5 ] + [ -1, 1 ]*1;
+% 	yLimit = [ 0, ceil(max(pe)/10)*10+10 ];
+% 	yLimit = [ max(floor(min(pe)/10)*10-10,0), ceil(max(pe)/10)*10+10 ];
+	yLimit = [ max(floor((min(pe)-2)/10)*10,0), ceil((max(pe)+2)/10)*10 ];
+
 	hFig = figure( 'Position', [ 500, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' );
 	hAx  =  axes( 'Units', 'normalized', 'Position', [ 0.2, 0.225, 0.575, 0.7 ] );
 
@@ -87,143 +90,31 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 	set( hBar(6), 'FaceColor', [ 0.75, 0   , 1 ] )
 	hold off
 	IAll = [ 1:2, 3 5 4 6 14, 7 9 8 10, 11, 12:13 ];
-	kPerfect = pe(IAll) == 100;
-	if any( kPerfect )
+% 	kPerfect = pe(IAll) == 100;
+% 	if any( kPerfect )
+% 		xAll = [ 1:2, 4:8, 10:13, 15, 17:18 ];
+% 		line( xAll(kPerfect), repmat( 105, 1, nnz(kPerfect) ), 'LineStyle', 'none', 'Color', 'k', 'Marker', 'p' )
+% 	end
+	kImperfect = pe(IAll) ~= 100;
+	if any( kImperfect )
 		xAll = [ 1:2, 4:8, 10:13, 15, 17:18 ];
-		line( xAll(kPerfect), repmat( 105, 1, nnz(kPerfect) ), 'LineStyle', 'none', 'Color', 'k', 'Marker', 'p' )
+% 		line( xAll(kImperfect), repmat( yLimit(2)-1, 1, nnz(kImperfect) ), 'LineStyle', 'none', 'Color', 'k', 'Marker', 'x' )
+		Iy   = [ 1:2, 3 5 4 6 14, 7 9 8 10, 11, 12 13 ];
+		line( xAll(kImperfect), pe(Iy(kImperfect))+diff(yLimit)*0.05, 'LineStyle', 'none', 'Color', 'k', 'Marker', 'x' )
 	end
+
 	text( 'Units', 'normalized', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', 'Position', [ 1.05, 0.95, 0 ], 'FontWeight', 'bold',...
 		'String', sprintf( '\\color[rgb]{%g,%g,%g}Std\n\\color[rgb]{%g,%g,%g}Dev/Nov\n\\color[rgb]{%g,%g,%g}Trg\n\\color[rgb]{%g,%g,%g}Resp\n\\color[rgb]{%g,%g,%g}Sens',...
 		get( hBar(1), 'FaceColor' ), get( hBar(2), 'FaceColor' ), get( hBar(3), 'FaceColor' ), get( hBar(5), 'FaceColor' ), get( hBar(6), 'FaceColor' ) ) );
 	set( hAx, 'XTick', [ 1.5, 6, 11.5, 15, 17.5 ], 'XTickLabel', { 'MMN', 'VOD', 'AOD', 'ASSR', 'Rest' },...
-		'XLim', [ 0.5, 18.5 ] + [ -1, 1 ]*1, 'YGrid', 'on', 'XTickLabelRotation', 45, 'FontSize', 12 )
-% 	set( hAx, 'YLim', [ 0, ceil(max(pe)/10)*10+10 ] )
-	set( hAx, 'YLim', [ max(floor(min(pe)/10)*10-10,0), ceil(max(pe)/10)*10+10 ] )
+		'XLim', xLimit, 'YGrid', 'on', 'XTickLabelRotation', 45, 'FontSize', 12 )
+
+	set( hAx, 'YLim', yLimit )
+
 	ylabel( 'Events (%)', 'FontSize', 14, 'FontWeight', 'normal' )
 % 	title( sprintf( '%s\n%s', subjectID, sessionDate ) )
 % 	legend( hBar([1:3,5:6]), { 'Std', 'Dev/Nov', 'Trg', 'Resp', 'Sensor' }, 'Location', 'NorthEastOutside' )
 	
 	return
-	
-	%% generate these on full set
-	
-	clear
-
-	sessions  = AMPSCZ_EEG_findProcSessions;
-	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
-% 	sessions = {    'PrescientAD', 'AD00051', '20220429' };
-
-%
-			% UCSF Box
-% 			sessions = {    'PronetGA', 'GA00073', '20220406' }; VODMMNruns = [1:2]; AODruns = [1:2]; ASSRruns = []; RestEOruns = []; RestECruns = [];		% 1 run of VODMMN & AOD each split over 2 segments, + ASSR & 2 rest runs
-% 			sessions = {    'PronetMA', 'MA00007', '20211124' }; VODMMNruns = [1:3]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 3 VODMMN & 2 AOD only
-% 			sessions = {    'PronetMT', 'MT00099', '20220202' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetNC', 'NC00002', '20220408' }; VODMMNruns = [1:6]; AODruns = [1:3]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];			%incomplete [6VODMMN,3AOD], don't bother
-% 			sessions = {    'PronetNC', 'NC00002', '20220422' }; VODMMNruns = [1:4]; AODruns = [0]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];			% 3 VODMMNN runs, last 1 split over 2 segments.  line noise test
-% 			sessions = {    'PronetNC', 'NC00052', '20220304' }; VODMMNruns = [1:2,5:7]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetNC', 'NC00068', '20220304' }; VODMMNruns = [1,3:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetNN', 'NN00054', '20220216' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetPI', 'PI00034', '20220121' }; VODMMNruns = [1:6]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetSF', 'SF11111', '20220201' }; VODMMNruns = [1:2]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 2 VODMMN & 2 AOD only.  noise tests
-% 			sessions = {    'PronetSF', 'SF11111', '20220308' }; VODMMNruns = [1:2]; AODruns = [1]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];			% 2 VODMMN & 1 AOD only.  noise tests
-% 			sessions = {    'PronetYA', 'YA00059', '20220120' }; VODMMNruns = []; AODruns = [2:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetYA', 'YA00087', '20220208' }; VODMMNruns = [2:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = { 'PrescientBM', 'BM00066', '20220209' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = { 'PrescientGW', 'GW00005', '20220126' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = { 'PrescientME', 'ME00099', '20220217' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = { 'PrescientLS', 'LS00074', '20220427' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-
-			% @ DPACC
-% 			sessions = {    'PronetMA', 'MA00007', '20211124' }; VODMMNruns = [1:3]; AODruns = [1:2]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 3 VODMMN & 2 AOD only
-% 			sessions = {    'PronetMT', 'MT00099', '20220202' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetNC', 'NC00052', '20220304' }; VODMMNruns = [1:2,5:7]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetNC', 'NC00068', '20220304' }; VODMMNruns = [1,3:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetNN', 'NN00054', '20220216' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetPI', 'PI00034', '20220121' }; VODMMNruns = [1:6]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetYA', 'YA00087', '20220208' }; VODMMNruns = [2:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = { 'PrescientBM', 'BM00066', '20220209' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = { 'PrescientGW', 'GW00005', '20220126' }; VODMMNruns = []; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = { 'PrescientME', 'ME00099', '20220217' }; VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetOR', 'OR00003', '20211110' }; VODMMNruns = [1:3]; AODruns = [1:2]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetOR', 'OR00019', '20211217' }; VODMMNruns = [1:2]; AODruns = [1:2]; ASSRruns = []; RestEOruns = []; RestECruns = [0];
-% 			sessions = {    'PronetPA', 'PA00000', '20211014' }; VODMMNruns = [1:4]; AODruns = [1:5]; ASSRruns = []; RestEOruns = [0]; RestECruns = [0];
-% 			sessions = { 'PrescientLS', 'LS00002', '20211207' }; VODMMNruns = [1:4]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = { 'PrescientLS', 'LS00018', '20220120' }; VODMMNruns = [1:7]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
-% 			sessions = {    'PronetYA', 'YA00059', '20220120' }; VODMMNruns = []; AODruns = [2:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-%
-	
-	nSession  = size( sessions, 1 );
-% 	AMPSCZdir = AMPSCZ_EEG_paths;
-	kFinished = false( nSession, 1 );
-	errMsg    =  cell( nSession, 1 );
-	for iSession = 1:nSession
-
-		pngDir = fullfile( AMPSCZ_EEG_procSessionDir( sessions{iSession,2}, sessions{iSession,3}, sessions{iSession,1}(1:end-2) ), 'Figures' );
-		if ~isfolder( pngDir )
-			warning( '%s does not exist', pngDir )
-			continue
-		end
-		pngName = [ sessions{iSession,2}, '_', sessions{iSession,3}, '_QCcounts.png' ];
-		pngFile = fullfile( pngDir, pngName );
-		if exist( pngFile, 'file' ) == 2
-			fprintf( '%s exists\n', pngName )
-			kFinished(iSession) = true;
-			continue
-		end
-		close all
-
-		% note: sessions w/ unexpected task sequence won't get created here!
-		%       you'll need to manually supply session indices
-		%       create lookup table here?
-		try
-			AMPSCZ_EEG_eventGraph( sessions{iSession,2}, sessions{iSession,3}, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
-		catch ME
-			errMsg{iSession} = ME.message;
-			warning( ME.message )
-			continue
-		end
-
-		% scale if getframe pixels don't match Matlab's figure size
-		hFig = gcf;
-		figPos = get( hFig, 'Position' );
-		img = getfield( getframe( hFig ), 'cdata' );
-		if size( img, 1 ) ~= figPos(4)
-			img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-		end
-
-		% save
-		imwrite( img, pngFile, 'png' )
-		fprintf( 'wrote %s\n', pngFile )
-
-		kFinished(iSession) = true;
-
-	end
-	fprintf( 'done\n' )
-	
-	if ~all( kFinished )
-		tmp = [ sessions(~kFinished,2:3), errMsg(~kFinished) ]';
-		fprintf( '%s\t%s\t%s\n', tmp{:} )
-	end
-	
-	
-	%%
-	subjectID   = 'YA00059';
-	sessionDate = '20220120';
-	if false
-		bidsDir = fullfile( AMPSCZ_EEG_procSessionDir( subjectID, sessionDate ), 'BIDS' );
-		dir( fullfile( bidsDir, '*.vhdr' ) )
-	else
-		vhdr = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, 'all', 'all', 'all', 'all', 'all', false );
-		fprintf( '%s\n', vhdr.name  )
-	end
-
-	%%
-	VODMMNruns = [];
-	AODruns    = [2:5];
-	ASSRruns   = [];
-	RestEOruns = [];
-	RestECruns = [];
-	[ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
-	disp( [ nName(:), num2cell( [ nExpected(:), nFound(:) ] ) ] )
 	
 end
