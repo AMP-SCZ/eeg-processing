@@ -44,6 +44,7 @@ function AMPSCZ_EEG_checkRun( subjStr, dateStr, runType, runNumber )
 	end
 	
 	% should I read this with EEGLAB or bieegl_readBVtxt.m?
+	% could use metadata flag w/ pop_loadbv to not load data
 % 	if ~false
 % 		eeg = pop_loadbv( bidsDir, vhdrName );
 % 		eventCode = { eeg.event(strcmp({eeg.event.code},'Stimulus')).type };

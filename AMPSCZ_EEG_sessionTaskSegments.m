@@ -1,4 +1,8 @@
 function [ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_sessionTaskSegments( subjectID, sessionDate )
+% Lookup table of non-standard runs to use in EEG analyses
+% here runs mean continuous segments of data, e.g. a paused trial could produce multiple runs
+% during a single stimulus sequence
+%
 % [ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_sessionTaskSegments( subjectID, sessionDate )
 
 	[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = deal( [] );
@@ -66,7 +70,7 @@ function [ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_
 				VODMMNruns = [1:6]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
 			case 'YA00059_20220120'
 				VODMMNruns = []; AODruns = [2:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-			case 'YA00087_20220208'
+			case { 'YA00087_20220208', 'YA00037_20220503' }
 				VODMMNruns = [2:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
 			case 'BM00066_20220209'
 				VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
