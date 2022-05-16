@@ -213,7 +213,7 @@ error( 'left off here' )
 							warning( 'MATLAB:fcloseError', 'fclose error' )
 						end
 						if verbose
-							fprintf( '%s unzipped/segmetned previously\n', sessionName{iSession} )
+							fprintf( '%s unzipped/segmented previously\n', sessionName{iSession} )
 						end
 						continue
 					end
@@ -961,7 +961,7 @@ error( 'left off here' )
 								warning( 'MATLAB:fcloseError', 'fclose error' )
 							end
 							if verbose
-								fprintf( '%s unzipped/segmetned previously\n', sessionName{iSession} )
+								fprintf( '%s unzipped/segmented previously\n', sessionName{iSession} )
 							end
 							continue
 						end

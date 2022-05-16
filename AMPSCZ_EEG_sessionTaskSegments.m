@@ -35,7 +35,7 @@ function [ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_
 				VODMMNruns = [1:2]; AODruns = [1]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 2 VODMMN & 1 AOD only.  noise tests
 			case 'YA00059_20220120'
 				VODMMNruns = []; AODruns = [2:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
-			case 'YA00087_20220208'
+			case { 'YA00087_20220208', 'YA00037_20220503' }
 				VODMMNruns = [2:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
 			case 'BM00066_20220209'
 				VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
