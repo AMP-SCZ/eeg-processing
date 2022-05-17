@@ -38,7 +38,7 @@ function AMPSCZ_EEG_QClineNoise( powerType, replacePng )
 		close all
 		try
 			[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_sessionTaskSegments( sessions{iSession,2}, sessions{iSession,3} );
-			AMPSCZ_EEG_lineNoise( sessions{iSession,2}, sessions{iSession,3}, powerType, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+			AMPSCZ_EEG_lineNoise( sessions{iSession,2}, sessions{iSession,3}, powerType, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns );
 		catch ME
 			errMsg{iSession} = ME.message;
 			warning( ME.message )
