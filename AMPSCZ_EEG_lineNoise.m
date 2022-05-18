@@ -1,8 +1,8 @@
-function P = AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
-% AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+function P = AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, meanRef, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
+% AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, meanRef, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns )
 % powerType = 'first', 'last', 'min', 'max', 'mean', or 'median'
 
-	narginchk( 3, 8 )
+	narginchk( 3, 9 )
 
 	% make sure FieldTrip's not on path
 	if ~contains( which( 'hann.m' ), matlabroot )
@@ -29,6 +29,9 @@ function P = AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, VODMMNruns
 	kSite    = ismember( siteInfo(:,1), subjectID(1:2) );
 	fLine    = siteInfo{kSite,4};
 
+	if exist( 'meanRef', 'var' ) ~= 1 || isempty( meanRef )
+		meanRef = true;
+	end
 	if exist( 'VODMMNruns', 'var' ) ~= 1
 		VODMMNruns = [];
 	end
@@ -72,7 +75,7 @@ function P = AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, VODMMNruns
 	eeg = pop_epoch( eeg, { newEventName }, [ 0, tSegment ] + 0.5/eeg.srate );
 	
 	% mean reference, nothing too fancy, but do faster-based interpolation
-	if true		% might want to hack in FCz ref in some debugging instances
+	if meanRef
 		kRef  = ~ismember( { eeg.chanlocs.labels }, { 'TP9', 'TP10' } );
 		kGood = true( eeg.nbchan, 1 );
 		for iTrial = 1:eeg.trials

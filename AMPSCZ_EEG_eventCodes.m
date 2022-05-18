@@ -15,6 +15,8 @@ function [ standardCode, targetCode, novelCode, respCode ] = AMPSCZ_EEG_eventCod
 
 	narginchk( 1, 1 )
 
+	% 'S  9' is a practice button code that has showed up in VODMMN and AOD runs
+	
 	if ~ischar( epochName )	% switch will throw error if input not scalar or char
 		error( 'non-char epochName input' )
 	end

@@ -6,6 +6,8 @@ function AMPSCZ_EEG_QClineNoise( powerType, replacePng )
 % AMPSCZ_EEG_QClineNoise( 'max', false )
 
 	narginchk( 2, 2 )
+	
+	meanRef = true;
 
 	% make sure FieldTrip's not on path
 	if ~contains( which( 'hann.m' ), matlabroot )
@@ -38,7 +40,7 @@ function AMPSCZ_EEG_QClineNoise( powerType, replacePng )
 		close all
 		try
 			[ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_sessionTaskSegments( sessions{iSession,2}, sessions{iSession,3} );
-			AMPSCZ_EEG_lineNoise( sessions{iSession,2}, sessions{iSession,3}, powerType, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns );
+			AMPSCZ_EEG_lineNoise( sessions{iSession,2}, sessions{iSession,3}, powerType, meanRef, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns );
 		catch ME
 			errMsg{iSession} = ME.message;
 			warning( ME.message )

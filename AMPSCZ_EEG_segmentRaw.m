@@ -1246,7 +1246,7 @@ error( 'left off here' )
 											writeToLog( verbose, '\n' )
 											% ***	see comment above
 											switch taskInfo{iTaskType,1}
-												case 'AOD'
+												case { 'AOD', 'VODMMN' }		% can this happen in any condition?
 % 													if ~all( ismember( setdiff( eventCode, [ taskInfo{iTaskType,2}{:,1} ] ), 9 ) )
 													if ~all( ismember( eventCode, [ taskInfo{iTaskType,2}{:,1}, 9 ] ) )
 														iSkip(:) = iSkip + 1;
@@ -1254,7 +1254,6 @@ error( 'left off here' )
 														skipLog{iSkip,2} = true;
 														continue		% segment loop
 													end
-% 												case 'VODMMN'
 												otherwise
 													iSkip(:) = iSkip + 1;
 													skipLog{iSkip,1} = sprintf( '%s segment #%d - Unexpected events in task segment', H(iBV).Common.MarkerFile, iSegment );
