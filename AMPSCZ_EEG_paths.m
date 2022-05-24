@@ -11,8 +11,8 @@ function [ AMPSCZdir, eegLabDir, fieldTripDir, adjustDir ] = AMPSCZ_EEG_paths
 	[ ~, hostname ] = system( 'hostname' );		% could be e.g. eris2n5
 	if isunix %&& ~isempty( regexp( hostname, '^grx\d{2}.research.partners.org', 'start', 'once' ) )
 % 		AMPSCZdir    = '/data/predict/kcho/flow_test';					% don't work here, outputs will get deleted.  aws rsync to NDA s2
-% 		AMPSCZdir    = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?
-		AMPSCZdir    = '/data/predict/data_from_nda';
+		AMPSCZdir    = '/data/predict/kcho/flow_test/spero';			% kevin got rid of group folder & only gave me pronet?
+% 		AMPSCZdir    = '/data/predict/data_from_nda';
 		downloadDir  = '/PHShome/sn1005/Downloads';
 		eegLabDir    = fullfile( downloadDir, 'eeglab',    'eeglab2021.1' );
 		fieldTripDir = fullfile( downloadDir, 'fieldtrip', 'fieldtrip-20211209' );
