@@ -281,7 +281,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 			EEG(iRun).chanlocs(EEG(iRun).nbchan).labels = refChanName;
 			% convert [] to ''
 			EEG(iRun).chanlocs(EEG(iRun).nbchan).ref  = '';		% this is not EEG.ref!  they're all empty
-			EEG(iRun).chanlocs(EEG(iRun).nbchan).type = 'EEG';
+			EEG(iRun).chanlocs(EEG(iRun).nbchan).type = '';	%' EEG';		% they're not 'EEG' type anymore
 		end
 
 		% Get channel locations ------------------------------------------------
@@ -405,7 +405,9 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	end
 
 % 	iRun = 1;
-	Ieeg            = find( strcmp( { EEG(iRun).chanlocs.type }, 'EEG' ) );		% this will be all channels now that 'VIS' is remmoved
+	% this will be all channels now that 'VIS' is remmoved
+%	Ieeg            = find( strcmp( { EEG(iRun).chanlocs.type }, 'EEG' ) );			% type came from custom locs file
+	Ieeg            = find( ~ismember( { EEG(iRun).chanlocs.labels }, 'VIS' ) );	% now type is ''
 	Ifilter         = Ieeg;
 	[ ~, Ifrontal ] = ismember( { 'Fp1', 'Fp2' } , { EEG(iRun).chanlocs.labels } );		%  1, 33
 	[ ~, Imastoid ] = ismember( { 'TP9', 'TP10' }, { EEG(iRun).chanlocs.labels } );		% 23, 50

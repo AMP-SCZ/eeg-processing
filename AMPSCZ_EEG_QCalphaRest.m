@@ -30,7 +30,7 @@ function AMPSCZ_EEG_QCalphaRest( replacePng )
 
 		close all
 		try
-			AMPSCZ_EEG_alphaRest( sessions{iSession,2}, sessions{iSession,3} );
+			AMPSCZ_EEG_alphaRest( sessions{iSession,2}, sessions{iSession,3} )
 		catch ME
 			errMsg{iSession} = ME.message;
 			warning( ME.message )

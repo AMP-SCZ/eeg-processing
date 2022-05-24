@@ -39,7 +39,8 @@ function [ POW, ITC, PLA, EPM, toi, ERP, t, chanLabel ] = AMPSCZ_EEG_ASSRanalysi
 	
 	% only keep EEG data, e.g. remove photosensor 'VIS' channel
 	% it's cleaner to remove unused channels here, rather than in cfg structures.
-	eeg = pop_select( eeg, 'channel', find( strcmp( { eeg.chanlocs.type }, 'EEG' ) ) );
+% 	eeg = pop_select( eeg, 'channel', find( strcmp( { eeg.chanlocs.type }, 'EEG' ) ) );
+	eeg = pop_select( eeg, 'channel', find( ~ismember( { eeg.chanlocs.labels }, 'VIS' ) ) );
 
 	% ft_freqanalysis configuration
 	% variable width values came from BJR NAPLS ASSR code

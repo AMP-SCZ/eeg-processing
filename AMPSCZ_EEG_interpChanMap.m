@@ -26,14 +26,17 @@ function AMPSCZ_EEG_interpChanMap( subjectID, sessionDate )
 	end
 
 	nRun  =  0;
-	nChan = 65;
-	nInt  = zeros( nChan, 1 );
+% 	nChan = 65;
+% 	nInt  = zeros( nChan, 1 );
 	nTask = numel( taskNames );
 	for iTask = 1:nTask
 		S = load( fullfile( matDir, [ subjectID, '_', sessionDate, '_', taskNames{iTask}, '_', filterStr, '.mat' ] ), 'chanProp' );
 		nRep = numel( S.chanProp );
 		for iRep = 1:nRep
-			if numel( S.chanProp(iRep).channelLocations ) ~= nChan
+			if iTask == 1 && iRep == 1
+				nChan = numel( S.chanProp(iRep).channelLocations );
+				nInt  = zeros( nChan, 1 );
+			elseif numel( S.chanProp(iRep).channelLocations ) ~= nChan
 				error( 'unexpected # channels' )
 			end
 			nInt(S.chanProp(iRep).interpolatedChannels.all) = nInt(S.chanProp(iRep).interpolatedChannels.all) + 1;

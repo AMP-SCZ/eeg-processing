@@ -134,7 +134,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	% give each topo group to its own CLim or use same global limits as waveform plots?
 	globalCmap = false;
 
-	Ichan  = find( strcmp( { EEG.chanlocs.type }, 'EEG' ) );
+% 	Ichan  = find( strcmp( { EEG.chanlocs.type }, 'EEG' ) );
+	Ichan  = find( ~ismember( { EEG.chanlocs.labels }, 'VIS' ) );
 	nChan  = numel( Ichan );
 % 	nSamp  = EEG.pnts;
 % 	nEpoch = EEG.trials;

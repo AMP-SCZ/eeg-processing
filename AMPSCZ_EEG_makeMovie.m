@@ -60,18 +60,19 @@ function AMPSCZ_EEG_makeMovie( subjId, sessId, taskNames, filterStr )
 
 		% narrower time window
 		EEG = pop_select( EEG, 'time', timeRange );
-	
+
 		% non-rejected epocsh
 		kEpoch = shiftdim( ~isnan( EEG.data(1,1,:) ), 1 );
-	
+
 		% concatenate epoch info across runs
 		for fn = fieldnames( epochInfo )'
 			epochInfo(1).(fn{1}) = [ epochInfo.(fn{1}) ];
 		end
 		epochInfo = epochInfo(1);
-		
+
 		% channels to inclue
-		kChan = strcmp( { EEG.chanlocs.type }, 'EEG' );
+% 		kChan = strcmp( { EEG.chanlocs.type }, 'EEG' );
+		kChan = ~ismember( { EEG.chanlocs.labels }, 'VIS' );
 
 		if EEG.trials ~= numel( epochInfo.latency )
 			error( 'EEG.trials (%d) vs epochInfo (%d) size mismatch', EEG.trials, numel( epochInfo.latency ) )
