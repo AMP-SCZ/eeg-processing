@@ -26,6 +26,12 @@ function AMPSCZ_EEG_QCinterp( replacePng )
 			fprintf( '%s exists\n', pngName )
 			status(iSession) = 1;
 			continue
+% 		elseif exist( pngFile, 'file' ) == 2
+% 			pngDate = dir( pngFile );
+% 			if pngDate.datenum > datenum( [ 2022 5 23 ] )
+% 				fprintf( 'keeping %s\n', pngName )
+% 				continue
+% 			end
 		end
 
 		close all

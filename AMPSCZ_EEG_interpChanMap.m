@@ -16,7 +16,9 @@ function AMPSCZ_EEG_interpChanMap( subjectID, sessionDate )
 		strrep( strrep( strrep( filterStr, '[', '\[' ), ']', '\]' ), '.', '\.' ),'.mat$' ], 'tokens', 'once' );
 	tasksFound = [ tasksFound{:} ];
 
-	taskNames = { 'MMN', 'VOD', 'AOD', 'ASSR' };
+	% MMN and VOD pre-processing have same interpolation, so it's redundant to count both.
+	% MMN is bigger mat file, load VOD even though only the chanProp variable is getting loaded
+	taskNames = { 'VOD', 'AOD', 'ASSR' };
 	kFound    = ismember( taskNames, tasksFound );
 	if ~all( kFound )
 		error( 'missing task(s)' )
@@ -39,7 +41,7 @@ function AMPSCZ_EEG_interpChanMap( subjectID, sessionDate )
 		nRun(:) = nRun + nRep;
 	end
 
-	if nRun ~= 12
+	if nRun ~= 10
 		warning( 'unexpected # runs' )
 	end
 
@@ -59,7 +61,7 @@ function AMPSCZ_EEG_interpChanMap( subjectID, sessionDate )
 	topoplot( nInt(kPlot), S.chanProp(iRep).channelLocations(kPlot), topoOpts{:} );
 	set( hAx, 'CLim', [ -0.5, nRun+0.5 ] )
 % 	title( hAx, printf( '%s\n%s', subjectID, sessionDate ) )
-	xlabel( hAx, '# interpolated epochs', 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
+	xlabel( hAx, '# interpolated runs', 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
 	hBar = colorbar;
 	set( hBar, 'YTick', 0:nRun )
 % 	ylabel( hBar, '# interpolated runs' )

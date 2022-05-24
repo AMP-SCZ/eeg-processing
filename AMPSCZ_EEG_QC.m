@@ -96,6 +96,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 
 	AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
 	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref_noseX.ced' );
+% 	locsFile    = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.elc' );		% does .elc or .ced make any difference?
 
 	[ AMPSCZdir, eegLabDir ] = AMPSCZ_EEG_paths;
 

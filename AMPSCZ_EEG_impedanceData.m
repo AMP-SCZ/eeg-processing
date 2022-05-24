@@ -95,8 +95,6 @@ function [ Z, Zname, Zrange, Ztime ] = AMPSCZ_EEG_impedanceData( subjectID, sess
 		return
 	end
 
-% 	locsFile = 'AMPSCZ_EEG_actiCHamp65ref_noseX.ced';		% let's drop this once and for all
-% 	chanlocs = readlocs( locsFile, 'importmode', 'native', 'filetype', 'chanedit' );
 	locsFile = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.ced' );
 	chanlocs = readlocs( locsFile, 'importmode', 'eeglab', 'filetype', 'chanedit' );	% nose +X, left +Y
 % 	chanlocs = pop_chanedit( chanlocs, 'lookup', Zname );

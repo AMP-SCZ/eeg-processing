@@ -53,7 +53,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	% https://eeglab.org/tutorials/05_Preprocess/Filtering.html
 	if exist( 'passBand', 'var' ) ~= 1 || isempty( passBand )
 % 		passBand = [ 0.1, Inf ];
-		passBand = [ 0.3, Inf ];
+		passBand = [ 0.2, Inf ];
+% 		passBand = [ 0.3, Inf ];
 	end
 	if exist( 'writeFlag', 'var' ) ~= 1
 % 		writeFlag = false;
@@ -81,7 +82,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	% Machine-dependent paths
 	[ AMPSCZdir, eegLabDir, ~, adjustDir ] = AMPSCZ_EEG_paths;
 	AMPSCZtools = fileparts( mfilename( 'fullpath' ) );
-	locsFile    = fullfile( AMPSCZtools, 'AMPSCZ_EEG_actiCHamp65ref_noseX.ced' );
+	locsFile    = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.elc' );		% does .elc or .ced make any difference?
 
 	sessionList = AMPSCZ_EEG_findProcSessions;
 	
@@ -155,65 +156,8 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	% -- EEGLAB + plugins
 	if isempty( which( 'eeglab' ) )
 		if ~AMPSCZ_EEG_matlabPaths
-			addpath( eegLabDir, '-begin' )
-			% nogui doesn't actually put every thing on path???  FASTER yes, ERPLAB subfolders no
-%			eeglab( 'nogui' )
-			eeglab
-			% GUI: File > Quit
-			% MenuSelectedFcn: 'close(gcf); disp('To save the EEGLAB command history  >> pop_saveh(ALLCOM);');clear global EEG ALLEEG LASTCOM CURRENTSET;'
-			drawnow
-			close( gcf )
-			% ALLCOM                       CURRENTERP                   ERP                          STUDY
-			% ALLEEG                       CURRENTSET                   LASTCOM                      eegLabDir
-			% ALLERP                       CURRENTSTUDY                 PLUGINLIST                   globalvars
-			% ALLERPCOM                    EEG                          RESTOREDEFAULTPATH_EXECUTED  plotset
-			clear global EEG ALLEEG LASTCOM CURRENTSET		% there's still a bunch of variables, some global.
+			error( 'Problem setting Matlab path.  Missing mat-file?' )
 		end
-		% paths added by both eeglab & eeglab('noqui')
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\adminfunc
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\guifunc
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\miscfunc
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\popfunc
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\sigprocfunc
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\statistics
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\studyfunc
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\supportfiles
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\functions\timefreqfunc
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\doc
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\t200_FileAccess
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9\biosig\t250_ArtifactPreProcessingQualityControl
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\FASTER1.2.3b
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\bva-io1.7
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\dipfit4.3
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\firfilt
-		% paths added by eeglab but not eeglab('noqui')
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\.github
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\GUIs
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\deprecated_functions
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\erplab_Box
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\functions
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\functions\csd
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\images
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\images\colormap_lic
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ERPLAB8.10\pop_functions
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\examples
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\mex
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\simplenn
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\ICLabel\matconvnet\matlab\xtest
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\core
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\manifolds\grassmann
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\solvers\trustregions
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\clean_rawdata\manopt\manopt\tools
-		% paths added by eeglab('noqui') but not eeglab
-		% 	C:\Users\VHASFCNichoS\Downloads\EEGLAB\eeglab_current\eeglab2021.1\plugins\Biosig3.7.9
 	end
 	if ~contains( which( 'pop_select.m' ), 'modifications' )
 		addpath( fullfile( AMPSCZtools, 'modifications', 'eeglab' ), '-begin' )
@@ -231,55 +175,13 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	sessTag = [ 'ses-',  sessionList{iSession,3} ];
 	taskTag = [ 'task-', taskList{iTask,1} ];
 
-
-	% Read channel locations file ------------------------------------------
-	% standard locations saved in file
-	% e.g. pop_chanedit( struct( 'labels', { eeg.chanlocs.labels } ) )...		w/ or w/o FCz ref?
-	% readlocs vs pop_readlocs?
-	locsOpts = { 'importmode', '' };
-	if contains( lower( locsFile ), 'noseX' )
-		locsOpts{2} = 'eeglab';
-	else
-		locsOpts{2} = 'native';
-	end
-	[ ~, ~, locsExt ] = fileparts( locsFile );
-	if strcmpi( locsExt, '.ced' )
-		locsOpts = [ locsOpts, { 'filetype', 'chanedit' } ];
-	end
-	chanLocs = readlocs( locsFile, locsOpts{:} );
-	nLoc     = numel( chanLocs );
-	Ieeg     = find( strcmp( { chanLocs.type }, 'EEG' ) );		% this will include FCz and only exclude VIS
-	InotEEG  = setdiff( 1:nLoc, Ieeg );
-	nEEG     = numel( Ieeg );
-	chanLocsOrdered = chanLocs;
-	if all( Ieeg == (1:nEEG) )
-		Ireorder = [];
-	else
-		Ireorder   = [ Ieeg, InotEEG ];
-		Ieeg(:)    = 1:nEEG;
-		InotEEG(:) = nEEG+1:nLoc;
-		chanLocsOrdered(:) = chanLocsOrdered(Ireorder);
-	end
-% 	filterFcn       = 'removeTrend';
-	filterFcn       = 'pop_eegfiltnew';
-	Ifilter         = Ieeg;
-% 	refType         = 'average';
-% 	IcomputeRef     = { 'TP9', 'TP10' };
-	[ ~, Ifrontal ] = ismember( { 'Fp1', 'Fp2' } , { chanLocsOrdered.labels } );		%  1, 33
-	[ ~, Imastoid ] = ismember( { 'TP9', 'TP10' }, { chanLocsOrdered.labels } );		% 23, 50
-% 	refType         = 'robust';
-	refType         = 'robustinterp';
-% 	IcomputeRef     = setdiff( Ieeg, Imastoid );
-	IcomputeRef     = setdiff( Ieeg, union( Imastoid, Ifrontal ) );
-	IremoveRef      = Ieeg;
-	IcomputeInterp  = Ieeg;
-	IexcludeInterp  = InotEEG;
-% 	zThreshInterp   = [ 4, 10, 4 ];		% [ correlation, variance, hurst exponent ]
-	zThreshInterp   = [ 3.5, 10, 3.5 ];		% [ correlation, variance, hurst exponent ]
-% 	zThreshInterp   = [ norminv( (1+0.999)/2 ), 8, 3.5 ];		% [ correlation, variance, hurst exponent ], 3.2905, unused w/ 'robustinterp'
-% 	compMethod      = 'ADJUST';
-	compMethod      = 'ICLABEL';
-	Iocular         = [];				% faster ica cleaning only
+	filterFcn = 'pop_eegfiltnew';
+	refType   = 'robustinterp';
+	
+	zThreshInterp = [ 3.5, 10, 3.5 ];		% [ correlation, variance, hurst exponent ]
+% 	zThreshInterp = [ norminv( (1+0.999)/2 ), 8, 3.5 ];		% [ correlation, variance, hurst exponent ], 3.2905, unused w/ 'robustinterp'
+	compMethod    = 'ICLABEL';
+	Iocular       = [];				% faster ica cleaning only
 
 	sessDir = fullfile( AMPSCZ_EEG_procSessionDir( sessionList{iSession,2}, sessionList{iSession,3}, sessionList{iSession,1}(1:end-2) ) );
 	bvDir   = fullfile( sessDir, 'BIDS' );
@@ -287,8 +189,6 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	if ~isfolder( matDir )
 		mkdir( matDir )		% you can run mkdir all at once, don't need to do it one layer at a time
 	end
-% 	logFile = fullfile( matDir, sprintf( '%s_%s_%s.log', subjTag(5:end), sessTag(5:end), epochName ) );
-% 	matFile = fullfile( matDir, sprintf( '%s_%s_%s_[%g,%g].mat', subjTag(5:end), sessTag(5:end), epochName, passBand(1), passBand(2) ) );
 	outName = sprintf( '%s_%s_%s_[%g,%g]', subjTag(5:end), sessTag(5:end), epochName, passBand(1), passBand(2) );
 	logFile  = fullfile( matDir, [ outName, '.log' ] );
 	matFile  = fullfile( matDir, [ outName, '.mat' ] );
@@ -317,8 +217,7 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 	else
 		nRun = numel( IRun );
 	end
-	
-	
+
 	EEG       = repmat( eeg_checkset( eeg_emptyset ), [ 1, nRun ] );
 % 	epochInfo = struct( 'latency', cell( 1, nRun ), 'kStandard', [], 'kTarget', [], 'kNovel', [], 'kCorrect', [], 'Nstandard', [], 'respLat', [] );		% latency is event latency, respLat is response latency
 	epochInfo = struct( 'latency', cell( 1, nRun ), 'kStandard', [], 'kTarget', [], 'kNovel', [], 'kCorrect', [], 'respLat', [] );		% latency is event latency, respLat is response latency
@@ -345,14 +244,13 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 			error( '%d Lost epochs, %d samples total in %s', numel( nLost ), sum( nLost ), bvFile )
 		end
 
-		% Get impedance data
-		if iRun == 1
-			% impedance will be the same for all runs & all tasks, since it is replicated when segmented
-			% the exception will be if there are multiple zip files, it may only be in the 1st
-% 			Z = AMPSCZ_EEG_readBVimpedance( fullfile( bvDir, bvFile ) );		% 65x2 { name, impedance }
+		% Drop photosensor channel
+		if ismember( 'VIS', { EEG(iRun).chanlocs.labels } )
+			EEG(iRun) = pop_select( EEG(iRun), 'nochannel', { 'VIS' } );
 		end
-
+	
 		% handle AOD stimulus bug, replace any repsonse code 17s w/ 5s ---------
+		% get rid of this at some point.  new stim boxes won't produce this error
 		if strcmp( taskList{iTask,1}, 'AOD' )
 			k17 = strcmp( { EEG(iRun).event.type }, 'S 17' );
 			if any( k17 )
@@ -362,88 +260,55 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		end
 		
 		% set EEG.ref field ----------------------------------------------------
-		% and add all-zero reference channel FCz if it's in locations file
-% 		EEG(iRun).chanlocs = chanLocs;
-		addRefChan = nLoc == EEG(iRun).nbchan + 1;			% add extra all-zero reference channel?
-		if addRefChan
-			% check channel locations file to make sure last channel is expected reference
-			if ~strcmp( chanLocs(nLoc).labels, 'FCz' )
-				error( 'expecting channel #%d = FCz', nLoc )
-			end
-			% check data file to make sure expected reference isn't already present
-			if any( strcmp( { EEG(iRun).chanlocs.labels }, chanLocs(nLoc).labels ) )
-				error( 'channel %s already exists in data', chanLocs(nLoc).labels )
-			end
-			% set reference in EEG structure?  loads as 'common'
-			EEG(iRun).ref = chanLocs(nLoc).labels;
-			% add in reference channel full of zeros
-			EEG(iRun).nbchan(:) = nLoc;
-			EEG(iRun).data(EEG(iRun).nbchan,:) = 0;
-			EEG(iRun).chanlocs(EEG(iRun).nbchan).labels = EEG(iRun).ref;
-			% convert [] to ''
-			EEG(iRun).chanlocs(EEG(iRun).nbchan).ref    = '';		% this is not EEG.ref!  they're all empty
-			EEG(iRun).chanlocs(EEG(iRun).nbchan).type   = '';		% this will get set to 'EEG' later via chanLocs
-		else
-			% don't add any channels, just get reference channel name from .vhdr file and put in in EEG.ref
-			% i'm pretty sure this isn't important at all
-			hdr  = bieegl_readBVtxt( fullfile( bvDir, bvFile ) );
-			kRef = ~cellfun( @isempty, regexp( hdr.Comment, '^Reference Channel Name = .+$', 'once', 'start' ) );
-			if sum( kRef ) ~= 1
-				error( 'can''t identify ref channel name from .vhdr' )
-			end
-			refName = regexp( hdr.Comment{kRef}, '^Reference Channel Name = (.+)$', 'once', 'tokens' );
-			EEG(iRun).ref = refName{1};
-			clear hdr kRef refName
+		% and add all-zero reference channel FCz
+% 		refChanName = 'FCz';
+		hdr  = bieegl_readBVtxt( fullfile( bvDir, bvFile ) );
+		kRef = ~cellfun( @isempty, regexp( hdr.Comment, '^Reference Channel Name = .+$', 'once', 'start' ) );
+		if sum( kRef ) ~= 1
+			error( 'can''t identify ref channel name from .vhdr' )
 		end
-		
+		refChanName = regexp( hdr.Comment{kRef}, '^Reference Channel Name = (.+)$', 'once', 'tokens' );
+		refChanName = refChanName{1};
+		clear hdr kRef
+		% put reference channel name from .vhdr file in EEG.ref
+		% i'm pretty sure this isn't important at all
+		% it loads as 'common'
+		EEG(iRun).ref = refChanName;
+		if ~ismember( refChanName, { EEG(iRun).chanlocs.labels } )
+			% add in reference channel full of zeros
+			EEG(iRun).nbchan(:) = EEG(iRun).nbchan + 1;
+			EEG(iRun).data(EEG(iRun).nbchan,:) = 0;
+			EEG(iRun).chanlocs(EEG(iRun).nbchan).labels = refChanName;
+			% convert [] to ''
+			EEG(iRun).chanlocs(EEG(iRun).nbchan).ref  = '';		% this is not EEG.ref!  they're all empty
+			EEG(iRun).chanlocs(EEG(iRun).nbchan).type = 'EEG';
+		end
 
 		% Get channel locations ------------------------------------------------
-		% verify that your locations file labels match the data file
-		% then copy fields from chanLocs to EEG.  there aren't any new fields.
-		% eeg structure has extra fields ref='', urchan=[]
-		%
-		% *** why not use eeg = pop_chanedit( eeg, 'lookup', locsFile ); ? ***
-		if numel( chanLocs ) ~= EEG(iRun).nbchan || ~all( strcmp( { EEG(iRun).chanlocs.labels }, { chanLocs.labels } ) )
-			error( '%s labels don''t match data' )
-		end
-		replaceChanField = true;	% replace existing fields of EEG(iRun).chanlocs?
-		addChanField     = true; 	%     add      new fields to EEG(iRun).chanlocs?
-		fn1 = setdiff( fieldnames( EEG(iRun).chanlocs ), 'labels' );
-		fn2 = setdiff( fieldnames(           chanLocs ), 'labels' );
-		for iChan = 1:EEG(iRun).nbchan
-			for fn = fn2'									% locations file fields
-				if ~isempty( chanLocs(iChan).(fn{1}) )		% non-empty in locations file
-					if ismember( fn{1}, fn1 )				% exists in eeg structure
-						if isempty( EEG(iRun).chanlocs(iChan).(fn{1}) )
-							EEG(iRun).chanlocs(iChan).(fn{1}) = chanLocs(iChan).(fn{1});	% replace empty with new
-						elseif replaceChanField
-							EEG(iRun).chanlocs(iChan).(fn{1}) = chanLocs(iChan).(fn{1});	% replace old with new
-						end
-					elseif addChanField
-						EEG(iRun).chanlocs(iChan).(fn{1}) = chanLocs(iChan).(fn{1});		% replace missing with new
-					end
-				else		% empty field in locs file, do nothing?
-				end
+		EEG(iRun) = pop_chanedit( EEG(iRun), 'lookup', locsFile );
+		
+		if iRun ~= 1
+			if EEG(iRun).nbchan ~= EEG(1).nbchan || ~all( strcmp( { EEG(iRun).chanlocs.labels }, { EEG(1).chanlocs.labels } ) )
+				error( 'inconsistent channels across runs' )
 			end
 		end
-		clear fn1 fn2 iChan fn % replaceChanField addChanField
+		% DONE messing with EEG structure, now extract behavioral data
 		
-		% Ensure EEG channels are first
-		% some EEGLAB FASTER plugin functions may choke if not?
-		% don't reorder until you're done with chanLocs struct
-		if ~isempty( Ireorder )
-			fprintf( 'Re-ordering channels to move reference\n' )
-			EEG(iRun).chanlocs(:) = EEG(iRun).chanlocs(Ireorder);
-			EEG(iRun).data(:)     = EEG(iRun).data(Ireorder,:);
-		end
-
-		% DONE messing with eeg structure, now extract behavioral data
+		
+		% Can I make use of this in place of code below
+		% [ pVOD, pAOD ] = AMPSCZ_EEG_performance( subjectID, sessionDate, VODMMNruns, AODruns )
+		% pVOD, pAOD: 1st column is code for stimulus type, 0=standard, 1=target, 2=novel
+		%             2nd column in reaction time (s), NaN if no response
+		% epochInfo(iRun) = struct( 'latency', [ EEG(iRun).event(Istim).latency ],...
+		% 	'kStandard', pVOD(:,1)'==1, 'kTarget', pVOD(:,1)'==2, 'kNovel', pVOD(:,1)'==2, 'kCorrect', kCorrect,...
+		% 	'respLat', pVOD(:,2)' );
 		
 		% Stimulus indices & type sequence -------------------------------------
 		Istim     = find( ismember( { EEG(iRun).event.type }, epochEventCodes ) );
 			% get rid of stimuli that are too close to bounds to epoch
 			Istim( [ EEG(iRun).event(Istim).latency ] <                  -epochWin(1) * EEG(iRun).srate ) = [];
 			Istim( [ EEG(iRun).event(Istim).latency ] >  EEG(iRun).pnts - epochWin(2) * EEG(iRun).srate ) = [];
+
 		stimSeq   = { EEG(iRun).event(Istim).type };
 		nStim     = numel( Istim );
 		kStandard = strcmp( stimSeq, standardCode );
@@ -539,6 +404,22 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 
 	end
 
+% 	iRun = 1;
+	Ieeg            = find( strcmp( { EEG(iRun).chanlocs.type }, 'EEG' ) );		% this will be all channels now that 'VIS' is remmoved
+	Ifilter         = Ieeg;
+	[ ~, Ifrontal ] = ismember( { 'Fp1', 'Fp2' } , { EEG(iRun).chanlocs.labels } );		%  1, 33
+	[ ~, Imastoid ] = ismember( { 'TP9', 'TP10' }, { EEG(iRun).chanlocs.labels } );		% 23, 50
+	IcomputeRef     = setdiff( Ieeg, union( Imastoid, Ifrontal ) );
+	IremoveRef      = Ieeg;
+	IcomputeInterp  = Ieeg;
+	IexcludeInterp  = [];
+
+	% Ensure EEG channels are first
+	% some EEGLAB FASTER plugin functions may choke if not?
+	if ~all( Ieeg == 1:numel( Ieeg ) )
+		error( 'Re-ordering channels w/ EEG first\n' )
+	end
+	
 	if isempty( writeFlag )
 		replaceLog = false;		% append
 	else
@@ -569,41 +450,6 @@ function AMPSCZ_EEG_preproc( subjectID, sessionDate, epochName, passBand, writeF
 		end
 %}
 %%
-
-
-%{
-
-		% High-offset flag -----------------------------------------------------
-		% BJR says this HighOffset check should only be needed for BioSemi system
-		% 1st stimuli coming in around 5s, do we want to use pre-stim region here?
-		% what are units here? same as in NAPLS? offsets are pretty high
-				% BJR comments:
-                % 2014 update:  Prior to re-referencing, check the offsets to
-                % identify any channel(s) that may not have been plugged in
-                % using the offset code developed for NAPLS QA.  And by that I
-                % mean check to see if the max absolute value of the data in the
-                % first few seconds is greater than 60k (did you know that the
-                % offsets tab in actiView simply displays the raw voltage value
-                % of the unreferenced data?)
-				%
-                % if high offset = 64 then check in longer time window (more
-                % than 3 sec) for bad caps
-				%
-				% HighOffset = max( abs( EEG(iRun).data(eeg_chans,1024:3072)' ) ) > 60000;
-%		highThresh  = 60000;
-		highThresh  = nan;
-		ItimeOffset = ceil( EEG(iRun).srate * 1 ):floor( EEG(iRun).srate * 3 );
-		offset      = max( abs( EEG(iRun).data(Ieeg,ItimeOffset) ), [], 2 );
-		HighOffset  = false( nEEG, 1 );
-		if ~isnan( highThresh )
-			HighOffset(:) = max( abs( EEG(iRun).data(Ieeg,ItimeOffset) ), [], 2 ) > highThresh;
-		end
-		IpropExclude = Ieeg(HighOffset);	
-
-%}	
-
-
-% 	clear ALLCOM ALLERP ALLERPCOM CURRENTERP CURRENTSTUDY ERP STUDY % PLUGINLIST
 
 
 

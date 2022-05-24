@@ -6,9 +6,6 @@ function AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, Zdata, chanlocs, zRange, zThr
 		nAvg = 0;
 	end
 
-	% locsFile = 'AMPSCZ_EEG_actiCHamp65ref_noseX.ced';
-	% chanlocs = readlocs( locsFile, 'importmode', 'native', 'filetype', 'chanedit' );		% [ 63 EEG, 'VIS', FCz ref ]
-
 	[ nImp, nRec, nSubj ] = size( Zdata );
 	if nSubj == 1
 		iRec  = find( ~all( isnan( Zdata ), 1 ), 1, 'last' );		% first or last?
