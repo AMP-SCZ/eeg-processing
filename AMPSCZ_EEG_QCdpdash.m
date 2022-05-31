@@ -30,7 +30,7 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	if nnz( jFieldName ) ~= 1
 		error( 'Can''t identify field name column in EEG run sheet csv' )
 	end
-	switch netwrokName
+	switch networkName
 		case 'Pronet'
 			kDate = strcmp( csv(:,jFieldName), 'chreeg_interview_date' );		% 'YYYY-MM-DD'
 			kTech = strcmp( csv(:,jFieldName), 'chreeg_primaryperson' );		% 'FL#'
