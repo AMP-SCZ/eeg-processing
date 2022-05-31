@@ -43,19 +43,7 @@ function AMPSCZ_EEG_QCalphaRest( replacePng )
 		% scale if getframe pixels don't match Matlab's figure size
 % 		hFig   = gcf;
 		hFig   = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_alphaRest' );
-		figPos = get( hFig, 'Position' );
-		img = getfield( getframe( hFig ), 'cdata' );
-		if size( img, 1 ) ~= figPos(4)
-			img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-		end
-		% this way doesn't look as good
-% 		dpi = round( 100 );
-% 		set( hFig, 'PaperUnits', 'inches', 'PaperPosition', [ 0 0 figPos(3:4)/dpi ] )
-
-		% save
-		imwrite( img, pngFile, 'png' )
-% 		print( hFig, pngFile, '-dpng', sprintf( '-r%d', dpi ) )
-		fprintf( 'wrote %s\n', pngFile )
+		bieegl_saveFig( hFig, pngFile )
 
 		status(iSession) = 2;
 % 		waitbar( iSession/nSession, hWait )

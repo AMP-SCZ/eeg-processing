@@ -48,15 +48,7 @@ function AMPSCZ_EEG_QCbridge( replacePng )
 		% scale if getframe pixels don't match Matlab's figure size
 % 		hFig   = gcf;
 		hFig   = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_eBridge' );
-		figPos = get( hFig, 'Position' );
-		img = getfield( getframe( hFig ), 'cdata' );
-		if size( img, 1 ) ~= figPos(4)
-			img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-		end
-		
-		% save
-		imwrite( img, pngFile, 'png' )
-		fprintf( 'wrote %s\n', pngFile )
+		bieegl_saveFig( hFig, pngFile )
 
 		status(iSession) = 2;
 % 		waitbar( iSession/nSession, hWait )
@@ -88,12 +80,7 @@ function AMPSCZ_EEG_QCbridge( replacePng )
 	xlabel( 'Average Bridged Channels', 'Visible', 'on', 'FontSize', 14 )
 	title( sprintf( 'n = %d', n ), 'FontSize', 14 )
 	colorbar
-	figPos = get( hFig, 'Position' );
-	img = getfield( getframe( hFig ), 'cdata' );
-	if size( img, 1 ) ~= figPos(4)
-		img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-	end
-	% imwrite( img, 'C:\Users\donqu\Box\Certification Files\Pronet\PHOENIX\PROTECTED\PredictGRAN\processed\GRANavg\eeg\ses-00000000\Figures\GRANavg_00000000_QCbridge.png', 'png' )
+% 	bieegl_saveFig( hFig, 'C:\Users\donqu\Box\Certification Files\Pronet\PHOENIX\PROTECTED\PredictGRAN\processed\GRANavg\eeg\ses-00000000\Figures\GRANavg_00000000_QCbridge.png' )
 	
 %% summary distributions
 

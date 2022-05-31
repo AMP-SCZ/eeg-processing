@@ -46,15 +46,7 @@ function AMPSCZ_EEG_QCcounts( replacePng )
 		% scale if getframe pixels don't match Matlab's figure size
 % 		hFig   = gcf;
 		hFig   = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_eventGraph' );
-		figPos = get( hFig, 'Position' );
-		img = getfield( getframe( hFig ), 'cdata' );
-		if size( img, 1 ) ~= figPos(4)
-			img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-		end
-
-		% save
-		imwrite( img, pngFile, 'png' )
-		fprintf( 'wrote %s\n', pngFile )
+		bieegl_saveFig( hFig, pngFile )
 
 		status(iSession) = 2;
 	end

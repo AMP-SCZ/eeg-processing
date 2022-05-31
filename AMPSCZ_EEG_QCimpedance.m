@@ -47,16 +47,7 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 				end
 
 				hFig   = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_impedanceData' );
-				figPos = get( hFig, 'Position' );
-				img = getfield( getframe( hFig ), 'cdata' );
-				% PC only thing?  where matlab ScreenSize doesn't match actual display resolution
-				if size( img, 1 ) ~= figPos(4)
-					img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-				end
-
-				% save
-				imwrite( img, pngFile, 'png' )
-				fprintf( 'wrote %s\n', pngFile )
+				bieegl_saveFig( hFig, pngFile )
 
 				status(iSession) = 2;
 			end
@@ -131,16 +122,7 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 				zThresh = 25;				% impedance threshold
 				zLimit  = zThresh * 2;
 				AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, mean( Z, 2, 'omitnan' ), chanlocs, mean( Zrange, 1, 'omitnan' ), zThresh, zLimit, nSession )
-			
-				figPos = get( hFig, 'Position' );
-				img = getfield( getframe( hFig ), 'cdata' );
-				if size( img, 1 ) ~= figPos(4)
-					img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-				end
-
-				% save
-				imwrite( img, pngFile, 'png' )
-				fprintf( 'wrote %s\n', pngFile )
+				bieegl_saveFig( hFig, pngFile )
 				status(iSite) = 2;
 				
 			end
@@ -209,15 +191,7 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 			zThresh = 25;				% impedance threshold
 			zLimit  = zThresh * 2;
 			AMPSCZ_EEG_plotImpedanceTopo( hAx, Zname, mean( Z, 2, 'omitnan' ), chanlocs, mean( Zrange, 1, 'omitnan' ), zThresh, zLimit, nnz( status ) )
-
-			figPos = get( hFig, 'Position' );
-			img = getfield( getframe( hFig ), 'cdata' );
-			if size( img, 1 ) ~= figPos(4)
-				img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-			end
-			% save
-% 			imwrite( img, pngFile, 'png' )
-% 			fprintf( 'wrote %s\n', pngFile )
+% 			bieegl_saveFig( hFig, pngFile )
 				
 			if ~all( status )
 				disp( sessions(~status,2:3) )
@@ -240,11 +214,8 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 			hFig = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_impedanceData' );
 			AMPSCZ_EEG_impedanceData( subjectID, sessionDate, impedanceType );
 
-			hFig   = setdiff( findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_impedanceData' ), hFig );
-			figPos = get( hFig, 'Position' );			
-			dpi    = 100;
-			set( hFig, 'PaperUnits', 'inches', 'PaperPosition', [ 0, 0, figPos(3)/dpi, figPos(4)/dpi ] )
-			print( hFig, pngFile,  '-dpng', [ '-r', int2str( dpi ) ] )
+			hFig = setdiff( findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_impedanceData' ), hFig );
+			bieegl_saveFig( hFig, pngFile )
 
 % 			vhdr = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, 'all', 'all', 'all', 'all', 'all', false ); vhdr = fullfile( { vhdr.folder }, { vhdr.name } )'
 

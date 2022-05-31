@@ -1,6 +1,11 @@
 function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 % AMPSCZ_EEG_QCdpdash( subjectID, sessionNumber, [replaceFlag=false] )
 
+% to do:
+% use evalc to get rid of command window clutter?
+% give the core of this a new name, and keep QCdpash as the wrapper per convention?
+
+
 	narginchk( 2, 3 )
 	
 	if exist( 'replaceFlag', 'var' ) ~= 1 || isempty( replaceFlag )
@@ -144,6 +149,7 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	fprintf( fid, 'reftime,day,timeofday,weekday' );
 	fprintf( fid, ',%s', valName{:} );
 	fprintf( fid, '\n,,,,%d,%d,%d,%d,%d,%d,%g,%g,%d,%d,%d,%g,%g,%g,%g,%g,%g,%g,%g', val );
+	fprintf( fid, '\n' );		% so it displays better in terminal
 	fclose( fid );
 	fprintf( 'wrote %s\n', csvOut )
 

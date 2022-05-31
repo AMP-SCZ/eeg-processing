@@ -47,14 +47,7 @@ function AMPSCZ_EEG_QCperformance( replacePng )
 		for i = find( [ pngWrite(:) ]' )
 			% scale if getframe pixels don't match Matlab's figure size
 			hFig   = findobj( 'Type', 'figure', 'Tag', [ 'AMPSCZ_EEG_performance', figTag{i} ] );
-			figPos = get( hFig, 'Position' );
-			img = getfield( getframe( hFig ), 'cdata' );
-			if size( img, 1 ) ~= figPos(4)
-				img = imresize( img, figPos(4) / size( img, 1 ), 'bicubic' );		% scale by height
-			end
-			% save
-			imwrite( img, pngFile{i}, 'png' )
-			fprintf( 'wrote %s\n', pngFile{i} )
+			bieegl_saveFig( hFig, pngFile{i} )
 		end
 
 		status(iSession) = 2;
