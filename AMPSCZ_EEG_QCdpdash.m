@@ -31,14 +31,20 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 		error( '%s does not exist', csvIn )
 	end
 	csv = readcell( csvIn, 'FileType', 'text', 'TextType', 'char', 'DateTimeType', 'text', 'Delimiter', ',', 'NumHeaderLines', 0 );
-	jFieldName  = strcmp( csv(1,:), 'field_name' );
-	jFieldValue = strcmp( csv(1,:), 'field_value' );
-	if nnz( jFieldName ) ~= 1
-		error( 'Can''t identify field name column in EEG run sheet csv' )
+% 	jFieldName  = strcmp( csv(1,:), 'field_name' );
+% 	jFieldValue = strcmp( csv(1,:), 'field_value' );
+% 	if nnz( jFieldName ) ~= 1
+% 		error( 'Can''t identify field name column in EEG run sheet csv' )
+% 	end
+% 	if nnz( jFieldValue ) ~= 1
+% 		error( 'Can''t identify field value column in EEG run sheet csv' )
+% 	end
+	% Prescient is organized in rows and doesn't have row names
+	if strcmp( networkName, 'Prescient' )
+		csv = csv';
 	end
-	if nnz( jFieldValue ) ~= 1
-		error( 'Can''t identify field value column in EEG run sheet csv' )
-	end
+	jFieldName  = 1;
+	jFieldValue = 2;
 	switch networkName
 		case 'Pronet'
 			kDate = strcmp( csv(:,jFieldName), 'chreeg_interview_date' );		% 'YYYY-MM-DD'
