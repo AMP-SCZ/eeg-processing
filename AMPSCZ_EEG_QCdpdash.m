@@ -26,9 +26,13 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 		error( '%s does not exist', csvIn )
 	end
 	csv = readcell( csvIn, 'FileType', 'text', 'TextType', 'char', 'DateTimeType', 'text', 'Delimiter', ',', 'NumHeaderLines', 0 );
-	jFieldName = strcmp( csv(1,:), 'field_name' );
+	jFieldName  = strcmp( csv(1,:), 'field_name' );
+	jFieldValue = strcmp( csv(1,:), 'field_value' );
 	if nnz( jFieldName ) ~= 1
 		error( 'Can''t identify field name column in EEG run sheet csv' )
+	end
+	if nnz( jFieldValue ) ~= 1
+		error( 'Can''t identify field value column in EEG run sheet csv' )
 	end
 	switch networkName
 		case 'Pronet'
@@ -46,7 +50,7 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	if nnz( kDate ) ~= 1
 		error( 'Can''t identify interview date row in EEG run sheet csv' )
 	end
-	sessionDate = datestr( datenum( csv{kDate,jFieldName}, dateFmt ), 'yyyymmdd' );
+	sessionDate = datestr( datenum( csv{kDate,jFieldValue}, dateFmt ), 'yyyymmdd' );
 
 	nVal = 19;
 	valName = cell( 1, nVal );
