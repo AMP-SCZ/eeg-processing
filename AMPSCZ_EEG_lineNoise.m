@@ -30,7 +30,7 @@ function P = AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, meanRef, V
 	fLine    = siteInfo{kSite,4};
 
 	if exist( 'meanRef', 'var' ) ~= 1 || isempty( meanRef )
-		meanRef = true;
+		meanRef = false;
 	end
 	if exist( 'VODMMNruns', 'var' ) ~= 1
 		VODMMNruns = [];
@@ -52,12 +52,14 @@ function P = AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, meanRef, V
 	eeg = AMPSCZ_EEG_eegMerge( subjectID, sessionDate, VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns, [ 0.2, Inf ], [ -1, 2 ] );
 
 	% add in FCz???
-	eeg.nbchan(:) = eeg.nbchan + 1;
-	eeg.data(eeg.nbchan,:) = 0;
-	eeg.chanlocs(eeg.nbchan).labels = 'FCz';
-	locsFile = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.elc' );		% does .elc or .ced make any difference?
-	eeg = pop_chanedit( eeg, 'lookup', locsFile );
-	eeg.data = double( eeg.data );
+	if meanRef
+		eeg.nbchan(:) = eeg.nbchan + 1;
+		eeg.data(eeg.nbchan,:) = 0;
+		eeg.chanlocs(eeg.nbchan).labels = 'FCz';
+		locsFile = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.elc' );		% does .elc or .ced make any difference?
+		eeg = pop_chanedit( eeg, 'lookup', locsFile );
+		eeg.data = double( eeg.data );
+	end
 
 	% these will not be integers but halfway between
 	IboundaryEvent = find( strcmp( { eeg.event.type }, 'boundary' ) );
@@ -127,6 +129,10 @@ function P = AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, meanRef, V
 			return
 	end
 
+	if nargout ~= 0
+		return
+	end
+	
 	locsFile = fullfile( fileparts( which( 'pop_dipfit_batch.m' ) ), 'standard_BEM', 'elec', 'standard_1005.ced' );
 	eeg = pop_chanedit( eeg, 'lookup', locsFile );
 
@@ -149,7 +155,7 @@ function P = AMPSCZ_EEG_lineNoise( subjectID, sessionDate, powerType, meanRef, V
 	colorbar
 
 	text( hAx, 'Units', 'normalized', 'HorizontalAlignment', 'left', 'VerticalAlignment', 'top', 'Position', [ 1.35, 0.95, 0 ],...
-		'FontSize', 12, 'String', sprintf( [	'{\\it%s} of %d epochs\n\n',...
+		'FontSize', 12, 'String', sprintf( [	'{\\it%s} of %d runs\n\n',...
 												'Min. = %0.1f\n',...
 												'Max. = %0.1f\n',...
 												'Med. = %0.1f\n',...

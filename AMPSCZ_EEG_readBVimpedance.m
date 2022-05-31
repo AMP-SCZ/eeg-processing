@@ -71,7 +71,9 @@ function [ Ztable, Zrange, Ztime ] = AMPSCZ_EEG_readBVimpedance( vhdr )
 	% VIS is not in the impedance table
 	% there are the 1st 63 channels, then the reference FCz, then Gnd
 	% for a total of 65
-	nChanEEG = vhdr.Common.NumberOfChannels - 1;		% exclude 'VIS' photosensor channel.  do something more adaptible?
+% 	nChanEEG = vhdr.Common.NumberOfChannels - 1;		% exclude 'VIS' photosensor channel.  do something more adaptible?
+% 	nChanEEG = vhdr.Common.NumberOfChannels - any( strcmp( {vhdr.Channel.Ch.name}, 'VIS' ) );
+	nChanEEG = nnz( ~strcmp( {vhdr.Channel.Ch.name}, 'VIS' ) );
 	iLast    = iImp + nChanEEG + 2;
 	nComment = numel( vhdr.Comment );
 	if iLast(end) > nComment

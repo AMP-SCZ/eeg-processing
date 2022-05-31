@@ -224,10 +224,28 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 			end
 
 		case 'single'
-			
-			error( 'under construction' )		% need to save pngs
+
+			pngDir = fullfile( AMPSCZ_EEG_procSessionDir( subjectID, sessionDate ), 'Figures' );
+			if ~isfolder( pngDir )
+				mkdir( pngDir )
+				fprintf( 'created %s\n', pngDir )
+			end
+			pngName = [ subjectID, '_', sessionDate, '_QCimpedance.png' ];
+			pngFile = fullfile( pngDir, pngName );
+			if exist( pngFile, 'file' ) == 2 && ~replacePng
+				fprintf( '%s exists\n', pngName )
+				return
+			end
+
+			hFig = findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_impedanceData' );
 			AMPSCZ_EEG_impedanceData( subjectID, sessionDate, impedanceType );
-			
+
+			hFig   = setdiff( findobj( 'Type', 'figure', 'Tag', 'AMPSCZ_EEG_impedanceData' ), hFig );
+			figPos = get( hFig, 'Position' );			
+			dpi    = 100;
+			set( hFig, 'PaperUnits', 'inches', 'PaperPosition', [ 0, 0, figPos(3)/dpi, figPos(4)/dpi ] )
+			print( hFig, pngFile,  '-dpng', [ '-r', int2str( dpi ) ] )
+
 % 			vhdr = AMPSCZ_EEG_vhdrFiles( subjectID, sessionDate, 'all', 'all', 'all', 'all', 'all', false ); vhdr = fullfile( { vhdr.folder }, { vhdr.name } )'
 
 	end

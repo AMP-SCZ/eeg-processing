@@ -7,7 +7,7 @@ function AMPSCZ_EEG_QClineNoise( powerType, replacePng )
 
 	narginchk( 2, 2 )
 	
-	meanRef = true;
+	meanRef = false;
 
 	% make sure FieldTrip's not on path
 	if ~contains( which( 'hann.m' ), matlabroot )

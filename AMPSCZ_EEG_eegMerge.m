@@ -45,6 +45,7 @@ function EEG = AMPSCZ_EEG_eegMerge( subjectID, sessionDate, VODMMNruns, AODruns,
 		kEvent = ~ismember( { eeg.event.type }, 'boundary' );
 		i1 = max( eeg.event(find(kEvent,1,'first')).latency +  ceil( eeg.srate * padTime(1) ),        1 );
 		i2 = min( eeg.event(find(kEvent,1, 'last')).latency + floor( eeg.srate * padTime(2) ), eeg.pnts );
+% 		[ i1, i2 ]
 		if i1 > 1 || i2 < eeg.pnts
 			eeg = pop_select( eeg, 'point', [ i1, i2 ] );
 		end

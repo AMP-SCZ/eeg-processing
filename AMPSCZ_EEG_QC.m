@@ -424,7 +424,11 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		% check for lack of photosensor signal in other tasks?
 		if strcmp( taskName, 'VODMMN' )
 			
-			nVis = numel( AMPSCZ_EEG_photosensorOnset( eeg(64,:) * H.Channel.Ch(64).resolution ) );
+			if size( eeg, 1 ) == 64
+				nVis = numel( AMPSCZ_EEG_photosensorOnset( eeg(64,:) * H.Channel.Ch(64).resolution ) );
+			else
+				nVis = 0;
+			end
 %{
 			% pulse duration = 31-32 60Hz refreshes
 			% there should be 160 of them
@@ -584,7 +588,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		% or   extreme amplitudes, lack of correlation, lack of predicatability, unusal high-frequency noise as in PREP
 		Ieeg        = 1:63;		% EEG channels.  exclude 'VIS'
 		Ireref      = Ieeg;		% channels to potentially inlcude in reference estimate
-		rerefMethod = 2;		% 0 = none, 1 = iterative winsorized peak-to-peak, 2 = FASTER, 3 = PREP (too slow for QC)
+		rerefMethod = 0;		% 0 = none, 1 = iterative winsorized peak-to-peak, 2 = FASTER, 3 = PREP (too slow for QC)
 		switch rerefMethod
 			case 0
 			case 1
@@ -686,7 +690,8 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 		end
 
 	end
-	pLineMax = max( pLine, [], 2 );
+% 	pLineMax = max( pLine, [], 2 );
+	pLineMax = median( pLine, 2 );		% switch to median instead of max
 	
 	
 	%% Resting state data
@@ -1109,7 +1114,10 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 					'LabelOrientation', 'horizontal', 'LabelVerbosity', 'all', 'Orientation', 'horizontal',...
 					'Positions', [ ones(1,any(kVis)), repmat(2,1,any(kAud)) ] )
  				set( hAx(4), 'PositionConstraint', 'innerposition' )
-				set( hAx(4), 'YDir', 'reverse', 'XLim', [ 0, max( RT( kVis | kAud ) )*1.1 ] )
+				set( hAx(4), 'YDir', 'reverse' )
+				if ~isempty( RT )
+					set( hAx(4), 'XLim', [ 0, max( RT( kVis | kAud ) )*1.1 ] )
+				end
 				set( hAx(4), 'YTickLabelRotation', 90 )
 		end
 
@@ -1184,7 +1192,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 				xTxt(:) = cumsum( xTxt ) / sum( xTxt );
 				xTxt(1) = 0;		
 		end
-		for iVar = 1:nVar
+		for iVar = setdiff( 1:nVar, 7 )		% drop photosensor counts
 			if iVar == 1
 				hAlign = 'left';
 			else

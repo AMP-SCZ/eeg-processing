@@ -152,7 +152,9 @@ function [ pVOD, pAOD ] = AMPSCZ_EEG_performance( subjectID, sessionDate, VODMMN
 		'LabelOrientation', 'horizontal', 'LabelVerbosity', 'all', 'Orientation', 'horizontal',...
 		'Positions', [ ones(1,~isempty(RTvod)), repmat(2,1,~isempty(RTaod)) ] )
 	set( hAx(2), 'PositionConstraint', 'innerposition' )
-	set( hAx(2), 'YDir', 'reverse', 'XLim', [ 0, max( [ RTvod; RTaod ] )*1.1 ] )
+	if ~isempty( [ RTvod; RTaod ] )
+		set( hAx(2), 'YDir', 'reverse', 'XLim', [ 0, max( [ RTvod; RTaod ] )*1.1 ] )
+	end
 	set( hAx(2), 'YTickLabelRotation', 90 )
 
 	set( [
