@@ -11,7 +11,7 @@ function AMPSCZ_EEG_loopPreProc( writeFlag )
 	status    = zeros( nSession, 1 );		% 0 = nothing, 1 = MMN, 2 = MMN+VOD, 3 = MMN+VOD+AOD, 4 = MMN+VOD+AOD+ASSR i.e. everything
 	errMsg    =  cell( nSession, 1 );		% message for status==-1 sessions
 
-	for iSession = 1%:nSession
+	for iSession = 1:nSession
 		
 		subjectID   = sessions{iSession,2};
 		sessionDate = sessions{iSession,3};
