@@ -138,6 +138,7 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	fprintf( fid, ',%s', valName{:} );
 	fprintf( fid, '\n,,,,%d,%d,%d,%d,%d,%d,%g,%g,%d,%d,%d,%g,%g,%g,%g,%g,%g,%g,%g', val );
 	fclose( fid );
+	fprintf( 'wrote %s\n', csvOut )
 
 	return
 	
