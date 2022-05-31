@@ -26,7 +26,7 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 		error( '%s does not exist', csvIn )
 	end
 	csv = readcell( csvIn, 'FileType', 'text', 'TextType', 'char', 'DateTimeType', 'text', 'Delimiter', ',', 'NumHeaderLines', 0 );
-	jFieldName = strcmp( csv(1,:), 'field name' );
+	jFieldName = strcmp( csv(1,:), 'field_name' );
 	if nnz( jFieldName ) ~= 1
 		error( 'Can''t identify field name column in EEG run sheet csv' )
 	end
@@ -141,6 +141,35 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	fprintf( 'wrote %s\n', csvOut )
 
 	return
+	
+	%%
+	clear
+	
+	replaceFlag = false;
+	procSess = AMPSCZ_EEG_findProcSessions;
+	for i = 1
+		subjectID = procSess{i,2};
+		siteID    = subjectID(1:2);
+		siteInfo  = AMPSCZ_EEG_siteInfo;
+		kSite     = strcmp( siteInfo(:,1), siteID );
+		if nnz( kSite ) ~= 1
+			error( 'site id bug' )
+		end
+		networkName = siteInfo{kSite,2};
+		rawDir  = fullfile( AMPSCZ_EEG_paths, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteID ], 'raw', subjectID, 'eeg' );
+		csvFile = dir( fullfile( rawDir, sprintf( '%s.%s.Run_sheet_eeg_*.csv', subjectID, networkName ) ) );
+		csvFile( cellfun( @isempty, regexp( { csvFile.name }, [ '^', subjectID, '.', networkName, '.', 'Run_sheet_eeg_\d+.csv$' ], 'start', 'once' ) ) ) = [];
+		nCSV = numel( csvFile );
+		if nCSV == 0
+			continue
+		end
+		for iCSV = 1:nCSV
+			csvNumber = regexp( { csvFile.name }, [ '^', subjectID, '.', networkName, '.', 'Run_sheet_eeg_(\d+).csv$' ], 'tokens', 'once' );
+			csvNumber = str2double( csvNumber{1}{1} );
+			AMPSCZ_EEG_QCdpdash( subjectID, csvNumber, replaceFlag )
+		end
+	end
+	%%
 	
 
 end
