@@ -97,7 +97,10 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	val(Ival) = sum( P > pThresh );
 
 	% Bridging
+	hFigBefore = findobj( 'Type', 'figure' );
 	EB = AMPSCZ_EEG_eBridge( subjectID, sessionDate, 0, 0, 0, 0, 1, false );					% this is leaving extra figure open - wasn't before???
+	close( setdiff( findobj( 'Type', 'figure' ), hFigBefore ) )
+	
 	Ival = 11;
 	valName{Ival} = 'nBridgedChan';
 	val(Ival) = EB.Bridged.Count;
@@ -149,9 +152,12 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	%%
 	clear
 	
+	n      = 0;
+	dpdash = cell( n, 3 );
+
 	replaceFlag = false;
 	procSess = AMPSCZ_EEG_findProcSessions;
-	for i = 1
+	for i = 1:size( procSess, 1 )
 		subjectID = procSess{i,2};
 		siteID    = subjectID(1:2);
 		siteInfo  = AMPSCZ_EEG_siteInfo;
@@ -170,9 +176,24 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 		for iCSV = 1:nCSV
 			csvNumber = regexp( { csvFile.name }, [ '^', subjectID, '.', networkName, '.', 'Run_sheet_eeg_(\d+).csv$' ], 'tokens', 'once' );
 			csvNumber = str2double( csvNumber{1}{1} );
-			AMPSCZ_EEG_QCdpdash( subjectID, csvNumber, replaceFlag )
+			n(:) = n + 1;
+			dpdash{n,1} = csvFile.name;
+			try
+				AMPSCZ_EEG_QCdpdash( subjectID, csvNumber, replaceFlag )
+				dpdash{n,2} = true;
+			catch ME
+				warning( ME.message )
+				dpdash{n,2} = false;
+				dpdash{n,3} = ME.message;
+				continue
+			end
 		end
 	end
+	fprintf( '\n\ndpdash problems:\n' )
+	for i = find( ~[ dpdash{:,2} ] )
+		fprintf( '%s\t%s\n', dpdash{i,[1,3]} )
+	end
+	
 	%%
 	
 
