@@ -43,7 +43,9 @@ function AMPSCZ_EEG_QCbridge( replacePng )
 % 		return			% for debugging: make 1 figure, don't save, exit
 
 		Nbridge(iSession)           = EB.Bridged.Count;
-		Ebridge(EB.Bridged.Indices) = Ebridge(EB.Bridged.Indices) + 1;
+		if isfield( EB.Bridged, 'Indices' )
+			Ebridge(EB.Bridged.Indices) = Ebridge(EB.Bridged.Indices) + 1;
+		end
 
 		% scale if getframe pixels don't match Matlab's figure size
 % 		hFig   = gcf;
