@@ -20,7 +20,7 @@ function AMPSCZ_EEG_QCalphaRest( replacePng )
 			mkdir( pngDir )
 			fprintf( 'created %s\n', pngDir )
 		end
-		pngName = [ sessions{iSession,2}, '_', sessions{iSession,3}, '_QCrest.png' ];
+		pngName = [ sessions{iSession,2}, '_', sessions{iSession,3}, '_QCrestAlpha.png' ];
 		pngFile = fullfile( pngDir, pngName );
 		if exist( pngFile, 'file' ) == 2 && ~replacePng
 			fprintf( '%s exists\n', pngName )

@@ -205,8 +205,13 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	for i = find( ~[ dpdash{:,2} ] )
 		fprintf( '%s\t%s\n', dpdash{i,[1,3]} )
 	end
-	
-	%%
+	% dpdash problems:
+	% IR00057.Pronet.Run_sheet_eeg_1.csv	/data/predict/kcho/flow_test/spero/Pronet/PHOENIX/PROTECTED/PronetIR/processed/IR00057/eeg/ses-20220401 is not a valid directory
+	% SF11111.Pronet.Run_sheet_eeg_1.csv	/data/predict/kcho/flow_test/spero/Pronet/PHOENIX/PROTECTED/PronetSF/processed/SF11111/eeg/ses-20220201 is not a valid directory
+	% SF11111.Pronet.Run_sheet_eeg_1.csv	/data/predict/kcho/flow_test/spero/Pronet/PHOENIX/PROTECTED/PronetSF/processed/SF11111/eeg/ses-20220201 is not a valid directory
+	% GW00005.Prescient.Run_sheet_eeg_1.csv	/data/predict/kcho/flow_test/spero/Prescient/PHOENIX/PROTECTED/PrescientGW/processed/GW00005/eeg/ses-20220224 is not a valid directory
+	% ME00077.Prescient.Run_sheet_eeg_1.csv	/data/predict/kcho/flow_test/spero/Prescient/PHOENIX/PROTECTED/PrescientME/processed/ME00077/eeg/ses-20220105 is not a valid directory
+	% ME00083.Prescient.Run_sheet_eeg_1.csv	/data/predict/kcho/flow_test/spero/Prescient/PHOENIX/PROTECTED/PrescientME/processed/ME00083/eeg/ses-20220316 is not a valid directory
 	
 
 end
