@@ -691,7 +691,7 @@ function AMPSCZ_EEG_QC( sessionName, writeFlag, figLayout, writeDpdash, legacyPa
 
 	end
 % 	pLineMax = max( pLine, [], 2 );
-	pLineMax = median( pLine, 2 );		% switch to median instead of max
+	pLineMax = median( pLine, 2, 'omitnan' );		% switch to median instead of max
 	
 	
 	%% Resting state data

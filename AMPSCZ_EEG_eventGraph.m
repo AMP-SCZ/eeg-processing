@@ -93,9 +93,9 @@ function [ nFound, nExpected, nName ] = AMPSCZ_EEG_eventGraph( subjectID, sessio
 % 		bar( [   7 13 ], pe([   6 10 ]), 1/6 )				% response (green)
 % 		bar( [      8 ], pe(      14  ), 1   )				% photosensor (cyan)
 		bar( [ 2 5 10 ], pe([ 2 5  9 ]), 1/3 )				% deviant/novel (red)
-		bar( [   6 11 ], pe([   4  8 ]), 1/6 )				% target (orange)
+		bar( [   6 11 ], pe([   4  8 ]), 1/5 )				% target (orange)
 		bar( [  16 17 ], pe([  12 13 ]), 1   )				% rest (purple)
-		bar( [   7 12 ], pe([   6 10 ]), 1/6 )				% response (green)
+		bar( [   7 12 ], pe([   6 10 ]), 1/5 )				% response (green)
 	];
 	set( hBar(1), 'FaceColor', [ 0   , 0.75, 1 ] )
 	set( hBar(2), 'FaceColor', [ 1   , 0.625, 0 ] )
