@@ -21,6 +21,8 @@ function [ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_
 				VODMMNruns = [1:6]; AODruns = [1:3]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];	%incomplete [6VODMMN,3AOD], don't bother
 			case 'NC00002_20220422'
 				VODMMNruns = [1:4]; AODruns = [0]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 3 VODMMNN runs, last 1 split over 2 segments.  line noise test
+			case 'NC00024_20220609'
+				VODMMNruns = [1]; AODruns = [1]; ASSRruns = [0]; RestEOruns = [0]; RestECruns = [0];		% 1 VODMMNN & 1 AOD, line noise test
 			case 'NC00052_20220304'
 				VODMMNruns = [1:2,5:7]; AODruns = [1:5]; ASSRruns = []; RestEOruns = []; RestECruns = [];
 			case 'NC00068_20220304'
