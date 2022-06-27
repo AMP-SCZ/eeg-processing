@@ -154,7 +154,7 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	fid = fopen( csvOut, 'w' );
 	fprintf( fid, 'reftime,day,timeofday,weekday' );
 	fprintf( fid, ',%s', valName{:} );
-	fprintf( fid, '\n,,,,%d,%d,%d,%d,%d,%d,%g,%g,%d,%d,%d,%g,%g,%g,%g,%g,%g,%g,%g', val );
+	fprintf( fid, '\n,%d,,,%d,%d,%d,%d,%d,%d,%g,%g,%d,%d,%d,%g,%g,%g,%g,%g,%g,%g,%g', sessionNum, val );
 	fprintf( fid, '\n' );		% so it displays better in terminal
 	fclose( fid );
 	fprintf( 'wrote %s\n', csvOut )
