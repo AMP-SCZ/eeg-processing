@@ -97,7 +97,7 @@ function AMPSCZ_EEG_dpdash( subjectID, sessionNum, replaceFlag )
 	zThresh = 25;
 	[ Z, ~, Zrange ] = AMPSCZ_EEG_impedanceData( subjectID, sessionDate, 'last' );
 	Ival = 7:9;
-	valName(Ival) = { 'zZRangeLo', 'dZRangeHi', 'nHighZChan' };
+	valName(Ival) = { 'dZRangeLo', 'dZRangeHi', 'nHighZChan' };
 	val(Ival) = [ Zrange - [ 25, 75 ], sum( Z > zThresh ) ];
 
 	% Line Noise
