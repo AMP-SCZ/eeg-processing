@@ -1,7 +1,7 @@
 function AMPSCZ_EEG_QCdpdash( replaceFlag )
 % AMPSCZ_EEG_QCdpdash( [replaceFlag=false] )
 
-	narginchk( 2, 3 )
+	narginchk( 1, 1 )
 	
 	if exist( 'replaceFlag', 'var' ) ~= 1 || isempty( replaceFlag )
 		replaceFlag = false;
