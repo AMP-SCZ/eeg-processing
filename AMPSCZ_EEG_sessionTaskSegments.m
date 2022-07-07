@@ -49,6 +49,10 @@ function [ VODMMNruns, AODruns, ASSRruns, RestEOruns, RestECruns ] = AMPSCZ_EEG_
 				VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
 			case 'ME00099_20220217'
 				VODMMNruns = [1:6]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
+			case 'HK00096_20220617'
+				VODMMNruns = []; AODruns = [2:4]; ASSRruns = []; RestEOruns = []; RestECruns = [];
+			case 'TE00096_20220701'
+				VODMMNruns = [1:7]; AODruns = []; ASSRruns = []; RestEOruns = []; RestECruns = [];
 		end
 	else
 

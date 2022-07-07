@@ -589,269 +589,317 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			tmNovel(:,2)     = mean(    YmNovel(:,jAvg), 2, nanFlag );
 			tStr2N = sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 );
 
-			hFig(1) = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256), 'MenuBar', 'none' );		% 225% SCN laptop
-			hAx     = gobjects( 5+4*nSet+8, 1 );
-			hTopo   = gobjects(          8, 1 );
-			
 			topoOpts = [ topoOpts, { 'maplimits', yRange } ];
 			pkColorT = [ 0, 0, 1 ];
 			pkColorN = [ 1, 0, 0 ];
 			
-			axL  = 0.1;
-			axR  = 0.05;
-			axT  = 0.1;
-			axB  = 0.05;
-			axGh = 0.05;
-			axGv = [ 0.02, 0.08, 0.05 ];		% bewteen waveplots, between waves & topos, between topos
-			axH = ( 1 - axT - axB - axGv(1)*nSet - axGv(2) - axGv(3) ) / ( 1 + nSet + 2 );
-			axW = ( 1 - axL - axR - axGh*4 ) / 5;
+			multiPanel = ~false;
+			if multiPanel
+				hFig(1) = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256), 'MenuBar', 'none' );		% 225% SCN laptop
+				hAx     = gobjects( 5+4*nSet+8, 1 );
+				hTopo   = gobjects(          8, 1 );
 
-			% Plot
-			% butterflies
-			py = 1 - axT - axH;
-			hAx(1) = subplot( 'Position', [ axL,              py, axW, axH ] );
-			hAx(2) = subplot( 'Position', [ axL+ axW+axGh,    py, axW, axH ] );
-			hAx(3) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
-			hAx(4) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
-			hAx(5) = subplot( 'Position', [ axL+(axW+axGh)*4, py, axW, axH ] );
-			plot( hAx(1), EEG.times(jTime), YmStandard' )
-			plot( hAx(2), EEG.times(jTime), YmTarget' )
-			plot( hAx(3), EEG.times(jTime), ( YmTarget - YmStandard )' )
-			plot( hAx(4), EEG.times(jTime), YmNovel' )
-			plot( hAx(5), EEG.times(jTime), ( YmNovel - YmStandard )' )
-% 			ylim( hAx(1), [ -1, 1 ] * max( abs( YmStandard            ), [], 'all' ) * 1.05 )
-% 			ylim( hAx(2), [ -1, 1 ] * max( abs( YmTarget              ), [], 'all' ) * 1.05 )
-% 			ylim( hAx(3), [ -1, 1 ] * max( abs( YmTarget - YmStandard ), [], 'all' ) * 1.05 )
-% 			ylim( hAx(3), [ -1, 1 ] * max( abs( YmNovel               ), [], 'all' ) * 1.05 )
-% 			ylim( hAx(5), [ -1, 1 ] * max( abs( YmNovel  - YmStandard ), [], 'all' ) * 1.05 )
-			% single-channel waveforms
-			for iSet = 1:nSet
-				py = 1 - axT  - ( axH + axGv(1) )*(1+iSet) + axGv(1);
-				hAx(5+4*iSet-3) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );
-				hAx(5+4*iSet-2) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
-				hAx(5+4*iSet-1) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
-				hAx(5+4*iSet)   = subplot( 'Position', [ axL+(axW+axGh)*4, py, axW, axH ] );
-				plot( hAx(5+4*iSet-3), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymTarget(iSet,:), 'b' )
-				plot( hAx(5+4*iSet-2), EEG.times(jTime),   ymTarget(iSet,:) - ymStandard(iSet,:), 'b' )
-				plot( hAx(5+4*iSet-1), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymNovel(iSet,:), 'r' )
-				plot( hAx(5+4*iSet)  , EEG.times(jTime),    ymNovel(iSet,:) - ymStandard(iSet,:), 'r' )
-			end
-			% topographies
-			% -- peak detection
-			py(:) = py - axGv(2) - axH;
-			hAx(5+4*nSet+1) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );
-				hTopo(1) = topoplot( tmTarget(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
-			hAx(5+4*nSet+2) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
-				hTopo(2) = topoplot( tmTarget(:,1) - tmStandardT(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
-			hAx(5+4*nSet+3) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
-				hTopo(3) = topoplot( tmNovel(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
-			hAx(5+4*nSet+4) = subplot( 'Position', [ axL+(axW+axGh)*4, py, axW, axH ] );
-				hTopo(4) = topoplot( tmNovel(:,1) - tmStandardN(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
-			% -- fixed time range
-			py(:) = py - axGv(3) - axH;
-			hAx(5+4*nSet+5) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );
-				hTopo(5) = topoplot( tmTarget(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
-			hAx(5+4*nSet+6) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
-				hTopo(6) = topoplot( tmTarget(:,2) - tmStandardT(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
-			hAx(5+4*nSet+7) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
-				hTopo(7) = topoplot( tmNovel(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
-			hAx(5+4*nSet+8) = subplot( 'Position', [ axL+(axW+axGh)*4, py, axW, axH ] );
-				hTopo(8) = topoplot( tmNovel(:,2) - tmStandardN(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+				axL  = 0.1;
+				axR  = 0.05;
+				axT  = 0.1;
+				axB  = 0.05;
+				axGh = 0.05;
+				axGv = [ 0.02, 0.08, 0.05 ];		% bewteen waveplots, between waves & topos, between topos
+				axH = ( 1 - axT - axB - axGv(1)*nSet - axGv(2) - axGv(3) ) / ( 1 + nSet + 2 );
+				axW = ( 1 - axL - axR - axGh*4 ) / 5;
 
-			set( hAx(1:5+nSet*4), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
-			set( hAx(1:5+nSet*4), 'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100 )
-% 			set( hAx(1:5+nSet*4), 'XTick', floor(tWinPlot(1)/100)*100:100:ceil(tWinPlot(2)/100)*100 )
-			set( hAx(1:5), 'YLim', yRange0 )
-			set( hAx(1:5), 'YTick', yTickFcn( yRange0(2) ) )
-			set( hAx(6:5+nSet*4), 'YLim', yRange, 'CLim', yRange )
-			set( hAx(6:5+nSet*4), 'YTick', yTickFcn( yRange(2) ) )
-			set( hAx(2:5+(nSet-1)*4), 'XTickLabel', '' )
-% 			set( hAx(iSet), 'UserData', iSet )
-			set( hAx(5+nSet*4+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
-			
-			if ~globalCmap
-				wColorbar = 0.3;
-
-				zMax = max( abs( [ tmTarget(:); tmTarget(:) - tmStandardT(:) ] ) );
-				set( hAx(5+4*nSet+[1 2 5 6]), 'CLim', [ -1, 1 ] * zMax )
-				hColorbar = subplot( 'Position', [ axL+ axW+axGh   , axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
-				image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
-				set( hColorbar, 'YTick', [] )
-
-				zMax(:) = max( abs( [ tmNovel(:); tmNovel(:) - tmStandardN(:) ] ) );
-				set( hAx(5+4*nSet+[3 4 7 8]), 'CLim', [ -1, 1 ] * zMax )
-				hColorbar = subplot( 'Position', [ axL+(axW+axGh)*3, axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
-				image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
-				set( hColorbar, 'YTick', [] )
-			end
-
-			if plotHeralds == 2
-				title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard & ~KpreNovel ), Nstandard - Nnovel ), 'FontSize', fontSize )
-			else
-				title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
-			end
-			title( hAx(2), sprintf( '\\color{blue}Target (%d/%d)', nnz( Ktarget ), Ntarget ), 'FontSize', fontSize )
-			title( hAx(3), sprintf( '{\\fontsize{%g}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{blue}Target - Standard', fontSize+2,...
-				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8) ), 'FontSize', fontSize )
-			title( hAx(4), sprintf( '\\color{red}Novel (%d/%d)', nnz( Knovel ), Nnovel ), 'FontSize', fontSize )
-			title( hAx(5), '\color{red}Novel - Standard', 'FontSize', fontSize )
-			ylabel( hAx(1), '(\muV)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-			for iSet = 1:nSet
-				ylabel( hAx(5+4*iSet-3), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
-			end
-			xlabel( hAx(1)         , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-			xlabel( hAx(5+4*nSet-3), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-			xlabel( hAx(5+4*nSet-2), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-			xlabel( hAx(5+4*nSet-1), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-			xlabel( hAx(5+4*nSet)  , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-% 			title(  hAx(5+4*nSet+1), 'Target'           , 'FontSize', fontSize )
-% 			title(  hAx(5+4*nSet+2), 'Target - Standard', 'FontSize', fontSize )
-% 			title(  hAx(5+4*nSet+3), 'Novel'            , 'FontSize', fontSize )
-% 			title(  hAx(5+4*nSet+4), 'Novel - Standard' , 'FontSize', fontSize )
-			ylabel( hAx(5+4*nSet+1), tStr1T, 'Visible', 'on', 'Color', pkColorT, 'FontSize', fontSize, 'FontWeight', 'bold' )
-			ylabel( hAx(5+4*nSet+3), tStr1N, 'Visible', 'on', 'Color', pkColorN, 'FontSize', fontSize, 'FontWeight', 'bold' )
-			ylabel( hAx(5+4*nSet+5), tStr2T, 'Visible', 'on', 'Color',      'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
-			ylabel( hAx(5+4*nSet+7), tStr2N, 'Visible', 'on', 'Color',      'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
-
-			iSet(:) = find( kSetT );
-			if tWidthTopo == 0
-				line( hAx(5+4*iSet-2), EEG.times([jtT,jtT]), yRange, 'Color', pkColorT, 'LineStyle', '--' )
-			else
-				uistack( patch( hAx(5+4*iSet-2), EEG.times(jtT)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
-% 				line( hAx(5+4*iSet), EEG.times([jtT,jtT]), yRange, 'Color', pkColorT, 'LineStyle', '--' )
-			end
-			iSet(:) = find( kSetN );
-			if tWidthTopo == 0
-				line( hAx(5+4*iSet), EEG.times([jtN,jtN]), yRange, 'Color', pkColorN, 'LineStyle', '--' )
-			else
-				uistack( patch( hAx(5+4*iSet), EEG.times(jtN)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
-% 				line( hAx(5+4*iSet), EEG.times([jtN,jtN]), yRange, 'Color', pkColorN, 'LineStyle', '--' )
-			end
-
-%{
-			hAx2 = gobjects( 1, 3 );
-			hFig(2) = figure( 'Position', [ 650, 200, 1000, 250 ], 'MenuBar', 'none' );
-			hAx2(1) = subplot( 1, 3, 1 );
-				plot( EEG.times(jTime), YmStandard' )
-				ylim( [ -1, 1 ] * max( abs( YmStandard ), [], 'all' ) * 1.05 )
-			hAx2(2) = subplot( 1, 3, 2 );
-				plot( EEG.times(jTime), YmTarget' )
-				ylim( [ -1, 1 ] * max( abs( YmTarget ), [], 'all' ) * 1.05 )
-			hAx2(3) = subplot( 1, 3, 3 );
-				plot( EEG.times(jTime), YmNovel' )
-				ylim( [ -1, 1 ] * max( abs( YmNovel ), [], 'all' ) * 1.05 )
-			set( hAx2, 'XGrid', 'on', 'YGrid', 'on', 'XLim', tWinPlot )
-			set([
-					title(  hAx2(1), sprintf( 'Standard (%d)', nnz( Kstandard ) ) )
-					title(  hAx2(2), sprintf(   'Target (%d)', nnz( Ktarget   ) ) )
-					title(  hAx2(3), sprintf(    'Novel (%d)', nnz( Knovel    ) ) )
-					ylabel( hAx2(1), sprintf( '%s\n%s-%s-%s\nMean %s ERP (\\muV)', subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), epochName ) )
-					xlabel( hAx2(1), 'Time (ms)' )
-					xlabel( hAx2(2), 'Time (ms)' )
-					xlabel( hAx2(3), 'Time (ms)' )
-				], 'FontSize', 12 )
-%}
-			if plotHeralds ~= 0
-				hAxA  = gobjects( nSet + 2, 1 );
-				nStd  = nnz( Kstandard & ~KpreNovel );
-				nPre  = nnz( Kstandard &  KpreNovel );
-				nBoth = nStd + nPre;
-				IPerm = [ find( Kstandard & ~KpreNovel ), find( Kstandard &  KpreNovel ) ];
-				nPerm = 0;	%5e3;
-				rgbPre  = [ 0, 0.75, 0 ];
-				rgbPreT = [ 2/3, 0, 1 ];
-				
-				yMax = 0;
+				% Plot
+				% butterflies
+				py = 1 - axT - axH;
+				hAx(1) = subplot( 'Position', [ axL,              py, axW, axH ] );
+				hAx(2) = subplot( 'Position', [ axL+ axW+axGh,    py, axW, axH ] );
+				hAx(3) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
+				hAx(4) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
+				hAx(5) = subplot( 'Position', [ axL+(axW+axGh)*4, py, axW, axH ] );
+				plot( hAx(1), EEG.times(jTime), YmStandard' )
+				plot( hAx(2), EEG.times(jTime), YmTarget' )
+				plot( hAx(3), EEG.times(jTime), ( YmTarget - YmStandard )' )
+				plot( hAx(4), EEG.times(jTime), YmNovel' )
+				plot( hAx(5), EEG.times(jTime), ( YmNovel - YmStandard )' )
+%				ylim( hAx(1), [ -1, 1 ] * max( abs( YmStandard            ), [], 'all' ) * 1.05 )
+%				ylim( hAx(2), [ -1, 1 ] * max( abs( YmTarget              ), [], 'all' ) * 1.05 )
+%				ylim( hAx(3), [ -1, 1 ] * max( abs( YmTarget - YmStandard ), [], 'all' ) * 1.05 )
+%				ylim( hAx(3), [ -1, 1 ] * max( abs( YmNovel               ), [], 'all' ) * 1.05 )
+%				ylim( hAx(5), [ -1, 1 ] * max( abs( YmNovel  - YmStandard ), [], 'all' ) * 1.05 )
+				% single-channel waveforms
 				for iSet = 1:nSet
-					yStd  = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard & ~KpreNovel ), 3, nanFlag ), 1, nanFlag );
-					yPre  = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard &  KpreNovel ), 3, nanFlag ), 1, nanFlag );
-					yPreT = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard &  KpreTarget), 3, nanFlag ), 1, nanFlag );
-					yMax(:) = max( [ yMax, abs( [ yStd, yPre, yPre-yStd, yPreT, yPreT-yStd  ] ) ] );
-					hAxA(iSet) = subplot( 'Position', [ axL, 1 - axT  - axH*(iSet+1) - axGv(1)*iSet, axW, axH ] );
-					hLineA = plot( EEG.times(jTime), yStd, 'k', EEG.times(jTime), yPre, '--k', EEG.times(jTime), yPreT, ':k' );
-					set( hLineA(2), 'LineStyle', '-', 'Color', rgbPre )
-					set( hLineA(3), 'LineStyle', '-', 'Color', rgbPreT )
-					if nPerm ~= 0
-						dY    = yPre - yStd;
-						sigma = zeros( 1, nTime );
-						for iPerm = 1:nPerm
-							IPerm(:) = IPerm(randperm( nBoth ));
-							sigma(:) = sigma + ( (...
-								mean( mean( EEG.data(chanSet{iSet,2},jTime,IPerm(nStd+1:nBoth)), 3, nanFlag ), 1, nanFlag ) -...
-								mean( mean( EEG.data(chanSet{iSet,2},jTime,IPerm(1:nStd))      , 3, nanFlag ), 1, nanFlag ) ) < dY );
-						end
-						sigma(:) = norminv( ( sigma + 0.5 ) / ( nPerm + 1 ) );		% prevent Inf
-						kSig = abs( sigma ) > 3;
-%						max( abs( sigma ) )
-						Ion  = find( kSig & [ true, ~kSig(1:nTime-1) ] );
-						Ioff = find( kSig & [ ~kSig(2:nTime), true   ] );
-						JTime = find( jTime );		% what a pain
-%						for iOn = 1:numel( Ion )
-%							plot( EEG.times(JTime([Ion(iOn),Ioff(iOn)])), [ 0, 0 ], 'Color', [ 1, 0.5, 0.5 ], 'LineWidth', 3 )
-%						end
-						hold( hAxA(iSet), 'on' )
-						for iOn = 1:numel( Ion )
-							plot( hAxA(iSet), EEG.times(JTime(Ion(iOn):Ioff(iOn))), yPre(Ion(iOn):Ioff(iOn)), 'Color', [ 1, 0, 0 ], 'LineWidth', 2 )
-						end
-						hold( hAxA(iSet), 'off' )
-					end
-					ylabel( hAxA(iSet), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
-					ylabel( hAx(5+4*iSet-3), '' )
+					py = 1 - axT  - ( axH + axGv(1) )*(1+iSet) + axGv(1);
+					hAx(5+4*iSet-3) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );
+					hAx(5+4*iSet-2) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
+					hAx(5+4*iSet-1) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
+					hAx(5+4*iSet)   = subplot( 'Position', [ axL+(axW+axGh)*4, py, axW, axH ] );
+					plot( hAx(5+4*iSet-3), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymTarget(iSet,:), 'b' )
+					plot( hAx(5+4*iSet-2), EEG.times(jTime),   ymTarget(iSet,:) - ymStandard(iSet,:), 'b' )
+					plot( hAx(5+4*iSet-1), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymNovel(iSet,:), 'r' )
+					plot( hAx(5+4*iSet)  , EEG.times(jTime),    ymNovel(iSet,:) - ymStandard(iSet,:), 'r' )
 				end
-				yRangeA = yRangeFcn( yMax );
+				% topographies
+				% -- peak detection
+				py(:) = py - axGv(2) - axH;
+				hAx(5+4*nSet+1) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );
+					hTopo(1) = topoplot( tmTarget(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+				hAx(5+4*nSet+2) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
+					hTopo(2) = topoplot( tmTarget(:,1) - tmStandardT(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+				hAx(5+4*nSet+3) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
+					hTopo(3) = topoplot( tmNovel(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+				hAx(5+4*nSet+4) = subplot( 'Position', [ axL+(axW+axGh)*4, py, axW, axH ] );
+					hTopo(4) = topoplot( tmNovel(:,1) - tmStandardN(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+				% -- fixed time range
+				py(:) = py - axGv(3) - axH;
+				hAx(5+4*nSet+5) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );
+					hTopo(5) = topoplot( tmTarget(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+				hAx(5+4*nSet+6) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
+					hTopo(6) = topoplot( tmTarget(:,2) - tmStandardT(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+				hAx(5+4*nSet+7) = subplot( 'Position', [ axL+(axW+axGh)*3, py, axW, axH ] );
+					hTopo(7) = topoplot( tmNovel(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+				hAx(5+4*nSet+8) = subplot( 'Position', [ axL+(axW+axGh)*4, py, axW, axH ] );
+					hTopo(8) = topoplot( tmNovel(:,2) - tmStandardN(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
 
-				% topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp', 'maplimits', yRange };
-				% topoOpts = { 'nosedir', '+X', 'style', 'map', 'colormap', jet(256), 'shading', 'flat', 'conv', 'on',...
-				% 	'headrad', 0.5, 'electrodes', 'on', 'emarker', { '.', 'k', 8, 0.5 }, 'hcolor', repmat( 0.333, 1, 3 ),...
-				% 	'gridscale', 200, 'circgrid', 360, 'maplimits', yRange };
-% 				topoOpts{ find( strcmp( topoOpts(1:2:end), 'colormap'  ) ) * 2 } = parula( 256 );		% changes existing topos too
-				topoOpts{ find( strcmp( topoOpts(1:2:end), 'maplimits' ) ) * 2 } = yRangeA;
+				set( hAx(1:5+nSet*4), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
+				set( hAx(1:5+nSet*4), 'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100 )
+%				set( hAx(1:5+nSet*4), 'XTick', floor(tWinPlot(1)/100)*100:100:ceil(tWinPlot(2)/100)*100 )
+				set( hAx(1:5), 'YLim', yRange0 )
+				set( hAx(1:5), 'YTick', yTickFcn( yRange0(2) ) )
+				set( hAx(6:5+nSet*4), 'YLim', yRange, 'CLim', yRange )
+				set( hAx(6:5+nSet*4), 'YTick', yTickFcn( yRange(2) ) )
+				set( hAx(2:5+(nSet-1)*4), 'XTickLabel', '' )
+%				set( hAx(iSet), 'UserData', iSet )
+				set( hAx(5+nSet*4+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
 
-				tFix = 128;
-				tAvg = tFix + [ -1, 1 ]*wFix/2;
-				jAvg = EEG.times >= tAvg(1) & EEG.times <= tAvg(2);
-				tPre = mean( mean( EEG.data(Ichan,jAvg,Kstandard &  KpreNovel), 3, nanFlag ), 2, nanFlag );
-				tStd = mean( mean( EEG.data(Ichan,jAvg,Kstandard & ~KpreNovel), 3, nanFlag ), 2, nanFlag );
-				zMax = max( abs( tPre - tStd ) );
-				hAxA(nSet+1) = subplot( 'Position', [ axL, 1 - axT  - axH*(1+nSet+1) - axGv(1)*nSet - axGv(2)          , axW, axH ] );
-					topoplot( tPre-tStd, EEG.chanlocs(Ichan), topoOpts{:} );
-					ylabel( hAxA(nSet+1), sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 ), 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
-				tFix = 325;
-				tAvg = tFix + [ -1, 1 ]*wFix/2;
-				jAvg = EEG.times >= tAvg(1) & EEG.times <= tAvg(2);
-				tPre = mean( mean( EEG.data(Ichan,jAvg,Kstandard &  KpreNovel), 3, nanFlag ), 2, nanFlag );
-				tStd = mean( mean( EEG.data(Ichan,jAvg,Kstandard & ~KpreNovel), 3, nanFlag ), 2, nanFlag );
-				zMax(:) = max( [ zMax; abs( tPre - tStd ) ] );
-				hAxA(nSet+2) = subplot( 'Position', [ axL, 1 - axT  - axH*(1+nSet+2) - axGv(1)*nSet - axGv(2) - axGv(3), axW, axH ] );
-					topoplot( tPre-tStd, EEG.chanlocs(Ichan), topoOpts{:} );
-					ylabel( hAxA(nSet+2), sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 ), 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				if ~globalCmap
+					wColorbar = 0.3;
 
-				set( hAxA(1:nSet), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on',...
-					'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100, 'Box', 'on', 'YLim', yRangeA )
-				set( hAx(1)        , 'XTickLabel', '' )
-				set( hAxA(1:nSet-1), 'XTickLabel', '' )
-				set( hAxA(nSet+1:nSet+2), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRangeA )
-				xlabel( hAx(1), '' )
-				xlabel( hAxA(nSet), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-% 				xlabel( hAxA(nSet+2), 'Herald - Non', 'FontSize', fontSize, 'FontWeight', 'bold', 'Visible', 'on' )
-				title( hAxA(nSet+1), 'Herald - Non', 'FontSize', fontSize, 'FontWeight', 'bold' )
-				title(  hAxA(1), sprintf( '\\color[rgb]{%g,%g,%g}Novel Herald', rgbPre  ), 'FontSize', fontSize, 'FontWeight', 'bold' )
-				title(  hAxA(2), sprintf( '\\color[rgb]{%g,%g,%g}Pre-Target Standard', rgbPreT ), 'FontSize', fontSize, 'FontWeight', 'bold' )
-				
-				if globalCmap
-					% AOD novel herald topo colorbar
-					% iSet = ?;		leave colorbar on lowest axis?
-					wColorbar = 0.3;		% width relative to gap between axes
-					hColorbar = subplot( 'Position', [ axL+axW+axGh*(1-wColorbar)/2, 1-axT+axGv(1)-(axGv(1)+axH)*(1+iSet), axGh*wColorbar, axH ], 'Parent', hFig(1) );
-					image( hColorbar, (256:-1:1)' )
-					set( hColorbar, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )				
-				else
-					set( hAxA(nSet+1:nSet+2), 'CLim', [ -1, 1 ] * zMax )
-					hColorbar = subplot( 'Position', [ axL, axB*(1-wColorbar)*0.7, axW, axB*wColorbar ], 'Parent', hFig(1) );
+					zMax = max( abs( [ tmTarget(:); tmTarget(:) - tmStandardT(:) ] ) );
+					set( hAx(5+4*nSet+[1 2 5 6]), 'CLim', [ -1, 1 ] * zMax )
+					hColorbar = subplot( 'Position', [ axL+ axW+axGh   , axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
+					image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
+					set( hColorbar, 'YTick', [] )
+
+					zMax(:) = max( abs( [ tmNovel(:); tmNovel(:) - tmStandardN(:) ] ) );
+					set( hAx(5+4*nSet+[3 4 7 8]), 'CLim', [ -1, 1 ] * zMax )
+					hColorbar = subplot( 'Position', [ axL+(axW+axGh)*3, axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
 					image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
 					set( hColorbar, 'YTick', [] )
 				end
+
+				if plotHeralds == 2
+					title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard & ~KpreNovel ), Nstandard - Nnovel ), 'FontSize', fontSize )
+				else
+					title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
+				end
+				title( hAx(2), sprintf( '\\color{blue}Target (%d/%d)', nnz( Ktarget ), Ntarget ), 'FontSize', fontSize )
+				title( hAx(3), sprintf( '{\\fontsize{%g}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{blue}Target - Standard', fontSize+2,...
+					epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8) ), 'FontSize', fontSize )
+				title( hAx(4), sprintf( '\\color{red}Novel (%d/%d)', nnz( Knovel ), Nnovel ), 'FontSize', fontSize )
+				title( hAx(5), '\color{red}Novel - Standard', 'FontSize', fontSize )
+				ylabel( hAx(1), '(\muV)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				for iSet = 1:nSet
+					ylabel( hAx(5+4*iSet-3), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
+				end
+				xlabel( hAx(1)         , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				xlabel( hAx(5+4*nSet-3), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				xlabel( hAx(5+4*nSet-2), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				xlabel( hAx(5+4*nSet-1), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				xlabel( hAx(5+4*nSet)  , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+%				title(  hAx(5+4*nSet+1), 'Target'           , 'FontSize', fontSize )
+%				title(  hAx(5+4*nSet+2), 'Target - Standard', 'FontSize', fontSize )
+%				title(  hAx(5+4*nSet+3), 'Novel'            , 'FontSize', fontSize )
+%				title(  hAx(5+4*nSet+4), 'Novel - Standard' , 'FontSize', fontSize )
+				ylabel( hAx(5+4*nSet+1), tStr1T, 'Visible', 'on', 'Color', pkColorT, 'FontSize', fontSize, 'FontWeight', 'bold' )
+				ylabel( hAx(5+4*nSet+3), tStr1N, 'Visible', 'on', 'Color', pkColorN, 'FontSize', fontSize, 'FontWeight', 'bold' )
+				ylabel( hAx(5+4*nSet+5), tStr2T, 'Visible', 'on', 'Color',      'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+				ylabel( hAx(5+4*nSet+7), tStr2N, 'Visible', 'on', 'Color',      'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+
+				iSet(:) = find( kSetT );
+				if tWidthTopo == 0
+					line( hAx(5+4*iSet-2), EEG.times([jtT,jtT]), yRange, 'Color', pkColorT, 'LineStyle', '--' )
+				else
+					uistack( patch( hAx(5+4*iSet-2), EEG.times(jtT)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
+%					line( hAx(5+4*iSet), EEG.times([jtT,jtT]), yRange, 'Color', pkColorT, 'LineStyle', '--' )
+				end
+				iSet(:) = find( kSetN );
+				if tWidthTopo == 0
+					line( hAx(5+4*iSet), EEG.times([jtN,jtN]), yRange, 'Color', pkColorN, 'LineStyle', '--' )
+				else
+					uistack( patch( hAx(5+4*iSet), EEG.times(jtN)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
+%					line( hAx(5+4*iSet), EEG.times([jtN,jtN]), yRange, 'Color', pkColorN, 'LineStyle', '--' )
+				end
+
+%{
+				hAx2 = gobjects( 1, 3 );
+				hFig(2) = figure( 'Position', [ 650, 200, 1000, 250 ], 'MenuBar', 'none' );
+				hAx2(1) = subplot( 1, 3, 1 );
+					plot( EEG.times(jTime), YmStandard' )
+					ylim( [ -1, 1 ] * max( abs( YmStandard ), [], 'all' ) * 1.05 )
+				hAx2(2) = subplot( 1, 3, 2 );
+					plot( EEG.times(jTime), YmTarget' )
+					ylim( [ -1, 1 ] * max( abs( YmTarget ), [], 'all' ) * 1.05 )
+				hAx2(3) = subplot( 1, 3, 3 );
+					plot( EEG.times(jTime), YmNovel' )
+					ylim( [ -1, 1 ] * max( abs( YmNovel ), [], 'all' ) * 1.05 )
+				set( hAx2, 'XGrid', 'on', 'YGrid', 'on', 'XLim', tWinPlot )
+				set([
+						title(  hAx2(1), sprintf( 'Standard (%d)', nnz( Kstandard ) ) )
+						title(  hAx2(2), sprintf(   'Target (%d)', nnz( Ktarget   ) ) )
+						title(  hAx2(3), sprintf(    'Novel (%d)', nnz( Knovel    ) ) )
+						ylabel( hAx2(1), sprintf( '%s\n%s-%s-%s\nMean %s ERP (\\muV)', subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), epochName ) )
+						xlabel( hAx2(1), 'Time (ms)' )
+						xlabel( hAx2(2), 'Time (ms)' )
+						xlabel( hAx2(3), 'Time (ms)' )
+					], 'FontSize', 12 )
+%}
+				if plotHeralds ~= 0
+					hAxA  = gobjects( nSet + 2, 1 );
+					nStd  = nnz( Kstandard & ~KpreNovel );
+					nPre  = nnz( Kstandard &  KpreNovel );
+					nBoth = nStd + nPre;
+					IPerm = [ find( Kstandard & ~KpreNovel ), find( Kstandard &  KpreNovel ) ];
+					nPerm = 0;	%5e3;
+					rgbPre  = [ 0, 0.75, 0 ];
+					rgbPreT = [ 2/3, 0, 1 ];
+
+					yMax = 0;
+					for iSet = 1:nSet
+						yStd  = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard & ~KpreNovel ), 3, nanFlag ), 1, nanFlag );
+						yPre  = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard &  KpreNovel ), 3, nanFlag ), 1, nanFlag );
+						yPreT = mean( mean( EEG.data(chanSet{iSet,2},jTime,Kstandard &  KpreTarget), 3, nanFlag ), 1, nanFlag );
+						yMax(:) = max( [ yMax, abs( [ yStd, yPre, yPre-yStd, yPreT, yPreT-yStd  ] ) ] );
+						hAxA(iSet) = subplot( 'Position', [ axL, 1 - axT  - axH*(iSet+1) - axGv(1)*iSet, axW, axH ] );
+						hLineA = plot( EEG.times(jTime), yStd, 'k', EEG.times(jTime), yPre, '--k', EEG.times(jTime), yPreT, ':k' );
+						set( hLineA(2), 'LineStyle', '-', 'Color', rgbPre )
+						set( hLineA(3), 'LineStyle', '-', 'Color', rgbPreT )
+						if nPerm ~= 0
+							dY    = yPre - yStd;
+							sigma = zeros( 1, nTime );
+							for iPerm = 1:nPerm
+								IPerm(:) = IPerm(randperm( nBoth ));
+								sigma(:) = sigma + ( (...
+									mean( mean( EEG.data(chanSet{iSet,2},jTime,IPerm(nStd+1:nBoth)), 3, nanFlag ), 1, nanFlag ) -...
+									mean( mean( EEG.data(chanSet{iSet,2},jTime,IPerm(1:nStd))      , 3, nanFlag ), 1, nanFlag ) ) < dY );
+							end
+							sigma(:) = norminv( ( sigma + 0.5 ) / ( nPerm + 1 ) );		% prevent Inf
+							kSig = abs( sigma ) > 3;
+%							max( abs( sigma ) )
+							Ion  = find( kSig & [ true, ~kSig(1:nTime-1) ] );
+							Ioff = find( kSig & [ ~kSig(2:nTime), true   ] );
+							JTime = find( jTime );		% what a pain
+%							for iOn = 1:numel( Ion )
+%								plot( EEG.times(JTime([Ion(iOn),Ioff(iOn)])), [ 0, 0 ], 'Color', [ 1, 0.5, 0.5 ], 'LineWidth', 3 )
+%							end
+							hold( hAxA(iSet), 'on' )
+							for iOn = 1:numel( Ion )
+								plot( hAxA(iSet), EEG.times(JTime(Ion(iOn):Ioff(iOn))), yPre(Ion(iOn):Ioff(iOn)), 'Color', [ 1, 0, 0 ], 'LineWidth', 2 )
+							end
+							hold( hAxA(iSet), 'off' )
+						end
+						ylabel( hAxA(iSet), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
+						ylabel( hAx(5+4*iSet-3), '' )
+					end
+					yRangeA = yRangeFcn( yMax );
+
+					% topoOpts = { 'style', 'map', 'electrodes', 'pts', 'nosedir', '+X', 'conv', 'on', 'shading', 'interp', 'maplimits', yRange };
+					% topoOpts = { 'nosedir', '+X', 'style', 'map', 'colormap', jet(256), 'shading', 'flat', 'conv', 'on',...
+					% 	'headrad', 0.5, 'electrodes', 'on', 'emarker', { '.', 'k', 8, 0.5 }, 'hcolor', repmat( 0.333, 1, 3 ),...
+					% 	'gridscale', 200, 'circgrid', 360, 'maplimits', yRange };
+%					topoOpts{ find( strcmp( topoOpts(1:2:end), 'colormap'  ) ) * 2 } = parula( 256 );		% changes existing topos too
+					topoOpts{ find( strcmp( topoOpts(1:2:end), 'maplimits' ) ) * 2 } = yRangeA;
+
+					tFix = 128;
+					tAvg = tFix + [ -1, 1 ]*wFix/2;
+					jAvg = EEG.times >= tAvg(1) & EEG.times <= tAvg(2);
+					tPre = mean( mean( EEG.data(Ichan,jAvg,Kstandard &  KpreNovel), 3, nanFlag ), 2, nanFlag );
+					tStd = mean( mean( EEG.data(Ichan,jAvg,Kstandard & ~KpreNovel), 3, nanFlag ), 2, nanFlag );
+					zMax = max( abs( tPre - tStd ) );
+					hAxA(nSet+1) = subplot( 'Position', [ axL, 1 - axT  - axH*(1+nSet+1) - axGv(1)*nSet - axGv(2)          , axW, axH ] );
+						topoplot( tPre-tStd, EEG.chanlocs(Ichan), topoOpts{:} );
+						ylabel( hAxA(nSet+1), sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 ), 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
+					tFix = 325;
+					tAvg = tFix + [ -1, 1 ]*wFix/2;
+					jAvg = EEG.times >= tAvg(1) & EEG.times <= tAvg(2);
+					tPre = mean( mean( EEG.data(Ichan,jAvg,Kstandard &  KpreNovel), 3, nanFlag ), 2, nanFlag );
+					tStd = mean( mean( EEG.data(Ichan,jAvg,Kstandard & ~KpreNovel), 3, nanFlag ), 2, nanFlag );
+					zMax(:) = max( [ zMax; abs( tPre - tStd ) ] );
+					hAxA(nSet+2) = subplot( 'Position', [ axL, 1 - axT  - axH*(1+nSet+2) - axGv(1)*nSet - axGv(2) - axGv(3), axW, axH ] );
+						topoplot( tPre-tStd, EEG.chanlocs(Ichan), topoOpts{:} );
+						ylabel( hAxA(nSet+2), sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 ), 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
+
+					set( hAxA(1:nSet), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on',...
+						'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100, 'Box', 'on', 'YLim', yRangeA )
+					set( hAx(1)        , 'XTickLabel', '' )
+					set( hAxA(1:nSet-1), 'XTickLabel', '' )
+					set( hAxA(nSet+1:nSet+2), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRangeA )
+					xlabel( hAx(1), '' )
+					xlabel( hAxA(nSet), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+%					xlabel( hAxA(nSet+2), 'Herald - Non', 'FontSize', fontSize, 'FontWeight', 'bold', 'Visible', 'on' )
+					title( hAxA(nSet+1), 'Herald - Non', 'FontSize', fontSize, 'FontWeight', 'bold' )
+					title(  hAxA(1), sprintf( '\\color[rgb]{%g,%g,%g}Novel Herald', rgbPre  ), 'FontSize', fontSize, 'FontWeight', 'bold' )
+					title(  hAxA(2), sprintf( '\\color[rgb]{%g,%g,%g}Pre-Target Standard', rgbPreT ), 'FontSize', fontSize, 'FontWeight', 'bold' )
 				
+					if globalCmap
+						% AOD novel herald topo colorbar
+						% iSet = ?;		leave colorbar on lowest axis?
+						wColorbar = 0.3;		% width relative to gap between axes
+						hColorbar = subplot( 'Position', [ axL+axW+axGh*(1-wColorbar)/2, 1-axT+axGv(1)-(axGv(1)+axH)*(1+iSet), axGh*wColorbar, axH ], 'Parent', hFig(1) );
+						image( hColorbar, (256:-1:1)' )
+						set( hColorbar, 'YLim', [ 0.5, 256.5 ], 'XTick', [], 'YTick', [] )				
+					else
+						set( hAxA(nSet+1:nSet+2), 'CLim', [ -1, 1 ] * zMax )
+						hColorbar = subplot( 'Position', [ axL, axB*(1-wColorbar)*0.7, axW, axB*wColorbar ], 'Parent', hFig(1) );
+						image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
+						set( hColorbar, 'YTick', [] )
+					end
+				
+				end
+			
+			else
+				
+				figure( 'Position', [ 500, 400, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+					plot( EEG.times(jTime), YmStandard' )
+					title( sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
+					ylabel( '(\muV)'   , 'FontSize', fontSize, 'FontWeight', 'bold' )
+					xlabel( 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				figure( 'Position', [ 550, 350, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+					plot( EEG.times(jTime), YmTarget' )
+					title( sprintf( 'Target (%d/%d)', nnz( Ktarget ), Ntarget ), 'FontSize', fontSize )
+					ylabel( '(\muV)'   , 'FontSize', fontSize, 'FontWeight', 'bold' )
+					xlabel( 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				figure( 'Position', [ 600, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+					plot( EEG.times(jTime), YmNovel' )
+					title( sprintf( 'Novel (%d/%d)', nnz( Knovel ), Nnovel ), 'FontSize', fontSize )
+					ylabel( '(\muV)'   , 'FontSize', fontSize, 'FontWeight', 'bold' )
+					xlabel( 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				figure( 'Position', [ 650, 250, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+					iSet = find( strcmp( chanSet(:,1), 'Pz' ) );
+					plot(...
+						EEG.times(jTime), ymStandard(iSet,:), 'k',...
+						EEG.times(jTime), ymTarget(iSet,:), 'b',...
+						EEG.times(jTime), ymTarget(iSet,:) - ymStandard(iSet,:), '--b' )
+					title( sprintf( 'Standard (%d/%d)\n\\color{blue}Target (%d/%d)', nnz( Kstandard ), Nstandard, nnz( Ktarget ), Ntarget ), 'FontSize', fontSize )
+					ylabel( [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
+					xlabel( 'Time (ms)'                   , 'FontSize', fontSize, 'FontWeight', 'bold' )
+				figure( 'Position', [ 700, 200, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+					iSet = find( strcmp( chanSet(:,1), 'Cz' ) );
+					plot(...
+						EEG.times(jTime), ymStandard(iSet,:), 'k',...
+						EEG.times(jTime), ymNovel(iSet,:), 'r',...
+						EEG.times(jTime), ymNovel(iSet,:) - ymStandard(iSet,:), '--r' )
+					title( sprintf( 'Standard (%d/%d)\n\\color{red}Novel (%d/%d)', nnz( Kstandard ), Nstandard, nnz( Knovel ), Nnovel ), 'FontSize', fontSize )
+					ylabel( [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
+					xlabel( 'Time (ms)'                   , 'FontSize', fontSize, 'FontWeight', 'bold' )
+				figure( 'Position', [ 750, 150, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+					topoplot( tmTarget(:,2) - tmStandardT(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+					ylabel( tStr2T, 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+				figure( 'Position', [ 800, 100, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+					topoplot( tmNovel(:,2) - tmStandardN(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+					ylabel( tStr2N, 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+
+				return
+
 			end
 
 		otherwise

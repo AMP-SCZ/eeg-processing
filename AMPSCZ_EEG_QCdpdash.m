@@ -21,7 +21,8 @@ function AMPSCZ_EEG_QCdpdash( subjectID, sessionNum, replaceFlag )
 	networkName = siteInfo{kSite,2};
 	procDir = fullfile( AMPSCZ_EEG_paths, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteID ], 'processed', subjectID, 'eeg' );
 	rawDir  = fullfile( AMPSCZ_EEG_paths, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteID ], 'raw'      , subjectID, 'eeg' );
-	csvOut  = fullfile( procDir, sprintf( 'AMPSCZ-%s-EEGqc-day%dto%d.csv', subjectID, sessionNum, sessionNum ) );
+% 	csvOut  = fullfile( procDir, sprintf( 'AMPSCZ-%s-EEGqc-day%dto%d.csv', subjectID, sessionNum, sessionNum ) );
+	csvOut  = fullfile( procDir, sprintf( '%s-%s-EEGqc-day%dto%d.csv', subjectID(1:2), subjectID, sessionNum, sessionNum ) );
 	csvIn   = fullfile(  rawDir, sprintf( '%s.%s.Run_sheet_eeg_%d.csv', subjectID, networkName, sessionNum ) );
 	if exist( csvOut, 'file' ) == 2 && ~replaceFlag
 		fprintf( '%s exists.\n', csvOut )

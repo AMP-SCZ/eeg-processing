@@ -76,7 +76,7 @@ function AMPSCZ_EEG_QCimpedance( loopType, impedanceType, replacePng, subjectID,
 
 				siteName = siteNames{iSite};
 
-				pngDir = fullfile( AMPSCZ_EEG_procSessionDir( [ siteName(end-1:end), 'avg' ], '00000000', siteName(1:end-2) ), 'Figures' );
+				pngDir = fullfile( AMPSCZ_EEG_procSessionDir( [ siteName(end-1:end), 'avg' ], '00000000', siteName(1:end-2), true ), 'Figures' );
 				if ~isfolder( pngDir )
 					mkdir( pngDir )
 					fprintf( 'created %s\n', pngDir )
