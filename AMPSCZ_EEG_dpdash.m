@@ -21,13 +21,21 @@ function AMPSCZ_EEG_dpdash( subjectID, sessionNum, replaceFlag )
 	networkName = siteInfo{kSite,2};
 	procDir = fullfile( AMPSCZ_EEG_paths, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteID ], 'processed', subjectID, 'eeg' );
 	rawDir  = fullfile( AMPSCZ_EEG_paths, networkName, 'PHOENIX', 'PROTECTED', [ networkName, siteID ], 'raw'      , subjectID, 'eeg' );
-% 	csvOut  = fullfile( procDir, sprintf( 'AMPSCZ-%s-EEGqc-day%dto%d.csv', subjectID, sessionNum, sessionNum ) );
-	csvOut  = fullfile( procDir, sprintf( '%s-%s-EEGqc-day%dto%d.csv', subjectID(1:2), subjectID, sessionNum, sessionNum ) );
 	csvIn   = fullfile(  rawDir, sprintf( '%s.%s.Run_sheet_eeg_%d.csv', subjectID, networkName, sessionNum ) );
-	if exist( csvOut, 'file' ) == 2 && ~replaceFlag
-		fprintf( '%s exists.\n', csvOut )
-		return
+	metaIn  = fullfile( AMPSCZ_EEG_paths, networkName, 'PHOENIX', 'GENERAL', [ networkName, siteID ], [ networkName, siteID, '_metadata.csv' ] );
+	if exist( metaIn, 'file' ) ~= 2
+		error( '%s does not exist', metaIn )
 	end
+	metaData = readcell( metaIn, 'FileType', 'text', 'Delimiter', ',', 'Range', 'A:C' );		% Active, Consent, Subject ID
+	if ~all( strcmp( metaData(1,2:3), { 'Consent', 'Subject ID' } ) )
+		error( 'unexpected columns in %s', metaIn )
+	end
+	kMeta = strcmp( metaData(:,3), subjectID );
+	if nnz( kMeta ) ~= 1
+		error( 'can''t find unique %s row in %s', subjectID, metaIn )
+	end
+	consentDate = datenum( metaData{kMeta,2}, 'dd-mmm-yyyy' );
+
 	if exist( csvIn, 'file' ) ~= 2
 		error( '%s does not exist', csvIn )
 	end
@@ -62,7 +70,17 @@ function AMPSCZ_EEG_dpdash( subjectID, sessionNum, replaceFlag )
 	if nnz( kDate ) ~= 1
 		error( 'Can''t identify interview date row in EEG run sheet csv' )
 	end
-	sessionDate = datestr( datenum( csv{kDate,jFieldValue}, dateFmt ), 'yyyymmdd' );
+	eegDate     = datenum( csv{kDate,jFieldValue}, dateFmt );
+	sessionDate = datestr( eegDate, 'yyyymmdd' );
+
+% 	csvOut  = fullfile( procDir, sprintf( 'AMPSCZ-%s-EEGqc-day%dto%d.csv', subjectID, sessionNum, sessionNum ) );
+% 	csvOut  = fullfile( procDir, sprintf( '%s-%s-EEGqc-day%dto%d.csv', subjectID(1:2), subjectID, sessionNum, sessionNum ) );
+	sessionDay = eegDate - consentDate + 1;
+	csvOut  = fullfile( procDir, sprintf( '%s-%s-EEGqc-day%dto%d.csv', subjectID(1:2), subjectID, sessionDay, sessionDay ) );
+	if exist( csvOut, 'file' ) == 2 && ~replaceFlag
+		fprintf( '%s exists.\n', csvOut )
+		return
+	end
 
 	nVal = 19;
 	valName = cell( 1, nVal );
