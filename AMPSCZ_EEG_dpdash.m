@@ -26,7 +26,7 @@ function AMPSCZ_EEG_dpdash( subjectID, sessionNum, replaceFlag )
 	if exist( metaIn, 'file' ) ~= 2
 		error( '%s does not exist', metaIn )
 	end
-	metaData = readcell( metaIn, 'FileType', 'text', 'Delimiter', ',', 'Range', 'A:C' );		% Active, Consent, Subject ID
+	metaData = readcell( metaIn, 'FileType', 'text', 'Delimiter', ',', 'Range', 'A:C', 'DatetimeType', 'text' );		% Active, Consent, Subject ID
 	if ~all( strcmp( metaData(1,2:3), { 'Consent', 'Subject ID' } ) )
 		error( 'unexpected columns in %s', metaIn )
 	end
