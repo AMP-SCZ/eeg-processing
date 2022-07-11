@@ -34,7 +34,7 @@ function AMPSCZ_EEG_dpdash( subjectID, sessionNum, replaceFlag )
 	if nnz( kMeta ) ~= 1
 		error( 'can''t find unique %s row in %s', subjectID, metaIn )
 	end
-	consentDate = datenum( metaData{kMeta,2}, 'dd-mmm-yyyy' );
+	consentDate = datenum( metaData{kMeta,2}, 'yyyy-mm-dd' );
 
 	if exist( csvIn, 'file' ) ~= 2
 		error( '%s does not exist', csvIn )
