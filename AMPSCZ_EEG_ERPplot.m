@@ -593,7 +593,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			pkColorT = [ 0, 0, 1 ];
 			pkColorN = [ 1, 0, 0 ];
 			
-			multiPanel = ~false;
+			multiPanel = false;
 			if multiPanel
 				hFig(1) = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256), 'MenuBar', 'none' );		% 225% SCN laptop
 				hAx     = gobjects( 5+4*nSet+8, 1 );
@@ -858,22 +858,34 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			
 			else
 				
-				figure( 'Position', [ 500, 400, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+				subName = { 'butterflyStd', 'butterflyTrg', 'butterFlyNov', 'PzTrg', 'CzNov', 'TopoTrg', 'TopoNov' };
+				nSub = numel( subName );
+				hFig = gobjects( 1, nSub );
+				hAx  = gobjects( 1, nSub );
+				% butterfly standards
+				hFig(1) = figure( 'Position', [ 500, 400, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{1}] );
+					hAx(1) = gca;
 					plot( EEG.times(jTime), YmStandard' )
 					title( sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
 					ylabel( '(\muV)'   , 'FontSize', fontSize, 'FontWeight', 'bold' )
 					xlabel( 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-				figure( 'Position', [ 550, 350, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+				% butterfly targets
+				hFig(2) = figure( 'Position', [ 550, 350, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{2}] );
+					hAx(2) = gca;
 					plot( EEG.times(jTime), YmTarget' )
 					title( sprintf( 'Target (%d/%d)', nnz( Ktarget ), Ntarget ), 'FontSize', fontSize )
 					ylabel( '(\muV)'   , 'FontSize', fontSize, 'FontWeight', 'bold' )
 					xlabel( 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-				figure( 'Position', [ 600, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+				% butterfly novels
+				hFig(3) = figure( 'Position', [ 600, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{3}] );
+					hAx(3) = gca;
 					plot( EEG.times(jTime), YmNovel' )
 					title( sprintf( 'Novel (%d/%d)', nnz( Knovel ), Nnovel ), 'FontSize', fontSize )
 					ylabel( '(\muV)'   , 'FontSize', fontSize, 'FontWeight', 'bold' )
 					xlabel( 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-				figure( 'Position', [ 650, 250, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+				% Pz targets
+				hFig(4) = figure( 'Position', [ 650, 250, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{4}] );
+					hAx(4) = gca;
 					iSet = find( strcmp( chanSet(:,1), 'Pz' ) );
 					plot(...
 						EEG.times(jTime), ymStandard(iSet,:), 'k',...
@@ -882,7 +894,9 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 					title( sprintf( 'Standard (%d/%d)\n\\color{blue}Target (%d/%d)', nnz( Kstandard ), Nstandard, nnz( Ktarget ), Ntarget ), 'FontSize', fontSize )
 					ylabel( [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
 					xlabel( 'Time (ms)'                   , 'FontSize', fontSize, 'FontWeight', 'bold' )
-				figure( 'Position', [ 700, 200, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+				% Cz novels
+				hFig(5) = figure( 'Position', [ 700, 200, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{5}] );
+					hAx(5) = gca;
 					iSet = find( strcmp( chanSet(:,1), 'Cz' ) );
 					plot(...
 						EEG.times(jTime), ymStandard(iSet,:), 'k',...
@@ -891,13 +905,50 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 					title( sprintf( 'Standard (%d/%d)\n\\color{red}Novel (%d/%d)', nnz( Kstandard ), Nstandard, nnz( Knovel ), Nnovel ), 'FontSize', fontSize )
 					ylabel( [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
 					xlabel( 'Time (ms)'                   , 'FontSize', fontSize, 'FontWeight', 'bold' )
-				figure( 'Position', [ 750, 150, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+				% topo targets
+				hFig(6) = figure( 'Position', [ 750, 150, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{6}] );
+					hAx(6) = gca;
 					topoplot( tmTarget(:,2) - tmStandardT(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
-					ylabel( tStr2T, 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
-				figure( 'Position', [ 800, 100, 350, 250 ], 'MenuBar', 'none', 'Tag', mfilename, 'Color', 'w' )
+% 					ylabel( tStr2T, 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+					xlabel( tStr2T(find(tStr2T==char(10))+1:end), 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
+				% topo novels
+				hFig(7) = figure( 'Position', [ 800, 100, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{7}] );
+					hAx(7) = gca;
 					topoplot( tmNovel(:,2) - tmStandardN(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
-					ylabel( tStr2N, 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+% 					ylabel( tStr2N, 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+					xlabel( tStr2N(find(tStr2N==char(10))+1:end), 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
+			
+				%
+				set( hFig, 'Color', 'w' )
+				set( hAx(1:5), 'Units', 'normalized', 'Position', [ 0.2, 0.2, 0.75, 0.65 ] )
+				set( hAx(6:7), 'Units', 'normalized', 'Position', [ 0, 0.18, 0.9, 0.97-0.18 ] )
+				set( hAx(1:5), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
+				set( hAx(1:5), 'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100 )
+				set( hAx(1:3), 'YLim', yRange0 )
+				set( hAx(1:3), 'YTick', yTickFcn( yRange0(2) ) )
+				set( hAx(4:5), 'YLim', yRange )
+				set( hAx(4:5), 'YTick', yTickFcn( yRange(2) ) )
+				set( hAx(6:7), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
 
+				pngDir = fullfile( AMPSCZ_EEG_procSessionDir( subjSess{1}, subjSess{2} ), 'Figures' );
+				if ~isfolder( pngDir )
+					mkdir( pngDir )
+					fprintf( 'created %s\n', pngDir )
+				end
+
+				forceWrite = writeFlag;
+				for iFig = 1:7
+					pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, subName{iFig}, '.png' ] );
+					writeFlag = forceWrite;
+					if isempty( writeFlag )
+						writeFlag = exist( pngOut, 'file' ) ~= 2;		
+					end
+					if writeFlag
+						bieegl_saveFig( hFig(iFig), pngOut )
+						fprintf( 'wrote %s\n', pngOut )
+					end
+				end
+				
 				return
 
 			end
@@ -934,6 +985,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 		end
 	end
 	if writeFlag
+% 		bieegl_saveFig( hFig(1), pngOut, [], figPos(4)/size(img.cdata,1) )
 		% print( hFig, ... ) & saveas( hFig, ... ) don't preserve pixel dimensions
 		figPos = get( hFig(1), 'Position' );		% is this going to work on BWH cluster when scheduled w/ no graphical interface?
 		img = getframe( hFig(1) );
