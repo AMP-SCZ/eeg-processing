@@ -12,7 +12,7 @@ function AMPSCZ_EEG_ERPloop( replacePng )
 	errMsg    =  cell( nSession, 1 );		% message for status==-1 sessions
 	
 	filterStr = '[0.2,Inf]';
-	taskNames = { 'VOD', 'AOD' };
+	taskNames = { 'MMN', 'VOD', 'AOD' };
 
 	for iSession = 1:nSession
 
@@ -20,6 +20,7 @@ function AMPSCZ_EEG_ERPloop( replacePng )
 		close all
 		try
 			for iTask = 1:numel( taskNames )
+				fprintf( '%s %s %s\n', sessions{iSession,2}, sessions{iSession,3}, taskNames{iTask} )
 				AMPSCZ_EEG_ERPplot( fullfile( AMPSCZ_EEG_procSessionDir( sessions{iSession,2}, sessions{iSession,3} ), 'mat',...
 					[ sessions{iSession,2}, '_', sessions{iSession,3}, '_', taskNames{iTask}, '_', filterStr, '.mat' ] ), [], '', replacePng )
 			end

@@ -155,6 +155,8 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 % 		'Pz', { 'Pz' }
 % 	};
 
+	multiPanel = false;
+
 	% Get epochName
 	% EEG.comments will have VODMMN combined
 	% there's got to be a better way to identify task! probably should just make it an input since it's saved in mat-files
@@ -172,11 +174,15 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 		case { 'S 16', 'S 18', 16, 18 }
 			epochName = 'MMN';
 			tWinPlot  = [ -100, 500 ];	% (ms)
-			chanSet = {
-				'Fz', { 'Fz' }
-				'Cz', { 'Cz' }
-				'Frontal 6', { 'F3', 'Fz', 'F4', 'C3', 'Cz', 'C4' }
-			};
+			if multiPanel
+				chanSet = {
+					'Fz', { 'Fz' }
+					'Cz', { 'Cz' }
+					'Frontal 6', { 'F3', 'Fz', 'F4', 'C3', 'Cz', 'C4' }
+				};
+			else
+				chanSet = { 'FCz', { 'FCz' }; 'Fz', { 'Fz' } };		% Fz needs to be there for peak id
+			end
 			figSize  = [ 500+200, 700+150*1 ];		% add height for 3-row w/ frontal 6
 		case { 'S 32', 'S 64', 'S128', 32, 64, 128 }
 			epochName = 'VOD';
@@ -245,8 +251,6 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			
 	% stop automatic datatips - they're super annoying!
 	set( groot , 'defaultAxesCreateFcn' , 'disableDefaultInteractivity(gca)' )
-
-	hFig = gobjects;%( 1, 2 );
 	
 			% trying to salvage partial runs where events went out of epoch bounds
 			% thus EEG.epoch dimensions didn't match epochInfo structure.
@@ -273,6 +277,42 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 % 					epochInfo.(fn{1}) = epochInfo.(fn{1})(Ievent);
 % 				end
 % 			end
+
+	pngDir = fullfile( AMPSCZ_EEG_procSessionDir( subjSess{1}, subjSess{2} ), 'Figures' );
+	if ~isfolder( pngDir )
+		mkdir( pngDir )
+		fprintf( 'created %s\n', pngDir )
+	end
+
+	if multiPanel
+%		pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );
+		pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '_', filterStr, '.png' ] );
+		% for multi-panel single figure make the plot anyway?
+% 		if exist( pngOut, 'file' ) == 2 && ~isempty( writeFlag ) || ~writeFlag
+% 			return
+% 		end
+		hFig = gobjects;%( 1, 2 );
+	else
+		% note: these are difference topographies.
+		switch epochName
+			case 'MMN'
+				subName = { 'butterflyStd', 'butterflyDev', 'FCzDev', 'TopoDev' };
+			case { 'VOD', 'AOD' }
+				subName = { 'butterflyStd', 'butterflyTrg', 'butterFlyNov', 'PzTrg', 'CzNov', 'TopoTrg', 'TopoNov' };
+			otherwise
+				error( 'unknown epochName' )
+		end
+		pngOut = fullfile( pngDir, strcat( subjSess{1}, '_', subjSess{2}, '_', epochName, subName, '.png' ) );
+		% for multiple single-panel figures return now if they all exist & you're not going to overwrite
+		if all( cellfun( @(u)exist(u,'file')==2, pngOut ) ) && ( isempty( writeFlag ) || ~writeFlag )
+			fprintf( 'all pngs exist & are not getting replaced.\n' )
+			return
+		end
+		nFig = numel( subName );
+		hFig = gobjects( 1, nFig );
+		hAx  = gobjects( 1, nFig );
+		forceWrite = writeFlag;
+	end
 
 	switch epochName
 
@@ -341,127 +381,192 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			tmDeviant(:,2)  = mean(  YmDeviant(:,jAvg), 2, nanFlag );
 % 			tStr2 = sprintf( '[ %0.0f, %0.0f ] ms', tAvg );
 			tStr2 = sprintf( 'Fixed Window\n%0.0f \\pm %0.0f ms', tFix, wFix/2 );
-
-			hFig(1) = figure( 'Position', [ 600, 100, figSize ], 'Colormap', jet(256), 'MenuBar', 'none' );		% 225% SCN laptop
-			hAx     = gobjects( 3+2*nSet+4, 1 );
-			hTopo   = gobjects(          4, 1 );
-
-			topoOpts = [ topoOpts, { 'maplimits', yRange } ];
-			pkColor = [ 1, 0, 0 ];
 			
-			axL  = 0.1;
-			axR  = 0.05;
-			axT  = 0.1;
-			axB  = 0.05;
-			axGh = 0.05;
-			axGv = [ 0.02, 0.08, 0.05 ];		% bewteen waveplots, between waves & topos, between topos
-			axH = ( 1 - axT - axB - axGv(1)*nSet - axGv(2) - axGv(3) ) / ( 1 + nSet + 2 );
-			axW = ( 1 - axL - axR - axGh*2 ) / 3;
+			if multiPanel
 
-			% Plot
-			% butterflies
-			py = 1 - axT - axH;
-			hAx(1) = subplot( 'Position', [ axL,              py, axW, axH ] );
-			hAx(2) = subplot( 'Position', [ axL+ axW+axGh,    py, axW, axH ] );
-			hAx(3) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
-			plot( hAx(1), EEG.times(jTime), YmStandard' )
-			plot( hAx(2), EEG.times(jTime), YmDeviant' )
-			plot( hAx(3), EEG.times(jTime), ( YmDeviant - YmStandard )' )
-% 			ylim( hAx(1), [ -1, 1 ] * max( abs( YmStandard             ), [], 'all' ) * 1.05 )
-% 			ylim( hAx(2), [ -1, 1 ] * max( abs( YmDeviant              ), [], 'all' ) * 1.05 )
-% 			ylim( hAx(3), [ -1, 1 ] * max( abs( YmDeviant - YmStandard ), [], 'all' ) * 1.05 )
-			% single-channel waveforms
-			for iSet = 1:nSet
-				py = 1 - axT  - ( axH + axGv(1) )*(1+iSet) + axGv(1);
-				hAx(3+2*iSet-1) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet-1 );
-				hAx(3+2*iSet)   = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet );
-				plot( hAx(3+2*iSet-1), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymDeviant(iSet,:), 'r' )
-				plot( hAx(3+2*iSet)  , EEG.times(jTime), ymDeviant(iSet,:) - ymStandard(iSet,:), 'r' )
-			end
-			% topographies
-			% -- peak detection
-			py(:) = py - axGv(2) - axH;
-			hAx(3+2*nSet+1) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+1 );
-				hTopo(1) = topoplot( tmDeviant(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
-			hAx(3+2*nSet+2) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+2 );
-				hTopo(2) = topoplot( tmDeviant(:,1) - tmStandard(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
-			% -- fixed time range
-			py(:) = py - axGv(3) - axH;
-			hAx(3+2*nSet+3) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+3 );
-				hTopo(3) = topoplot( tmDeviant(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
-			hAx(3+2*nSet+4) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+4 );
-				hTopo(4) = topoplot( tmDeviant(:,2) - tmStandard(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
-				
-			set( hAx(1:3+nSet*2), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
-			set( hAx(1:3+nSet*2), 'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100 )
-% 			set( hAx(1:3+nSet*2), 'XTick', floor(tWinPlot(1)/100)*100:100:ceil(tWinPlot(2)/100)*100 )
-			set( hAx(1:3), 'YLim', yRange0 )
-			set( hAx(1:3), 'YTick', yTickFcn( yRange0(2) ) )
-			set( hAx(4:3+nSet*2), 'YLim', yRange, 'CLim', yRange )
-			set( hAx(4:3+nSet*2), 'YTick', yTickFcn( yRange(2) ) )
-			set( hAx(2:3+(nSet-1)*2), 'XTickLabel', '' )
-% 			set( hAx(iSet), 'UserData', iSet )
-			set( hAx(3+nSet*2+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
+				hFig(1) = figure( 'Position', [ 600, 100, figSize ], 'Colormap', jet(256), 'MenuBar', 'none' );		% 225% SCN laptop
+				hAx     = gobjects( 3+2*nSet+4, 1 );
+				hTopo   = gobjects(          4, 1 );
 
-			if ~globalCmap
-				wColorbar = 0.3;
-				zMax = max( abs( [ tmDeviant(:); tmDeviant(:) - tmStandard(:) ] ) );
-				set( hAx(3+2*nSet+(1:4)), 'CLim', [ -1, 1 ] * zMax )
-				hColorbar = subplot( 'Position', [ axL+ axW+axGh   , axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
-				image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
-				set( hColorbar, 'YTick', [] )
-			end
+				topoOpts = [ topoOpts, { 'maplimits', yRange } ];
+				pkColor = [ 1, 0, 0 ];
 
-% 			title( hAx(1), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\nStandard (%d)', fontSize+2,...
-% 				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), nnz( Kstandard ) ), 'FontSize', fontSize )
-% 			title( hAx(2), sprintf( '\\color{red}Deviant (%d)', nnz( Kdeviant ) ), 'FontSize', fontSize )
-			title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
-			title( hAx(2), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{red}Deviant (%d/%d)', fontSize+2,...
-				epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), nnz( Kdeviant ), Ndeviant ), 'FontSize', fontSize )
-			title( hAx(3), '\color{red}Deviant - Standard', 'FontSize', fontSize )
-			ylabel( hAx(1), '(\muV)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-			for iSet = 1:nSet
-				ylabel( hAx(3+2*iSet-1), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
-			end
-			xlabel( hAx(1)         , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-			xlabel( hAx(3+2*nSet-1), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-			xlabel( hAx(3+2*nSet)  , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
-% 			title(  hAx(3+2*nSet+1), 'Deviant', 'FontSize', fontSize )
-% 			title(  hAx(3+2*nSet+2), 'Deviant - Standard', 'FontSize', fontSize )
-			ylabel( hAx(3+2*nSet+1), tStr1, 'Visible', 'on', 'Color', pkColor, 'FontSize', fontSize, 'FontWeight', 'bold' )
-			ylabel( hAx(3+2*nSet+3), tStr2, 'Visible', 'on', 'Color',     'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				axL  = 0.1;
+				axR  = 0.05;
+				axT  = 0.1;
+				axB  = 0.05;
+				axGh = 0.05;
+				axGv = [ 0.02, 0.08, 0.05 ];		% bewteen waveplots, between waves & topos, between topos
+				axH = ( 1 - axT - axB - axGv(1)*nSet - axGv(2) - axGv(3) ) / ( 1 + nSet + 2 );
+				axW = ( 1 - axL - axR - axGh*2 ) / 3;
 
-			iSet(:) = find( kSet );
-			if tWidthTopo == 0
-				line( hAx(3+2*iSet), EEG.times([jt,jt]), yRange, 'Color', pkColor, 'LineStyle', '--' )
-			else
-				uistack( patch( hAx(3+2*iSet), EEG.times(jt)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
-% 				line( hAx(3+2*iSet), EEG.times([jt,jt]), yRange, 'Color', pkColor, 'LineStyle', '--' )
-			end
+				% Plot
+				% butterflies
+				py = 1 - axT - axH;
+				hAx(1) = subplot( 'Position', [ axL,              py, axW, axH ] );
+				hAx(2) = subplot( 'Position', [ axL+ axW+axGh,    py, axW, axH ] );
+				hAx(3) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );
+				plot( hAx(1), EEG.times(jTime), YmStandard' )
+				plot( hAx(2), EEG.times(jTime), YmDeviant' )
+				plot( hAx(3), EEG.times(jTime), ( YmDeviant - YmStandard )' )
+%				ylim( hAx(1), [ -1, 1 ] * max( abs( YmStandard             ), [], 'all' ) * 1.05 )
+%				ylim( hAx(2), [ -1, 1 ] * max( abs( YmDeviant              ), [], 'all' ) * 1.05 )
+%				ylim( hAx(3), [ -1, 1 ] * max( abs( YmDeviant - YmStandard ), [], 'all' ) * 1.05 )
+				% single-channel waveforms
+				for iSet = 1:nSet
+					py = 1 - axT  - ( axH + axGv(1) )*(1+iSet) + axGv(1);
+					hAx(3+2*iSet-1) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet-1 );
+					hAx(3+2*iSet)   = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet );
+					plot( hAx(3+2*iSet-1), EEG.times(jTime), ymStandard(iSet,:), 'k', EEG.times(jTime), ymDeviant(iSet,:), 'r' )
+					plot( hAx(3+2*iSet)  , EEG.times(jTime), ymDeviant(iSet,:) - ymStandard(iSet,:), 'r' )
+				end
+				% topographies
+				% -- peak detection
+				py(:) = py - axGv(2) - axH;
+				hAx(3+2*nSet+1) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+1 );
+					hTopo(1) = topoplot( tmDeviant(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+				hAx(3+2*nSet+2) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+2 );
+					hTopo(2) = topoplot( tmDeviant(:,1) - tmStandard(:,1), EEG.chanlocs(Ichan), topoOpts{:} );
+				% -- fixed time range
+				py(:) = py - axGv(3) - axH;
+				hAx(3+2*nSet+3) = subplot( 'Position', [ axL+ axW+axGh   , py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+3 );
+					hTopo(3) = topoplot( tmDeviant(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+				hAx(3+2*nSet+4) = subplot( 'Position', [ axL+(axW+axGh)*2, py, axW, axH ] );	%subplot( nSet+2, 2, 2*iSet+4 );
+					hTopo(4) = topoplot( tmDeviant(:,2) - tmStandard(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+
+				set( hAx(1:3+nSet*2), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
+				set( hAx(1:3+nSet*2), 'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100 )
+%				set( hAx(1:3+nSet*2), 'XTick', floor(tWinPlot(1)/100)*100:100:ceil(tWinPlot(2)/100)*100 )
+				set( hAx(1:3), 'YLim', yRange0 )
+				set( hAx(1:3), 'YTick', yTickFcn( yRange0(2) ) )
+				set( hAx(4:3+nSet*2), 'YLim', yRange, 'CLim', yRange )
+				set( hAx(4:3+nSet*2), 'YTick', yTickFcn( yRange(2) ) )
+				set( hAx(2:3+(nSet-1)*2), 'XTickLabel', '' )
+%				set( hAx(iSet), 'UserData', iSet )
+				set( hAx(3+nSet*2+1:end), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
+
+				if ~globalCmap
+					wColorbar = 0.3;
+					zMax = max( abs( [ tmDeviant(:); tmDeviant(:) - tmStandard(:) ] ) );
+					set( hAx(3+2*nSet+(1:4)), 'CLim', [ -1, 1 ] * zMax )
+					hColorbar = subplot( 'Position', [ axL+ axW+axGh   , axB*(1-wColorbar)*0.7, axW*2+axGh, axB*wColorbar ], 'Parent', hFig(1) );
+					image( hColorbar, linspace( -zMax, zMax, 256 ), 0, (1:256) )
+					set( hColorbar, 'YTick', [] )
+				end
+
+%				title( hAx(1), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\nStandard (%d)', fontSize+2,...
+%					epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), nnz( Kstandard ) ), 'FontSize', fontSize )
+%				title( hAx(2), sprintf( '\\color{red}Deviant (%d)', nnz( Kdeviant ) ), 'FontSize', fontSize )
+				title( hAx(1), sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
+				title( hAx(2), sprintf( '{\\fontsize{%d}%s\n{\\rm%s  (%s-%s-%s)}}\n\\color{red}Deviant (%d/%d)', fontSize+2,...
+					epochName, subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), nnz( Kdeviant ), Ndeviant ), 'FontSize', fontSize )
+				title( hAx(3), '\color{red}Deviant - Standard', 'FontSize', fontSize )
+				ylabel( hAx(1), '(\muV)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				for iSet = 1:nSet
+					ylabel( hAx(3+2*iSet-1), [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
+				end
+				xlabel( hAx(1)         , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				xlabel( hAx(3+2*nSet-1), 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				xlabel( hAx(3+2*nSet)  , 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+%				title(  hAx(3+2*nSet+1), 'Deviant', 'FontSize', fontSize )
+%				title(  hAx(3+2*nSet+2), 'Deviant - Standard', 'FontSize', fontSize )
+				ylabel( hAx(3+2*nSet+1), tStr1, 'Visible', 'on', 'Color', pkColor, 'FontSize', fontSize, 'FontWeight', 'bold' )
+				ylabel( hAx(3+2*nSet+3), tStr2, 'Visible', 'on', 'Color',     'k', 'FontSize', fontSize, 'FontWeight', 'bold' )
+
+				iSet(:) = find( kSet );
+				if tWidthTopo == 0
+					line( hAx(3+2*iSet), EEG.times([jt,jt]), yRange, 'Color', pkColor, 'LineStyle', '--' )
+				else
+					uistack( patch( hAx(3+2*iSet), EEG.times(jt)+[-1,1,1,-1]*tWidthTopo/2, yRange([1 1 2 2]), repmat( 0.75, 1, 3 ), 'EdgeColor', 'none', 'FaceAlpha', 0.5 ), 'bottom' )
+%					line( hAx(3+2*iSet), EEG.times([jt,jt]), yRange, 'Color', pkColor, 'LineStyle', '--' )
+				end
 
 %{
-			hAx2 = gobjects( 1, 3 );
-			hFig(2) = figure( 'Position', [ 650, 200, 1000, 250 ], 'MenuBar', 'none' );
-			hAx2(1) = subplot( 1, 3, 1 );
-				plot( EEG.times(jTime), YmStandard' )
-				ylim( [ -1, 1 ] * max( abs( YmStandard ), [], 'all' ) * 1.05 )
-			hAx2(2) = subplot( 1, 3, 2 );
-				plot( EEG.times(jTime), YmDeviant' )
-				ylim( [ -1, 1 ] * max( abs( YmDeviant ), [], 'all' ) * 1.05 )
-			hAx2(3) = subplot( 1, 3, 3 );
-				plot( EEG.times(jTime), ( YmDeviant - YmStandard )' )
-				ylim( [ -1, 1 ] * max( abs( YmDeviant - YmStandard ), [], 'all' ) * 1.05 )
-			set( hAx2, 'XGrid', 'on', 'YGrid', 'on', 'XLim', tWinPlot )
-			set([
-					title(  hAx2(1), sprintf( 'Standard (%d)', nnz( Kstandard ) ) )
-					title(  hAx2(2), sprintf(  'Deviant (%d)', nnz( Kdeviant  ) ) )
-					title(  hAx2(3), 'Deviant - Standard' )
-					ylabel( hAx2(1), sprintf( '%s\n%s-%s-%s\nMean %s ERP (\\muV)', subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), epochName ) )
-					xlabel( hAx2(1), 'Time (ms)' )
-					xlabel( hAx2(2), 'Time (ms)' )
-					xlabel( hAx2(3), 'Time (ms)' )
-				], 'FontSize', 12 )
+				hAx2 = gobjects( 1, 3 );
+				hFig(2) = figure( 'Position', [ 650, 200, 1000, 250 ], 'MenuBar', 'none' );
+				hAx2(1) = subplot( 1, 3, 1 );
+					plot( EEG.times(jTime), YmStandard' )
+					ylim( [ -1, 1 ] * max( abs( YmStandard ), [], 'all' ) * 1.05 )
+				hAx2(2) = subplot( 1, 3, 2 );
+					plot( EEG.times(jTime), YmDeviant' )
+					ylim( [ -1, 1 ] * max( abs( YmDeviant ), [], 'all' ) * 1.05 )
+				hAx2(3) = subplot( 1, 3, 3 );
+					plot( EEG.times(jTime), ( YmDeviant - YmStandard )' )
+					ylim( [ -1, 1 ] * max( abs( YmDeviant - YmStandard ), [], 'all' ) * 1.05 )
+				set( hAx2, 'XGrid', 'on', 'YGrid', 'on', 'XLim', tWinPlot )
+				set([
+						title(  hAx2(1), sprintf( 'Standard (%d)', nnz( Kstandard ) ) )
+						title(  hAx2(2), sprintf(  'Deviant (%d)', nnz( Kdeviant  ) ) )
+						title(  hAx2(3), 'Deviant - Standard' )
+						ylabel( hAx2(1), sprintf( '%s\n%s-%s-%s\nMean %s ERP (\\muV)', subjSess{1}, subjSess{2}(1:4), subjSess{2}(5:6), subjSess{2}(7:8), epochName ) )
+						xlabel( hAx2(1), 'Time (ms)' )
+						xlabel( hAx2(2), 'Time (ms)' )
+						xlabel( hAx2(3), 'Time (ms)' )
+					], 'FontSize', 12 )
 %}
+
+			else
+
+				% butterfly standards
+				hFig(1) = figure( 'Position', [ 500, 400, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{1}] );
+					hAx(1) = gca;
+					plot( EEG.times(jTime), YmStandard' )
+					title( sprintf( 'Standard (%d/%d)', nnz( Kstandard ), Nstandard ), 'FontSize', fontSize )
+					ylabel( '(\muV)'   , 'FontSize', fontSize, 'FontWeight', 'bold' )
+					xlabel( 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				% butterfly deviants
+				hFig(2) = figure( 'Position', [ 550, 350, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{2}] );
+					hAx(2) = gca;
+					plot( EEG.times(jTime), YmDeviant' )
+					title( sprintf( 'Deviant (%d/%d)', nnz( Kdeviant ), Ndeviant ), 'FontSize', fontSize )
+					ylabel( '(\muV)'   , 'FontSize', fontSize, 'FontWeight', 'bold' )
+					xlabel( 'Time (ms)', 'FontSize', fontSize, 'FontWeight', 'bold' )
+				% FCz deviants
+				hFig(3) = figure( 'Position', [ 600, 300, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{3}] );
+					hAx(3) = gca;
+					iSet = find( strcmp( chanSet(:,1), 'FCz' ) );
+					plot(...
+						EEG.times(jTime), ymStandard(iSet,:), 'k',...
+						EEG.times(jTime), ymDeviant(iSet,:), 'r',...
+						EEG.times(jTime), ymDeviant(iSet,:) - ymStandard(iSet,:), '--r' )
+					title( sprintf( 'Standard (%d/%d)\n\\color{red}Deviant (%d/%d)', nnz( Kstandard ), Nstandard, nnz( Kdeviant ), Ndeviant ), 'FontSize', fontSize )
+					ylabel( [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
+					xlabel( 'Time (ms)'                   , 'FontSize', fontSize, 'FontWeight', 'bold' )
+				% topo deviants minus standards
+				hFig(4) = figure( 'Position', [ 650, 250, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{4}] );
+					hAx(4) = gca;
+					topoplot( tmDeviant(:,2) - tmStandard(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
+% 					ylabel( tStr2, 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
+					xlabel( tStr2(find(tStr2==char(10))+1:end), 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
+			
+				%
+				set( hFig, 'Color', 'w' )
+				set( hAx(1:3), 'Units', 'normalized', 'Position', [ 0.2, 0.2, 0.75, 0.65 ] )
+				set( hAx(4), 'Units', 'normalized', 'Position', [ 0, 0.18, 0.9, 0.97-0.18 ] )
+				set( hAx(1:3), 'XLim', tWinPlot, 'FontSize', 8, 'XGrid', 'on', 'YGrid', 'on' )
+				set( hAx(1:3), 'XTick', fix(tWinPlot(1)/100)*100:100:fix(tWinPlot(2)/100)*100 )
+				set( hAx(1:2), 'YLim', yRange0 )
+				set( hAx(1:2), 'YTick', yTickFcn( yRange0(2) ) )
+				set( hAx(3), 'YLim', yRange )
+				set( hAx(3), 'YTick', yTickFcn( yRange(2) ) )
+				set( hAx(4), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
+
+				for iFig = 1:nFig
+					writeFlag = forceWrite;
+					if isempty( writeFlag )
+						writeFlag = exist( pngOut{iFig}, 'file' ) ~= 2;		
+					end
+					if writeFlag
+						bieegl_saveFig( hFig(iFig), pngOut{iFig} )
+% 						fprintf( 'wrote %s\n', pngOut{iFig} )
+					end
+				end
+				
+				return
+
+
+			end
+
 
 		case { 'VOD', 'AOD' }
 
@@ -544,7 +649,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			jPkN(:) = jPkN + find( kPk, 1, 'first' ) - 1;
 			jtT = jPkT + jT0;
 			jtN = jPkN + jT0;
-			
+
 			[ tmStandardT, tmStandardN, tmTarget, tmNovel ] = deal( nan( nChan, 2 ) );
 			if tWidthTopo == 0
 				tmStandardT(:,1) = YmStandard(:,jPkT);
@@ -592,9 +697,9 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			topoOpts = [ topoOpts, { 'maplimits', yRange } ];
 			pkColorT = [ 0, 0, 1 ];
 			pkColorN = [ 1, 0, 0 ];
-			
-			multiPanel = false;
+
 			if multiPanel
+
 				hFig(1) = figure( 'Position', [ 600, 150, figSize ], 'Colormap', jet(256), 'MenuBar', 'none' );		% 225% SCN laptop
 				hAx     = gobjects( 5+4*nSet+8, 1 );
 				hTopo   = gobjects(          8, 1 );
@@ -858,10 +963,6 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 			
 			else
 				
-				subName = { 'butterflyStd', 'butterflyTrg', 'butterFlyNov', 'PzTrg', 'CzNov', 'TopoTrg', 'TopoNov' };
-				nSub = numel( subName );
-				hFig = gobjects( 1, nSub );
-				hAx  = gobjects( 1, nSub );
 				% butterfly standards
 				hFig(1) = figure( 'Position', [ 500, 400, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{1}] );
 					hAx(1) = gca;
@@ -905,13 +1006,13 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 					title( sprintf( 'Standard (%d/%d)\n\\color{red}Novel (%d/%d)', nnz( Kstandard ), Nstandard, nnz( Knovel ), Nnovel ), 'FontSize', fontSize )
 					ylabel( [ chanSet{iSet,1}, ' (\muV)' ], 'FontSize', fontSize, 'FontWeight', 'bold' )
 					xlabel( 'Time (ms)'                   , 'FontSize', fontSize, 'FontWeight', 'bold' )
-				% topo targets
+				% topo targets minus standards
 				hFig(6) = figure( 'Position', [ 750, 150, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{6}] );
 					hAx(6) = gca;
 					topoplot( tmTarget(:,2) - tmStandardT(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
 % 					ylabel( tStr2T, 'Visible', 'on', 'Color', 'k', 'FontSize', fontSize, 'FontWeight', 'bold' );
 					xlabel( tStr2T(find(tStr2T==char(10))+1:end), 'Visible', 'on', 'FontSize', 14, 'FontWeight', 'normal' )
-				% topo novels
+				% topo novels minus standards
 				hFig(7) = figure( 'Position', [ 800, 100, 350, 250 ], 'MenuBar', 'none', 'Tag', [mfilename,'_',epochName,subName{7}] );
 					hAx(7) = gca;
 					topoplot( tmNovel(:,2) - tmStandardN(:,2), EEG.chanlocs(Ichan), topoOpts{:} );
@@ -930,22 +1031,14 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 				set( hAx(4:5), 'YTick', yTickFcn( yRange(2) ) )
 				set( hAx(6:7), 'XLim', [ -0.5, 0.5 ], 'YLim', [ -0.4, 0.45 ], 'CLim', yRange )
 
-				pngDir = fullfile( AMPSCZ_EEG_procSessionDir( subjSess{1}, subjSess{2} ), 'Figures' );
-				if ~isfolder( pngDir )
-					mkdir( pngDir )
-					fprintf( 'created %s\n', pngDir )
-				end
-
-				forceWrite = writeFlag;
-				for iFig = 1:7
-					pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, subName{iFig}, '.png' ] );
+				for iFig = 1:nFig
 					writeFlag = forceWrite;
 					if isempty( writeFlag )
-						writeFlag = exist( pngOut, 'file' ) ~= 2;		
+						writeFlag = exist( pngOut{iFig}, 'file' ) ~= 2;		
 					end
 					if writeFlag
-						bieegl_saveFig( hFig(iFig), pngOut )
-						fprintf( 'wrote %s\n', pngOut )
+						bieegl_saveFig( hFig(iFig), pngOut{iFig} )
+% 						fprintf( 'wrote %s\n', pngOut{iFig} )
 					end
 				end
 				
@@ -968,15 +1061,6 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 	
 	set( hFig(1), 'Color', 'w' )
 	figure( hFig(1) )
-
-	pngDir = fullfile( AMPSCZ_EEG_procSessionDir( subjSess{1}, subjSess{2} ), 'Figures' );
-	if ~isfolder( pngDir )
-		mkdir( pngDir )
-		fprintf( 'created %s\n', pngDir )
-	end
-
-% 	pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '.png' ] );
-	pngOut = fullfile( pngDir, [ subjSess{1}, '_', subjSess{2}, '_', epochName, '_', filterStr, '.png' ] );
 
 	if isempty( writeFlag )
 		writeFlag = exist( pngOut, 'file' ) ~= 2;		
