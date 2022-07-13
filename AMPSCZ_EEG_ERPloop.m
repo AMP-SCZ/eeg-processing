@@ -8,44 +8,45 @@ function AMPSCZ_EEG_ERPloop( replacePng )
 	
 	sessions  = AMPSCZ_EEG_findProcSessions;	
 	nSession  = size( sessions, 1 );
-	status    = zeros( nSession, 1 );		% -1 = error, 2 = old or new png
-	errMsg    =  cell( nSession, 1 );		% message for status==-1 sessions
 	
 	filterStr = '[0.2,Inf]';
 	taskNames = { 'MMN', 'VOD', 'AOD' };
 
+	nTask     = numel( taskNames );
+	status    = zeros( nSession, nTask );		% -1 = error, 2 = old or new png
+	errMsg    =  cell( nSession, nTask );		% message for status==-1 sessions
+	
 	for iSession = 1:nSession
 
-
-		close all
-		try
-			for iTask = 1:numel( taskNames )
+		for iTask = 1:nTask
+			try
+				close all
 				fprintf( '%s %s %s\n', sessions{iSession,2}, sessions{iSession,3}, taskNames{iTask} )
 				AMPSCZ_EEG_ERPplot( fullfile( AMPSCZ_EEG_procSessionDir( sessions{iSession,2}, sessions{iSession,3} ), 'mat',...
 					[ sessions{iSession,2}, '_', sessions{iSession,3}, '_', taskNames{iTask}, '_', filterStr, '.mat' ] ), [], '', replacePng )
+				status(iSession,iTask) = 2;
+				drawnow
+			catch ME
+				errMsg{iSession,iTask} = ME.message;
+				warning( ME.message )
+				status(iSession,iTask) = -1;
+				continue
 			end
-		catch ME
-			errMsg{iSession} = ME.message;
-			warning( ME.message )
-			status(iSession) = -1;
-			continue
 		end
 
-		status(iSession) = 2;
 	end
 	fprintf( 'done\n' )
 
 	kProblem = status <= 0;		% status == 0 should be impossible
-	if any( kProblem )
+	if any( kProblem(:) )
 		fprintf( '\n\nProblem Sessions:\n' )
 		kProblem = find( kProblem );
 		for iProblem = 1:numel( kProblem )
-			fprintf( '\t%s\t%s\t%s\n', sessions{kProblem(iProblem),2:3}, errMsg{kProblem(iProblem)} )
+			[ iSession, iTask ] = ind2sub( [ nSession, nTask ], kProblem(iProblem) );
+			fprintf( '\t%s\t%s\t%s\n', sessions{iSession,2:3}, errMsg{iSession,iTask} )
 		end
 		fprintf( '\n' )
 	end
-
-
 
 	return
 
