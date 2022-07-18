@@ -50,7 +50,7 @@ function AMPSCZ_EEG_ERPplot( EEG, epochInfo, filterStr, writeFlag )
 
 	narginchk( 1, 4 )
 
-	AMPSCZdir = AMPSCZ_EEG_paths;
+% 	AMPSCZdir = AMPSCZ_EEG_paths;
 	if ~contains( which( 'hann.m' ), matlabroot )		% There's a hann.m in fieldrip, that's pretty useless, it just calls hanning.m
 % 		error( 'remove Fieldtrip?' )
 		if ~AMPSCZ_EEG_matlabPaths

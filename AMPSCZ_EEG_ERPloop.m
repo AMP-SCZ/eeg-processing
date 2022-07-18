@@ -20,6 +20,7 @@ function AMPSCZ_EEG_ERPloop( replacePng )
 
 		for iTask = 1:nTask
 			try
+				% do existence check (single panel pngs) here, where you have taskName & it won't require loading mat-file!
 				close all
 				fprintf( '%s %s %s\n', sessions{iSession,2}, sessions{iSession,3}, taskNames{iTask} )
 				AMPSCZ_EEG_ERPplot( fullfile( AMPSCZ_EEG_procSessionDir( sessions{iSession,2}, sessions{iSession,3} ), 'mat',...
